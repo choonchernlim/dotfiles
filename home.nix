@@ -45,7 +45,10 @@ in
         done
       ''
     ];
-    # shellAliases commented out for now — revisit once migrated off Ansible.
+    shellAliases = {
+      rebuild = "~/.dotfiles/rebuild.sh";
+    };
+    # Additional aliases commented out for now — revisit once migrated off Ansible.
     # shellAliases = {
     #   ".." = "cd ..";
     #   add = "git add .";

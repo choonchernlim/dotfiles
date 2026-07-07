@@ -12,10 +12,11 @@ Running the switch builds:
 - System settings (dark mode, key repeat, dock, Finder, trackpad)
 - Homebrew apps (casks and CLI tools)
 - Nix user packages (ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font)
-- Shell (zsh, aliases, starship prompt)
+- Shell (zsh, `rebuild` alias to apply changes from anywhere)
+- Touch ID for sudo (no more typing your password for `rebuild`)
 - Editor (Neovim config)
 - Terminal (WezTerm config)
-- Agent configs (Claude, Codex, opencode all share one AGENTS.md)
+- Agent configs (Claude, Codex, Copilot, and opencode all share one `home/ai/AGENTS.md`)
 
 ## Prerequisites
 
@@ -67,10 +68,10 @@ If you renamed the host label in "Make it yours", substitute your label for `mac
 Edit the config files in place, then apply:
 
 ```sh
-./rebuild.sh
+rebuild        # from anywhere in the terminal (alias installed by home.nix)
 ```
 
-That's it.
+That's it. After the first successful rebuild, sudo prompts (including rebuild itself) use Touch ID instead of your password.
 No separate build-and-copy step.
 
 ## Make it yours
@@ -109,26 +110,28 @@ If you don't use it, just remove it from `brews` in your copy.
 
 **Heads-up:**
 
-- `home/AGENTS.md` is my personal agent policy, and `home.nix` installs it for Claude, Codex, and opencode.
-  If you clone this repo, you'd silently inherit my agent instructions - edit or delete `home/AGENTS.md` if you don't want that.
+- `home/ai/AGENTS.md` is my personal agent policy, and `ai.nix` installs it for Claude, Codex, Copilot, and opencode.
+  If you clone this repo, you'd silently inherit my agent instructions - edit or delete `home/ai/AGENTS.md` if you don't want that.
 - The `cc` and `co` shell aliases in `home.nix` are high-agency shortcuts: `claude --dangerously-skip-permissions` and `codex --full-auto`.
-  They're convenient for me, but know what they do before you use them.
+  They're convenient for me, but know what they do before you use them. (Currently commented out - uncomment once migrated off Ansible.)
 
 ## Repo tour
 
 - `flake.nix` - the entry point.
   Wires up nixpkgs, nix-darwin, home-manager, and nix-homebrew, and declares the `mac` machine.
-- `configuration.nix` - system-level config: macOS defaults, Homebrew.
-- `home.nix` - user-level config: shell, packages, prompt, and the symlinks described below.
+- `configuration.nix` - system-level config: macOS defaults, Homebrew, Touch ID for sudo.
+- `home.nix` - user-level config: shell, packages, the `rebuild` alias, and the symlinks described below.
+- `ai.nix` - home-manager module: all AI agent config (shared AGENTS.md, skills, per-agent settings and MCP, Playwright MCP activation).
 - `rebuild.sh` - re-applies the config after the first switch.
-  Run this every time you make a change.
-- `home/` - the actual config files that get symlinked into place (Neovim, WezTerm, herdr, Claude settings, the shared `AGENTS.md`).
+  Run this every time you make a change (or just type `rebuild` from anywhere).
+- `home/` - the actual config files that get symlinked into place (Neovim, WezTerm, herdr).
+  - `home/ai/` - agent-agnostic AI config: `AGENTS.md`, `skills/`, per-agent `settings/` and `mcp/`.
 
 ## How the symlinks work
 
 The files under `home/` are the real files - editing them here is editing your live config, no rebuild needed to see the change in your editor.
-`home.nix` uses `mkOutOfStoreSymlink` to point paths like `~/.config/nvim` straight at `home/.config/nvim` in this repo, so the two never drift out of sync.
-You only run `./rebuild.sh` when you change something that isn't just a symlinked file, like a package list or a system default.
+`home.nix` and `ai.nix` use `mkOutOfStoreSymlink` to point paths like `~/.config/nvim` and `~/.claude/CLAUDE.md` straight at files in this repo, so the two never drift out of sync.
+You only run `rebuild` when you change something that isn't just a symlinked file, like a package list, a system default, or a `.nix` config.
 
 ## Notes
 

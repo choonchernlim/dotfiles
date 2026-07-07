@@ -7,6 +7,8 @@
   nixpkgs.config.allowUnfree = true;
   nixpkgs.hostPlatform = "aarch64-darwin"; # use x86_64-darwin for Intel CPU
 
+  security.pam.services.sudo_local.touchIdAuth = true;
+
   system.primaryUser = user;
   users.users.${user} = {
     home = "/Users/${user}";
