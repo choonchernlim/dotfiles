@@ -1,7 +1,41 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "theme": "dark-ansi",
   "statusLine": {
     "type": "command",
-    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -n \"$used\" ]; then printf \"%s | ctx: %.0f%% used\" \"$model\" \"$used\"; else printf \"%s\" \"$model\"; fi"
-  }
+    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -n \"$used\" ]; then printf \"%s | Context: %.0f%% used\" \"$model\" \"$used\"; else printf \"%s\" \"$model\"; fi"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(pip3 *)",
+      "Bash(pytest *)",
+      "Bash(python3 *)",
+      "Bash(uv *)",
+      "Bash(lsof *)",
+      "Bash(source *)",
+      "Bash(* --help)",
+      "mcp__playwright__*",
+      "mcp__context7__*",
+      "mcp__ide__getDiagnostics"
+    ],
+    "deny": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(curl *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ]
+  },
+  "model": "opusplan",
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
+  },
+  "effortLevel": "high",
+  "advisorModel": "opus"
 }

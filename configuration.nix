@@ -12,28 +12,32 @@
     home = "/Users/${user}";
   };
   system.stateVersion = 6;
+  # system.defaults commented out to preserve existing macOS UI settings during
+  # Ansible coexistence. Uncomment and customise once fully migrated to Nix.
   system.defaults = {
-    NSGlobalDomain = {
-      AppleInterfaceStyle = "Dark";
-      KeyRepeat = 2;          # fast key repeat
-      InitialKeyRepeat = 15;  # short delay before repeat
-      _HIHideMenuBar = true;  # auto-hide the menu bar
-      AppleShowAllExtensions = true;
-    };
-    dock.autohide = true;
-    finder.FXPreferredViewStyle = "Nlsv";  # list view by default
-    finder.CreateDesktop = false;          # clean desktop
-    trackpad.Clicking = true;              # tap to click
+    # NSGlobalDomain = {
+    #   AppleInterfaceStyle = "Dark";
+    #   KeyRepeat = 2;          # fast key repeat
+    #   InitialKeyRepeat = 15;  # short delay before repeat
+    #   _HIHideMenuBar = true;  # auto-hide the menu bar
+    #   AppleShowAllExtensions = true;
+    # };
+    # dock.autohide = true;
+    # finder.FXPreferredViewStyle = "Nlsv";  # list view by default
+    # finder.CreateDesktop = false;          # clean desktop
+    # trackpad.Clicking = true;              # tap to click
   };
   nix-homebrew = {
     enable = true;
     inherit user;
+    autoMigrate = true;   # take ownership of existing /opt/homebrew without reinstalling
+    mutableTaps = true;   # preserve Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters)
   };
   homebrew = {
     enable = true;
-    onActivation.cleanup = "zap";  # remove anything not listed here
-    onActivation.autoUpdate = true;
-    onActivation.extraFlags = [ "--force" ];
+    onActivation.cleanup = "none";  # was "zap" — keep Ansible-installed brews/casks intact
+    # onActivation.autoUpdate = true;   # disabled: Ansible runs brew update on its own
+    # onActivation.extraFlags = [ "--force" ];  # disabled: not needed with cleanup=none
     brews = [
       "herdr"
     ];
