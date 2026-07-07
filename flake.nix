@@ -16,25 +16,38 @@
 
   outputs = inputs@{ self, nix-darwin, nix-homebrew, home-manager, nixpkgs }:
     let
-      # The one username line to change if this isn't your machine.
-      # bootstrap.sh offers to rewrite this for you if your macOS username differs.
-      user = "lim.choonchern";
+      # Derive the login from the environment (impure) so no username is committed.
+      # Under `sudo darwin-rebuild`, USER is "root" but sudo always exports SUDO_USER
+      # as the real invoker; fall back to USER for non-sudo use (e.g. nix flake check).
+      user = let s = builtins.getEnv "SUDO_USER"; in if s != "" then s else builtins.getEnv "USER";
+
+      mkHost = name:
+        let host = import ./hosts/${name}.nix;
+        in
+        assert nixpkgs.lib.assertMsg (user != "")
+          "Could not determine username from $SUDO_USER or $USER - run via rebuild.sh, or set USER, and use --impure.";
+        nix-darwin.lib.darwinSystem {
+          specialArgs = { inherit user; profile = name; };
+          modules = [
+            { nixpkgs.hostPlatform = host.system; }
+            ./modules/darwin
+            host.darwin                     # profile-specific system config (empty for now)
+            nix-homebrew.darwinModules.nix-homebrew
+            home-manager.darwinModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "hm-bak";
+              home-manager.extraSpecialArgs = { inherit user; profile = name; };
+              home-manager.users.${user} = import ./modules/home;
+            }
+          ];
+        };
     in
     {
-      darwinConfigurations."mac" = nix-darwin.lib.darwinSystem {
-        specialArgs = { inherit user; };
-        modules = [
-          ./configuration.nix
-          nix-homebrew.darwinModules.nix-homebrew
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "hm-bak";
-            home-manager.extraSpecialArgs = { inherit user; };
-            home-manager.users.${user} = import ./home.nix;
-          }
-        ];
+      darwinConfigurations = {
+        work = mkHost "work";
+        personal = mkHost "personal";
       };
     };
 }

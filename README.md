@@ -22,7 +22,7 @@ Running the switch builds:
 
 - Apple Silicon Mac, by default.
 - Intel Mac: change one line.
-  In `configuration.nix`, set `nixpkgs.hostPlatform = "x86_64-darwin";` (the comment right there tells you the same thing).
+  In `hosts/work.nix` (or `hosts/personal.nix`), set `system = "x86_64-darwin";` (the comment right there tells you the same thing).
 
 ## Fresh-machine setup
 
@@ -34,21 +34,22 @@ cd dotfiles
 ```
 
 Before you run it: review "Make it yours" below.
-Change the host label or CPU architecture if needed, and read the Homebrew cleanup warning.
+Check the CPU architecture in `hosts/work.nix` or `hosts/personal.nix` if needed, and read the Homebrew cleanup warning.
 `bootstrap.sh` applies the config to your machine, so do this first.
 
 ```sh
-./bootstrap.sh
+./bootstrap.sh work       # on a work machine
+./bootstrap.sh personal   # on a personal machine
 ```
 
-`bootstrap.sh` does four things, in order:
+`bootstrap.sh` does three things, in order:
 
 1. Installs Determinate Nix, if it isn't already installed.
 2. Symlinks this repo to `~/.dotfiles`.
-   This has to happen before the first build, because `home.nix` points at config files through `~/.dotfiles`.
-3. Checks the `user` configured in `flake.nix` against your actual macOS username, and offers to fix it for you if they differ.
-4. Runs the first `darwin-rebuild switch`.
+   This has to happen before the first build, because `modules/home/default.nix` points at config files through `~/.dotfiles`.
+3. Runs the first `darwin-rebuild switch`.
    It fetches the `darwin-rebuild` tool from the nix-darwin 26.05 release branch, then applies this repo's locked flake config.
+   Your macOS username is derived from the environment automatically - nothing to personalize.
 
 After that, `darwin-rebuild` exists and you're on the normal workflow below.
 
@@ -57,18 +58,17 @@ After that, `darwin-rebuild` exists and you're on the normal workflow below.
 Once Nix is installed (`bootstrap.sh` step 1 handles that), you can check that the config builds without touching your system - handy when you have edited something:
 
 ```sh
-nix flake check --no-build
-nix build .#darwinConfigurations.mac.system --dry-run
+# --impure is required: the username is derived from $USER at eval time
+nix flake check --impure --no-build
+nix build --impure .#darwinConfigurations.work.system --dry-run
 ```
-
-If you renamed the host label in "Make it yours", substitute your label for `mac` in these commands.
 
 ## Daily use
 
 Edit the config files in place, then apply:
 
 ```sh
-rebuild        # from anywhere in the terminal (alias installed by home.nix)
+rebuild work        # from anywhere in the terminal (alias installed by modules/home/default.nix)
 ```
 
 That's it. After the first successful rebuild, sudo prompts (including rebuild itself) use Touch ID instead of your password.
@@ -79,15 +79,15 @@ No separate build-and-copy step.
 This repo is mine.
 If you clone it, review these before you run `bootstrap.sh`:
 
-- **Username**: run `./bootstrap.sh` (it detects your macOS username and offers to set it) OR change the single `user = "kunchen"` line in `flake.nix`.
-  Everything else (`configuration.nix`, `home.nix`, home directory paths) is threaded from that one variable.
-- **Host label** `"mac"`, in three places: `flake.nix` (the `darwinConfigurations."mac"` name), `rebuild.sh:5` (the `#mac` at the end of the flake reference), and `bootstrap.sh`'s first-switch command (also `#mac`).
-  All three have to match.
-- **CPU architecture**, `hostPlatform` in `configuration.nix` (see Prerequisites above).
+- **Username**: nothing to do - your macOS login is derived from the environment automatically at build time.
+  No line to edit anywhere.
+- **Profile** (`work` or `personal`): pass it to `bootstrap.sh` and `rebuild.sh` as the first argument.
+  Two flake targets exist (`darwinConfigurations.work` and `.personal`), both in `flake.nix`.
+- **CPU architecture**: set `system` in `hosts/work.nix` or `hosts/personal.nix` (see Prerequisites above).
 
 **Git identity:** this config deliberately does not set your git name or email.
 Git will stop your first commit and tell you to set them (`git config --global user.name "Your Name"` and `git config --global user.email you@example.com`).
-If you'd rather manage that declaratively, add this back to `home.nix` with your own identity:
+If you'd rather manage that declaratively, add this back to `modules/home/default.nix` with your own identity:
 
 ```nix
 programs.git = {
@@ -99,8 +99,8 @@ programs.git = {
 };
 ```
 
-**Homebrew cleanup warning:** `configuration.nix` sets `homebrew.onActivation.cleanup = "zap"`.
-That means every time you switch, Homebrew removes any package or cask on your machine that isn't listed in the `brews` and `casks` arrays in `configuration.nix`.
+**Homebrew cleanup warning:** `modules/darwin/default.nix` sets `homebrew.onActivation.cleanup = "zap"`.
+That means every time you switch, Homebrew removes any package or cask on your machine that isn't listed in the `brews` and `casks` arrays in `modules/darwin/default.nix`.
 If you already have Homebrew stuff installed that isn't in that list, the first switch will uninstall it.
 Read through `brews` and `casks` before you run `bootstrap.sh` or `rebuild.sh` for the first time, and add anything you want to keep.
 
@@ -118,20 +118,22 @@ If you don't use it, just remove it from `brews` in your copy.
 ## Repo tour
 
 - `flake.nix` - the entry point.
-  Wires up nixpkgs, nix-darwin, home-manager, and nix-homebrew, and declares the `mac` machine.
-- `configuration.nix` - system-level config: macOS defaults, Homebrew, Touch ID for sudo.
-- `home.nix` - user-level config: shell, packages, the `rebuild` alias, and the symlinks described below.
-- `ai.nix` - home-manager module: all AI agent config (shared AGENTS.md, skills, per-agent settings and MCP, Playwright MCP activation).
+  Wires up nixpkgs, nix-darwin, home-manager, and nix-homebrew.
+  Derives the username from `$SUDO_USER`/`$USER` (impure), and produces two flake targets: `work` and `personal`.
+- `hosts/work.nix` / `hosts/personal.nix` - per-profile data: CPU architecture, and a place to add profile-specific packages later.
+- `modules/darwin/default.nix` - shared system-level config: macOS defaults, Homebrew, Touch ID for sudo.
+- `modules/home/default.nix` - shared user-level config: shell, packages, the `rebuild` alias, and the symlinks described below.
+- `modules/home/ai.nix` - home-manager module: all AI agent config (shared AGENTS.md, skills, per-agent settings and MCP, Playwright MCP activation).
 - `rebuild.sh` - re-applies the config after the first switch.
-  Run this every time you make a change (or just type `rebuild` from anywhere).
+  Takes a profile arg: `rebuild work` or `rebuild personal` (or just type `rebuild work` from anywhere).
 - `home/` - the actual config files that get symlinked into place (Neovim, WezTerm, herdr).
   - `home/ai/` - agent-agnostic AI config: `AGENTS.md`, `skills/`, per-agent `settings/` and `mcp/`.
 
 ## How the symlinks work
 
 The files under `home/` are the real files - editing them here is editing your live config, no rebuild needed to see the change in your editor.
-`home.nix` and `ai.nix` use `mkOutOfStoreSymlink` to point paths like `~/.config/nvim` and `~/.claude/CLAUDE.md` straight at files in this repo, so the two never drift out of sync.
-You only run `rebuild` when you change something that isn't just a symlinked file, like a package list, a system default, or a `.nix` config.
+`modules/home/default.nix` and `modules/home/ai.nix` use `mkOutOfStoreSymlink` to point paths like `~/.config/nvim` and `~/.claude/CLAUDE.md` straight at files in this repo, so the two never drift out of sync.
+You only run `rebuild work` when you change something that isn't just a symlinked file, like a package list, a system default, or a `.nix` config.
 
 ## Notes
 

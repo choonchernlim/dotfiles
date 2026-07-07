@@ -5,7 +5,7 @@
   nix.enable = false;
 
   nixpkgs.config.allowUnfree = true;
-  nixpkgs.hostPlatform = "aarch64-darwin"; # use x86_64-darwin for Intel CPU
+  # nixpkgs.hostPlatform is set per-host in hosts/*.nix, not here.
 
   security.pam.services.sudo_local.touchIdAuth = true;
 

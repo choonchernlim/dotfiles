@@ -10,14 +10,16 @@ Personal Mac config managed with nix-darwin and home-manager, currently in a slo
 
 ```bash
 # Apply changes after editing any .nix file or rebuild.sh-relevant config
-./rebuild.sh
+./rebuild.sh work       # or: rebuild work (alias works from anywhere)
+./rebuild.sh personal
 
 # Validate the config builds without touching the system
-nix flake check --no-build
-nix build .#darwinConfigurations.mac.system --dry-run
+# --impure is required: user is derived from $SUDO_USER/$USER at eval time
+nix flake check --impure --no-build
+nix build --impure .#darwinConfigurations.work.system --dry-run
 
 # First-time setup on a fresh machine
-./bootstrap.sh
+./bootstrap.sh work     # or: ./bootstrap.sh personal
 ```
 
 `home/` files (Neovim, WezTerm, herdr, AI configs) are live-symlinked - editing them takes effect immediately without running `rebuild.sh`. Only run rebuild when changing package lists, system defaults, or shell config in `.nix` files.
@@ -25,17 +27,24 @@ nix build .#darwinConfigurations.mac.system --dry-run
 ## Architecture
 
 ```
-flake.nix          - entry point; declares the single `user` variable that threads into all other files
-configuration.nix  - system-level: macOS defaults, Homebrew declarations (nix-homebrew)
-home.nix           - user-level: Nix packages, zsh config, symlinks via mkOutOfStoreSymlink
-ai.nix             - home-manager module: all AI agent config (symlinks, env vars, MCP activation)
-home/              - actual config files symlinked into ~/.config/, ~/.claude/, etc.
-  ai/              - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
-rebuild.sh         - re-applies the flake on every change (wrapper around darwin-rebuild switch)
-bootstrap.sh       - one-time setup: installs Determinate Nix, symlinks repo, runs first switch
+flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); mkHost helper
+                         produces darwinConfigurations.work and .personal
+hosts/
+  work.nix             - { system, darwin = <profile module> }  (empty profile delta for now)
+  personal.nix         - same shape; diverges once per-profile packages move over from Ansible
+modules/
+  darwin/default.nix   - system-level: macOS defaults, Homebrew declarations (nix-homebrew)
+  home/default.nix     - user-level: Nix packages, zsh config, symlinks via mkOutOfStoreSymlink
+  home/ai.nix          - home-manager module: all AI agent config (symlinks, env vars, MCP activation)
+home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
+  ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
+rebuild.sh             - re-applies the flake on every change; takes a profile arg (work|personal)
+bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch
 ```
 
-The `user` variable in `flake.nix` is the single source of truth for the username - it flows into `configuration.nix` and `home.nix` via `specialArgs` / `extraSpecialArgs`.
+`flake.nix` derives the username from the environment at eval time (`$SUDO_USER` first, then `$USER`),
+so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass `--impure` to
+`darwin-rebuild` / `nix` to allow this environment read.
 
 `home.nix` uses `mkOutOfStoreSymlink` to point config paths directly at this repo (via `~/.dotfiles`), so edits to files under `home/` are immediately live - no rebuild needed.
 
