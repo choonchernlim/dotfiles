@@ -97,16 +97,32 @@ Current coexistence accommodations - do not revert without understanding the imp
 
 Each agent maintains its own plugin/extension store that nix does not own, so removed config silently persists. The `aiReconcile` home-manager activation script sweeps these stores on every rebuild:
 
-| Agent | Mechanism | Keep-set |
-|-------|-----------|----------|
-| Claude | Reset `installed_plugins.json` + `known_marketplaces.json`; remove cache dir; `claude mcp remove` for undeclared MCP | playwright MCP only |
-| Gemini CLI | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}` | (none - gemini extensions are the root import source for agy) |
-| Antigravity (agy) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json` | playwright (nix symlink declared in `home.file`) |
-| Copilot | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json` | (none) |
+| Agent             | Mechanism                                                                                                            | Keep-set                                                      |
+|-------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| Claude            | Reset `installed_plugins.json` + `known_marketplaces.json`; remove cache dir; `claude mcp remove` for undeclared MCP | playwright MCP only                                           |
+| Gemini CLI        | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}`                               | (none - gemini extensions are the root import source for agy) |
+| Antigravity (agy) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json`                                            | playwright (nix symlink declared in `home.file`)              |
+| Copilot           | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json`                                     | (none)                                                        |
 
 The gemini extension removal is the critical step: `superpowers` and `context7` are installed there and auto-imported into antigravity on `agy` startup. Removing only the antigravity copy without removing the gemini source lets them re-appear on the next `agy` launch.
 
 Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`.
+
+`aiReconcile` does NOT sweep `~/.copilot/hooks/` or `~/.config/opencode/plugins/` - those are owned by nix symlinks declared in `home.file`, so they are safe from the sweep.
+
+## rtk (Rust Token Killer)
+
+`rtk` rewrites Bash tool calls to token-optimized proxies (e.g. `git status` -> `rtk git status`), cutting context consumption 60-90% on common dev commands. It is wired in **declaratively** - `rtk init` never runs on this machine.
+
+| Agent    | Hook location                                                                   | Mechanism                                                                     |
+|----------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| Claude   | `home/ai/settings/claude.json` `hooks.PreToolUse`                               | `rtk hook claude` reads PreToolUse JSON on stdin, emits rewritten command     |
+| Copilot  | `home/ai/hooks/copilot/rtk-rewrite.json` -> `~/.copilot/hooks/rtk-rewrite.json` | `rtk hook copilot` (transparent in VS Code Chat; deny+suggest in Copilot CLI) |
+| OpenCode | `home/ai/hooks/opencode/rtk.ts` -> `~/.config/opencode/plugins/rtk.ts`          | TypeScript plugin intercepts `tool.execute.before`, calls `rtk rewrite`       |
+
+**Do not run `rtk init`.** It patches agent config files that nix owns as read-only `mkOutOfStoreSymlink` symlinks. Any files it writes are reverted on the next `rebuild work` and create `.hm-bak` churn. To update the hook schemas, capture the new schema from `rtk init -g --no-patch` and update the vendored files in `home/ai/hooks/`.
+
+The binary is installed via Homebrew (`brews = [ ... "rtk" ]` in `modules/darwin/default.nix`).
 
 ## Known Upstream Warning
 

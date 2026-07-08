@@ -63,6 +63,9 @@ in
         ".copilot/mcp-config.json".source = mkOut "${aiDir}/mcp/copilot/mcp-config.json";
         ".codex/config.toml".source = mkOut "${aiDir}/mcp/codex/config.toml";
         ".gemini/antigravity-cli/plugins/playwright".source = mkOut "${aiDir}/mcp/antigravity/playwright";
+        # rtk hook integrations (declarative - rtk init never runs on this system)
+        ".copilot/hooks/rtk-rewrite.json".source = mkOut "${aiDir}/hooks/copilot/rtk-rewrite.json";
+        ".config/opencode/plugins/rtk.ts".source = mkOut "${aiDir}/hooks/opencode/rtk.ts";
       }
     ];
 

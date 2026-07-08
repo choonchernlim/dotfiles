@@ -6,7 +6,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - zsh with `rebuild` alias to apply changes from anywhere
 - CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
-- AI agents: Claude, Codex, Copilot, opencode share one `home/ai/AGENTS.md`
+- AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
 - Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 
 ## Prerequisites
@@ -64,8 +64,11 @@ During the Ansible-to-Nix migration, packages not declared in this repo are pres
 **AI-agent plugins and extensions are nix-managed.**
 Anything installed outside this repo (via `claude plugin install`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild work`. To keep a plugin, declare it in nix. See AGENTS.md "AI Agent Plugin Reconcile" for details.
 
+**rtk (Rust Token Killer) hooks are nix-managed - do not run `rtk init`.**
+`rtk` rewrites Bash tool calls to use token-optimized proxies (e.g. `git status` -> `rtk git status`). The binary comes from Homebrew; hooks for Claude, Copilot, and opencode are declared in `home/ai/` as nix-owned symlinks. Running `rtk init` would overwrite those symlinks with real files that get reverted on the next `rebuild work`.
+
 **`home/ai/AGENTS.md` is my personal agent policy.**
-It installs for Claude, Codex, Copilot, and opencode. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
+It installs for Claude, Codex, Copilot, and OpenCode. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
 
 **High-agency shell aliases are commented out.**
 `cc` (claude --dangerously-skip-permissions) and `co` (codex --full-auto) are disabled until the Ansible migration is complete. Read them before uncommenting.

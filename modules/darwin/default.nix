@@ -44,6 +44,7 @@
     # onActivation.extraFlags = [ "--force" ];  # disabled: not needed with cleanup=none
     brews = [
       "herdr"
+      "rtk"
     ];
     casks = [
       "wezterm"
