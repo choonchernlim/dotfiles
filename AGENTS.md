@@ -91,6 +91,22 @@ Current coexistence accommodations - do not revert without understanding the imp
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.
 - `rebuild work` must be warning-free except for the one documented upstream `options.json` warning (see "Known upstream warning" below). Any *new* warning that appears must be investigated and eliminated before committing - never let an unexplained warning slide.
+- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, skills, extensions, and MCP servers. The `activation.aiReconcile` script in `modules/home/ai.nix` enforces this by removing any undeclared content on every rebuild. To add a capability, declare it in nix. Installing it via an agent CLI (e.g. `claude plugin install`, `agy plugin import`) will be reverted on the next `rebuild work`.
+
+## AI Agent Plugin Reconcile
+
+Each agent maintains its own plugin/extension store that nix does not own, so removed config silently persists. The `aiReconcile` home-manager activation script sweeps these stores on every rebuild:
+
+| Agent | Mechanism | Keep-set |
+|-------|-----------|----------|
+| Claude | Reset `installed_plugins.json` + `known_marketplaces.json`; remove cache dir; `claude mcp remove` for undeclared MCP | playwright MCP only |
+| Gemini CLI | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}` | (none - gemini extensions are the root import source for agy) |
+| Antigravity (agy) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json` | playwright (nix symlink declared in `home.file`) |
+| Copilot | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json` | (none) |
+
+The gemini extension removal is the critical step: `superpowers` and `context7` are installed there and auto-imported into antigravity on `agy` startup. Removing only the antigravity copy without removing the gemini source lets them re-appear on the next `agy` launch.
+
+Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`.
 
 ## Known Upstream Warning
 

@@ -11,7 +11,6 @@
       "Bash(source *)",
       "Bash(* --help)",
       "mcp__playwright__*",
-      "mcp__context7__*",
       "mcp__ide__getDiagnostics"
     ],
     "deny": [

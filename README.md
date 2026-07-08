@@ -61,6 +61,9 @@ Only run `rebuild` when changing a package list, system default, or `.nix` confi
 **Homebrew cleanup is `"none"`, not `"zap"`.**
 During the Ansible-to-Nix migration, packages not declared in this repo are preserved on each switch. The long-term target is `"zap"` (removes undeclared packages); do not change this until fully migrated off Ansible.
 
+**AI-agent plugins and extensions are nix-managed.**
+Anything installed outside this repo (via `claude plugin install`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild work`. To keep a plugin, declare it in nix. See AGENTS.md "AI Agent Plugin Reconcile" for details.
+
 **`home/ai/AGENTS.md` is my personal agent policy.**
 It installs for Claude, Codex, Copilot, and opencode. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
 
