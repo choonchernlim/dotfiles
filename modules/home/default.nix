@@ -1,4 +1,10 @@
-{ config, pkgs, lib, user, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  user,
+  ...
+}:
 
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
@@ -6,27 +12,39 @@ in
 
 {
   imports = [ ./ai.nix ];
-  home.username = user;
-  home.homeDirectory = "/Users/${user}";
-  home.stateVersion = "24.11";
-  home.packages = with pkgs; [
-    # cli i use constantly
-    ripgrep   # fast search
-    fd        # fast find
-    fzf       # fuzzy finder
-    jq        # json on the command line
-    lazygit
-    neovim
-    # the font everything renders in
-    nerd-fonts.hack
-  ];
+  home = {
+    username = user;
+    homeDirectory = "/Users/${user}";
+    stateVersion = "24.11";
+    packages = with pkgs; [
+      # cli i use constantly
+      ripgrep # fast search
+      fd # fast find
+      fzf # fuzzy finder
+      jq # json on the command line
+      lazygit
+      neovim
+      # nix toolchain - formatter + linters (also needed by the Claude repo hook)
+      nixfmt-rfc-style # RFC-style nix formatter (nixpkgs name; treefmt-nix exposes it as programs.nixfmt)
+      statix # nix anti-pattern lint
+      deadnix # nix dead-code lint
+      # the font everything renders in
+      nerd-fonts.hack
+    ];
+    sessionVariables.EDITOR = "nvim";
+    # Edit-in-place: the real file stays in my repo, ~/.config just points at it.
+    file = {
+      ".config/wezterm".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/wezterm";
+      ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";
+      ".config/herdr".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/herdr";
+    };
+  };
   fonts.fontconfig.enable = true;
-  home.sessionVariables.EDITOR = "nvim";
 
   programs.zsh = {
     enable = true;
-    autosuggestion.enable = false;      # disabled: oh-my-zsh (via ~/.zshrc_conf) already provides this
-    syntaxHighlighting.enable = false;  # disabled: oh-my-zsh (via ~/.zshrc_conf) already provides this
+    autosuggestion.enable = false; # disabled: oh-my-zsh (via ~/.zshrc_conf) already provides this
+    syntaxHighlighting.enable = false; # disabled: oh-my-zsh (via ~/.zshrc_conf) already provides this
     initContent = lib.mkMerge [
       (lib.mkOrder 550 ''
         # Add brew completions from nix-homebrew's nix store package before compinit.
@@ -47,8 +65,9 @@ in
     ];
     shellAliases = {
       rebuild = "~/.dotfiles/rebuild.sh";
+      personal_claude = "ANTHROPIC_BASE_URL= ANTHROPIC_AUTH_TOKEN= claude"; # Bypass LiteLLM to use personal Claude account directly.
     };
-    # Additional aliases commented out for now — revisit once migrated off Ansible.
+    # Additional aliases commented out for now - revisit once migrated off Ansible.
     # shellAliases = {
     #   ".." = "cd ..";
     #   add = "git add .";
@@ -60,7 +79,7 @@ in
     # };
   };
 
-  # programs.starship commented out — Ansible manages p10k as the active prompt.
+  # programs.starship commented out - Ansible manages p10k as the active prompt.
   # programs.starship = {
   #   enable = true;
   #   settings = {
@@ -73,12 +92,4 @@ in
   #     cmd_duration.format = "[$duration]($style) ";
   #   };
   # };
-
-  # Edit-in-place: the real file stays in my repo, ~/.config just points at it.
-  home.file.".config/wezterm".source =
-    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/wezterm";
-  home.file.".config/nvim".source =
-    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";
-  home.file.".config/herdr".source =
-    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/herdr";
 }

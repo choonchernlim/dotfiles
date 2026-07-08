@@ -14,3 +14,6 @@ result-*
 # Jetbrain IDE
 .idea/
 *.iml
+
+# git-hooks.nix generates this on `nix develop`; it is a derived artifact, not hand-authored
+.pre-commit-config.yaml

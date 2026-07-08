@@ -13,10 +13,20 @@ Personal Mac config managed with nix-darwin and home-manager, currently in a slo
 ./rebuild.sh work       # or: rebuild work (alias works from anywhere)
 ./rebuild.sh personal
 
+# Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude edits)
+nix fmt
+
 # Validate the config builds without touching the system
 # --impure is required: user is derived from $SUDO_USER/$USER at eval time
 nix flake check --impure --no-build
 nix build --impure .#darwinConfigurations.work.system --dry-run
+
+# Check formatting and lint in isolation
+nix build --impure .#checks.aarch64-darwin.formatting
+nix build --impure .#checks.aarch64-darwin.pre-commit
+
+# Enter devShell - installs/refreshes .git/hooks/pre-commit (hermetic Nix store paths)
+nix develop --impure
 
 # First-time setup on a fresh machine
 ./bootstrap.sh work     # or: ./bootstrap.sh personal
@@ -38,8 +48,11 @@ modules/
   home/ai.nix          - home-manager module: all AI agent config (symlinks, env vars, MCP activation)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
+treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - re-applies the flake on every change; takes a profile arg (work|personal)
-bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch
+bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch,
+                         installs .git/hooks/pre-commit via `nix develop`
+docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, Ansible coexistence
 ```
 
 `flake.nix` derives the username from the environment at eval time (`$SUDO_USER` first, then `$USER`),
@@ -72,3 +85,4 @@ Current coexistence accommodations - do not revert without understanding the imp
 - The `homebrew.onActivation.cleanup = "zap"` setting (post-migration end state) is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. It is currently set to `"none"` for Ansible coexistence only.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
+- When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.

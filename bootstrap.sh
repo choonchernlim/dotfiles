@@ -43,4 +43,11 @@ sudo "$NIX_BIN" run github:nix-darwin/nix-darwin/nix-darwin-26.05#darwin-rebuild
 # If this still fails with "nix: command not found", open a new terminal
 # (Determinate adds nix to new shells' PATH) and re-run ./bootstrap.sh.
 
+echo "==> Step 4: install git pre-commit hooks"
+# Entering the devShell runs the git-hooks.nix shellHook which writes
+# .git/hooks/pre-commit with hermetic Nix store paths (no PATH dependencies).
+# || true: a hook-install hiccup must not abort bootstrap; user can re-run
+# `nix develop --impure` manually later.
+nix develop --impure "$HOME/.dotfiles" -c true || true
+
 echo "==> Done. Use ./rebuild.sh ${profile} for future changes."
