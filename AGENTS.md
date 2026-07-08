@@ -25,6 +25,10 @@ nix build --impure .#darwinConfigurations.work.system --dry-run
 nix build --impure .#checks.aarch64-darwin.formatting
 nix build --impure .#checks.aarch64-darwin.pre-commit
 
+# Verify rebuild is warning-free except the one documented upstream options.json warning
+# Expected output: empty (no new warnings)
+nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"
+
 # Enter devShell - installs/refreshes .git/hooks/pre-commit (hermetic Nix store paths)
 nix develop --impure
 
@@ -86,3 +90,15 @@ Current coexistence accommodations - do not revert without understanding the imp
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.
+- `rebuild work` must be warning-free except for the one documented upstream `options.json` warning (see "Known upstream warning" below). Any *new* warning that appears must be investigated and eliminated before committing - never let an unexplained warning slide.
+
+## Known Upstream Warning
+
+`rebuild work` emits this warning on every run:
+```
+warning: Using 'builtins.derivation' to create a derivation named 'options.json'
+that references the store path '/nix/store/...-source' without a proper context.
+```
+**This is harmless** - the build succeeds, nothing is broken. It is an upstream nixpkgs bug in `nixos/lib/make-options-doc` (`builtins.toFile` + `unsafeDiscardStringContext` strips store context), surfaced by home-manager's man-page generation. Tracking: [nixpkgs#485682](https://github.com/NixOS/nixpkgs/issues/485682), [home-manager#7935](https://github.com/nix-community/home-manager/issues/7935).
+
+**Workaround (if you want zero warnings):** add `manual.manpages.enable = false;` to `modules/home/default.nix`. Currently left enabled intentionally - revisit once nixpkgs ships a fix.

@@ -67,6 +67,8 @@ It installs for Claude, Codex, Copilot, and opencode. If you clone this repo, ed
 **High-agency shell aliases are commented out.**
 `cc` (claude --dangerously-skip-permissions) and `co` (codex --full-auto) are disabled until the Ansible migration is complete. Read them before uncommenting.
 
+**`rebuild` prints a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See AGENTS.md "Known upstream warning" for details and the one-line workaround.
+
 **Neovim bootstraps on first launch** - clones plugins from GitHub; needs network once.
 
 ## Details

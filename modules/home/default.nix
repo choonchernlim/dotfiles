@@ -25,7 +25,7 @@ in
       lazygit
       neovim
       # nix toolchain - formatter + linters (also needed by the Claude repo hook)
-      nixfmt-rfc-style # RFC-style nix formatter (nixpkgs name; treefmt-nix exposes it as programs.nixfmt)
+      nixfmt # RFC-style formatter; nixpkgs 26.05 renamed nixfmt-rfc-style -> nixfmt (treefmt-nix exposes it as programs.nixfmt)
       statix # nix anti-pattern lint
       deadnix # nix dead-code lint
       # the font everything renders in
