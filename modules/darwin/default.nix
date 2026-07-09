@@ -39,9 +39,12 @@
   };
   homebrew = {
     enable = true;
-    onActivation.cleanup = "none"; # was "zap" — keep Ansible-installed brews/casks intact
-    # onActivation.autoUpdate = true;   # disabled: Ansible runs brew update on its own
-    # onActivation.extraFlags = [ "--force" ];  # disabled: not needed with cleanup=none
+    onActivation = {
+      cleanup = "none"; # was "zap" - keep Ansible-installed brews/casks intact
+      autoUpdate = true; # Ansible also runs brew update; double-update is fine
+      upgrade = true; # upgrade all installed brews on every rebuild
+      # extraFlags = [ "--force" ];  # disabled: not needed with cleanup=none
+    };
     brews = [
       "herdr"
       "rtk"
