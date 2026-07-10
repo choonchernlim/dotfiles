@@ -69,6 +69,8 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 
 ## Ansible Coexistence Rules
 
+Before porting any Ansible role to Nix, follow `docs/implementation_guardrails.md`.
+
 This repo is **incrementally replacing** mac-dev-bootstrap (Ansible). At any point in time both `./rebuild.sh` and `./mac-dev-bootstrap.sh --tags work` must run without breaking the machine.
 
 **Before adding any new configuration to this repo, check mac-dev-bootstrap first** (`../mac-dev-bootstrap/`). Know what Ansible already manages so Nix does not duplicate, conflict with, or uninstall it.
