@@ -44,10 +44,12 @@ nix develop --impure
 flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); mkHost helper
                          produces darwinConfigurations.work and .personal
 hosts/
-  work.nix             - { system, darwin = <profile module> }  (empty profile delta for now)
-  personal.nix         - same shape; diverges once per-profile packages move over from Ansible
+  work.nix             - { system, darwin = <profile module> }  imports homebrew bundles: common + work
+  personal.nix         - same shape; imports homebrew bundles: common + personal
 modules/
-  darwin/default.nix   - system-level: macOS defaults, Homebrew declarations (nix-homebrew)
+  darwin/default.nix   - system-level: macOS defaults, Homebrew behavior settings (nix-homebrew)
+  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
+                         (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge)
   home/default.nix     - user-level: Nix packages, zsh config, symlinks via mkOutOfStoreSymlink
   home/ai.nix          - home-manager module: all AI agent config (symlinks, env vars, MCP activation)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
@@ -85,6 +87,7 @@ Current coexistence accommodations - do not revert without understanding the imp
 - `shellAliases` in `home.nix` are commented out - revisit once migrated off Ansible.
 - `zsh.initContent` sources `~/.zshrc_conf/*.sh` to load all Ansible-managed shell snippets (oh-my-zsh, p10k, nvm, sdkman, gcloud, aliases).
 - The `ai` role in Ansible's `main.yml` is disabled (`# - {role: ai, ...}`) because this repo now owns AI configs.
+- The `homebrew_common`, `homebrew_personal`, and `homebrew_work` roles in Ansible's `main.yml` are disabled - this repo now owns brew packages via `modules/darwin/homebrew/`. Exception: Ansible's `quicklook` role still installs its own 8 brew packages. While `cleanup = "none"`, removing a package from a nix list does NOT uninstall it - run `brew uninstall` manually. Ansible's old "absent" lists are preserved as comments in the bundle files for the eventual `"zap"` flip.
 
 ## Key Invariants (Do Not Silently Revert)
 

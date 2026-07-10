@@ -37,21 +37,23 @@
     autoMigrate = true; # take ownership of existing /opt/homebrew without reinstalling
     mutableTaps = true; # preserve Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters)
   };
+  # Ports Ansible's `brew analytics off` declaratively for fresh machines.
+  environment.variables.HOMEBREW_NO_ANALYTICS = "1";
+
+  # Package lists live in ./homebrew/{common,personal,work}.nix, imported per-host
+  # via hosts/*.nix. Only homebrew *behavior* settings belong here.
   homebrew = {
     enable = true;
     onActivation = {
       cleanup = "none"; # was "zap" - keep Ansible-installed brews/casks intact
       autoUpdate = true; # Ansible also runs brew update; double-update is fine
       upgrade = true; # upgrade all installed brews on every rebuild
-      # extraFlags = [ "--force" ];  # disabled: not needed with cleanup=none
+      # --force makes cask upgrades overwrite stale Caskroom artifacts left behind by
+      # self-updating apps (e.g. Chrome), which otherwise fail with "already an App at...".
+      # Safe with cleanup=none: --force only triggers uninstalls alongside --cleanup/--zap.
+      extraFlags = [ "--force" ];
     };
-    brews = [
-      "herdr"
-      "rtk"
-    ];
-    casks = [
-      "wezterm"
-      "claude-code"
-    ];
+    greedyCasks = true; # ports Ansible's `greedy: true` - upgrade self-updating casks too
+    caskArgs.no_quarantine = true; # ports Ansible's post-install quarantine stripping
   };
 }

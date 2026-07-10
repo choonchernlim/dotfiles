@@ -6,10 +6,12 @@
 flake.nix              - entry point; derives user from $SUDO_USER/$USER (impure)
                          mkHost helper produces darwinConfigurations.work and .personal
 hosts/
-  work.nix             - { system, darwin } - profile delta (empty for now)
+  work.nix             - { system, darwin } - imports the homebrew bundles for this profile
   personal.nix         - same shape
 modules/
-  darwin/default.nix   - system-level: macOS defaults, Homebrew, Touch ID for sudo
+  darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
+  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
+                         (hosts pick which bundles to import; lists auto-merge)
   home/default.nix     - user-level: packages, zsh, symlinks (mkOutOfStoreSymlink)
   home/ai.nix          - AI agent config: symlinks, env vars, MCP activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
@@ -68,3 +70,4 @@ Current accommodations - do not revert without understanding the impact:
 | `programs.starship`                              | commented out | Ansible manages p10k                                                      |
 | `shellAliases`                                   | commented out | Revisit once off Ansible                                                  |
 | `ai` role in Ansible `main.yml`                  | disabled      | This repo now owns AI configs                                             |
+| `homebrew_*` roles in Ansible `main.yml`         | disabled      | This repo now owns brew packages (except quicklook's, still Ansible)      |

@@ -54,12 +54,12 @@ Only run `rebuild` when changing a package list, system default, or `.nix` confi
 | Profile           | Pass `work` or `personal` to `bootstrap.sh` and `rebuild.sh` |
 | CPU arch          | Set `system` in `hosts/work.nix` or `hosts/personal.nix`     |
 | Git identity      | Not managed here - git will prompt you on first commit       |
-| Homebrew packages | Edit `brews` and `casks` in `modules/darwin/default.nix`     |
+| Homebrew packages | Edit `modules/darwin/homebrew/{common,personal,work}.nix`    |
 
 ## Gotchas
 
 **Homebrew cleanup is `"none"`, not `"zap"`.**
-During the Ansible-to-Nix migration, packages not declared in this repo are preserved on each switch. The long-term target is `"zap"` (removes undeclared packages); do not change this until fully migrated off Ansible.
+During the Ansible-to-Nix migration, packages not declared in this repo are preserved on each switch. This also means removing a package from a `modules/darwin/homebrew/*.nix` list does not uninstall it - run `brew uninstall <pkg>` once manually. The long-term target is `"zap"` (removes undeclared packages); do not change this until fully migrated off Ansible.
 
 **AI-agent plugins and extensions are nix-managed.**
 Anything installed outside this repo (via `claude plugin install`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild work`. To keep a plugin, declare it in nix. See AGENTS.md "AI Agent Plugin Reconcile" for details.

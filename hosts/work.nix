@@ -1,9 +1,10 @@
 {
   system = "aarch64-darwin"; # use x86_64-darwin for Intel CPU
-  # Work-only system config. Empty for now (Ansible still owns work packages).
-  darwin = _: {
-    # Future per-profile work additions go here. Examples:
-    # homebrew.casks = [ "android-studio" ];
-    # homebrew.brews = [ "node" "watchman" ];
+  # Work profile: pick the homebrew bundles this host gets.
+  darwin = {
+    imports = [
+      ../modules/darwin/homebrew/common.nix
+      ../modules/darwin/homebrew/work.nix
+    ];
   };
 }
