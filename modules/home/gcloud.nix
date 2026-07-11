@@ -15,7 +15,7 @@
     if [ -x "$_gcloud" ]; then
       [ "$("$_gcloud" config get disable_usage_reporting 2>/dev/null)" = "True" ] || \
         "$_gcloud" config set disable_usage_reporting true 2>/dev/null || true
-      _comps=$("$_gcloud" components list --only-local-state --format="value(id)" 2>/dev/null)
+      _comps=$("$_gcloud" components list --only-local-state --format="value(id)" 2>/dev/null) || true
       echo "$_comps" | grep -qx "beta" || \
         "$_gcloud" components install beta --quiet 2>/dev/null || true
       echo "$_comps" | grep -qx "alpha" && \

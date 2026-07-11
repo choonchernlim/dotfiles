@@ -61,7 +61,7 @@
           modules = [
             { nixpkgs.hostPlatform = host.system; }
             ./modules/darwin
-            host.darwin # profile-specific system config (empty for now)
+            host.darwin # profile-specific system config (homebrew bundle + quicklook)
             nix-homebrew.darwinModules.nix-homebrew
             home-manager.darwinModules.home-manager
             {

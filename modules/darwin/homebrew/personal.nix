@@ -1,7 +1,7 @@
 # Homebrew packages for the personal profile (ported from Ansible role homebrew_personal).
 #
-# Removing a package from these lists does NOT uninstall it while
-# homebrew.onActivation.cleanup = "none" - run `brew uninstall <pkg>` manually.
+# homebrew.onActivation.cleanup = "zap" (set in modules/darwin/default.nix) means
+# removing a package from these lists uninstalls it on the next rebuild.
 {
   homebrew = {
     brews = [

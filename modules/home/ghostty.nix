@@ -22,7 +22,7 @@ in
       # it up as .hm-bak when the symlink takes over. The dir variant appears
       # when ~/.config/ghostty itself was a real dir.
       rm -f "$HOME/.config/ghostty/config.hm-bak" || true
-      rm -rf "$HOME/.config/ghostty.hm-bak" || true
+      [ -d "$HOME/.config/ghostty.hm-bak" ] && rm -rf "$HOME/.config/ghostty.hm-bak" || true
 
       # iTerm2 dropped entirely - WezTerm + ghostty are the terminals. The
       # Ansible iterm2 role's DynamicProfiles/plist config dies with it.
