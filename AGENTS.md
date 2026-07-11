@@ -4,7 +4,7 @@ This file provides guidance to AI agents (Claude Code, Codex, Antigravity, etc) 
 
 ## What This Repo Does
 
-Personal Mac config managed with nix-darwin and home-manager, currently in a slow migration from an Ansible-based setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)). Both scripts must remain runnable without breaking each other.
+Personal Mac config managed with nix-darwin and home-manager. This repo is the single source of truth for the machine - the predecessor Ansible setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)) is fully retired (all roles disabled; the repo is kept only as historical reference and can be archived).
 
 ## Commands
 
@@ -48,13 +48,16 @@ hosts/
                          home imports the feature modules this host gets (zsh, mise, gcloud, ai)
   personal.nix         - same shape; homebrew common + personal, same home feature modules
 modules/
-  darwin/default.nix   - system-level: macOS defaults, Homebrew behavior settings (nix-homebrew)
+  darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
   darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
                          (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge)
-  home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts
+  darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + refresh/reconcile)
+  home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts,
+                         legacyReconcile (retired vim/pip artifacts)
   home/zsh.nix         - feature module: zsh + starship + direnv, zshReconcile cleanup
   home/mise.nix        - feature module: mise (node, terraform versions), miseReconcile cleanup
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
+  home/ghostty.nix     - feature module: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
                          (each feature module carries its own reconcile; hosts pick modules by import -
                           same pattern as homebrew bundles)
@@ -75,28 +78,21 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 
 `home/ai/AGENTS.md` is the shared agent policy file - it is symlinked to every agent's canonical location (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.gemini/antigravity-cli/ANTIGRAVITY.md`). `home/ai/skills/` is similarly symlinked into every agent. Per-agent settings and MCP configs live under `home/ai/settings/` and `home/ai/mcp/`.
 
-## Ansible Coexistence Rules
+## Ansible: Retired
 
-Before porting any Ansible role to Nix, follow `docs/implementation_guardrails.md`.
+All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
-This repo is **incrementally replacing** mac-dev-bootstrap (Ansible). At any point in time both `./rebuild.sh` and `./mac-dev-bootstrap.sh --tags work` must run without breaking the machine.
+- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), ghostty config (`ghostty.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
+- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm + ghostty are the terminals), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins.
+- `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, zscaler.sh, ...); nix only sources it.
 
-**Before adding any new configuration to this repo, check mac-dev-bootstrap first** (`../mac-dev-bootstrap/`). Know what Ansible already manages so Nix does not duplicate, conflict with, or uninstall it.
-
-Current coexistence accommodations - do not revert without understanding the impact:
-
-- `homebrew.onActivation.cleanup = "none"` - keeps Ansible-installed brews and casks intact. Do not change to `"zap"` until fully migrated off Ansible. (The long-term goal post-migration is `"zap"`; see AGENTS.md for rationale.)
-- `nix-homebrew.mutableTaps = true` - allows Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters) to survive.
-- `system.defaults` block is commented out - macOS UI settings currently owned by Ansible.
-- `zsh.initContent` sources `~/.zshrc_conf/*.sh` to load Ansible-managed shell snippets (nvm, sdkman, gcloud) plus user/work-owned ones nix does not manage (alias-custom.sh, zscaler.sh, ...).
-- The `ohmyzsh` role in Ansible's `main.yml` is disabled - this repo now owns the shell setup: `programs.zsh.autosuggestion`/`syntaxHighlighting` from nixpkgs, `programs.direnv` with nix-direnv (replaces the omz direnv plugin), and starship as the prompt (config live-symlinked at `home/.config/starship.toml`). oh-my-zsh, p10k, and spaceship were dropped in the rewrite, not ported. The `activation.zshReconcile` script in `modules/home/default.nix` removes the stale Ansible artifacts and uninstalls all delisted brew copies on every rebuild.
-- The `nvm`, `sdkman`, and `gcloud` roles in Ansible's `main.yml` are disabled - the dev toolchain was rewritten, not ported: **mise** (`programs.mise` + live-symlinked `home/.config/mise/config.toml`) manages node (replaces nvm) and terraform (replaces tfenv); **java/sdkman/maven were dropped entirely** (user no longer writes Java; Android Studio bundles its own runtime); **gcloud** stays a brew cask but nix owns its shell wiring (PATH + completions in `zsh.initContent`), its `beta` component, and usage-reporting-off via `activation.gcloudSetup`. `zshReconcile` retires `~/.nvm`, `~/.sdkman`, the old `~/.zshrc_conf` snippets (nvm, sdkman, gcloud, tfenv), and the delisted brews (nvm, node, maven, tfenv). These were the last Ansible writers to `~/.zshrc_conf/`, so the temporary `ohmyzsh_conf_dir` play var was removed from Ansible's `main.yml` and the directory is now purely user-owned.
-- The `ai` role in Ansible's `main.yml` is disabled (`# - {role: ai, ...}`) because this repo now owns AI configs.
-- The `homebrew_common`, `homebrew_personal`, and `homebrew_work` roles in Ansible's `main.yml` are disabled - this repo now owns brew packages via `modules/darwin/homebrew/`. Exception: Ansible's `quicklook` role still installs its own 8 brew packages. While `cleanup = "none"`, removing a package from a nix list does NOT uninstall it - run `brew uninstall` manually. Ansible's old "absent" lists are preserved as comments in the bundle files for the eventual `"zap"` flip.
+Remaining follow-up tasks unlocked by the retirement:
+1. **zap flip**: audit `brew list` vs declared lists, declare or drop each stray (including taps oven-sh/bun, redis-stack, terraform-linters), then set `homebrew.onActivation.cleanup = "zap"`.
+2. **system.defaults**: design macOS UI defaults deliberately (the block was never actually Ansible-owned; the old comment was stale).
 
 ## Key Invariants (Do Not Silently Revert)
 
-- The `homebrew.onActivation.cleanup = "zap"` setting (post-migration end state) is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. It is currently set to `"none"` for Ansible coexistence only.
+- The `homebrew.onActivation.cleanup = "zap"` setting (end state) is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. It is currently `"none"` only until the zap-flip audit task (see "Ansible: Retired") completes.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.

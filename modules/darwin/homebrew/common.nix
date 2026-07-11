@@ -91,7 +91,9 @@
       "google-gemini"
       "grandperspective"
       "intellij-idea"
-      "iterm2"
+      # iterm2 dropped when Ansible retired - WezTerm + ghostty are the
+      # terminals; ghosttyReconcile uninstalls the cask and removes its config.
+      # "iterm2"
       "logi-options+" # was logi-options-plus in Ansible; renamed upstream
       "postman"
       "rancher"

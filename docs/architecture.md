@@ -13,10 +13,13 @@ modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
   darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
                          (hosts pick which bundles to import; lists auto-merge)
-  home/default.nix     - core home config every host gets: packages, app symlinks, fonts
+  darwin/quicklook.nix - feature: QuickLook preview plugins (casks + refresh/reconcile)
+  home/default.nix     - core home config every host gets: packages, app symlinks, fonts,
+                         legacyReconcile (retired vim/pip artifacts)
   home/zsh.nix         - feature: zsh + starship + direnv (+ zshReconcile)
   home/mise.nix        - feature: mise tool versions - node, terraform (+ miseReconcile)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
+  home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
                          (hosts pick feature modules by import, like homebrew bundles;
                           each module carries its own reconcile cleanup)
@@ -59,20 +62,15 @@ The pre-commit hook (installed by `bootstrap.sh` step 4 and `nix develop`) runs 
 
 The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on every Claude edit via a PostToolUse hook. It gracefully no-ops if nixfmt is not yet on PATH (pre-`rebuild`).
 
-## Ansible coexistence
+## Ansible: retired
 
-This repo is incrementally replacing [mac-dev-bootstrap](../../mac-dev-bootstrap/). Both must run without breaking each other.
+[mac-dev-bootstrap](../../mac-dev-bootstrap/) is fully retired - every role in its `main.yml` is commented out (per the guardrails' comment-don't-delete rule) and the repo can be archived. Each capability was ported to a nix feature module or deliberately dropped in a modern rewrite; every drop is swept by the owning module's reconcile activation so any machine, new or drifted, converges from `rebuild` alone.
 
-**Before adding new config here, check `../mac-dev-bootstrap/` first** to avoid duplicating or conflicting with what Ansible already manages.
+Highlights of what was dropped rather than ported: oh-my-zsh/p10k/spaceship (native plugins + starship), nvm/sdkman/tfenv (mise), java/maven, iTerm2 (WezTerm + ghostty), amix/vimrc (Neovim), 4 abandoned QuickLook plugins.
 
-Current accommodations - do not revert without understanding the impact:
+Follow-up tasks unlocked by the retirement:
 
-| Setting                                          | Current value | Reason                                                                    |
-|--------------------------------------------------|---------------|---------------------------------------------------------------------------|
-| `homebrew.onActivation.cleanup`                  | `"none"`      | Keeps Ansible-installed brews/casks; target is `"zap"` post-migration     |
-| `nix-homebrew.mutableTaps`                       | `true`        | Allows Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters) |
-| `system.defaults`                                | commented out | macOS UI settings owned by Ansible                                        |
-| `ohmyzsh` role in Ansible `main.yml`             | disabled      | This repo owns the shell: nixpkgs autosuggestion/syntaxHighlighting, direnv (nix-direnv), starship prompt (live-symlinked `home/.config/starship.toml`); omz/p10k/spaceship dropped; `zshReconcile` sweeps stale artifacts |
-| `nvm`/`sdkman`/`gcloud` roles in Ansible `main.yml` | disabled   | mise (live-symlinked `home/.config/mise/config.toml`) manages node + terraform; java/sdkman/maven dropped; gcloud wiring/components/config owned by nix (`gcloudSetup`); `~/.zshrc_conf` now purely user-owned |
-| `ai` role in Ansible `main.yml`                  | disabled      | This repo now owns AI configs                                             |
-| `homebrew_*` roles in Ansible `main.yml`         | disabled      | This repo now owns brew packages (except quicklook's, still Ansible)      |
+| Task | Detail |
+|------|--------|
+| zap flip | Audit `brew list` vs declared lists, declare or drop each stray (incl. taps oven-sh/bun, redis-stack, terraform-linters), then set `homebrew.onActivation.cleanup = "zap"` |
+| system.defaults | Design macOS UI defaults deliberately - the block was never actually Ansible-owned; the old coexistence comment was stale |

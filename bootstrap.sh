@@ -13,6 +13,17 @@ esac
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
+echo "==> Step 0: Xcode Command Line Tools"
+# git (needed to clone this repo) and several build steps require the CLT.
+# xcode-select --install pops a GUI dialog; wait until the tools appear.
+if xcode-select -p >/dev/null 2>&1; then
+  echo "    command line tools already installed, skipping"
+else
+  xcode-select --install
+  echo "    complete the Command Line Tools install dialog, then wait..."
+  until xcode-select -p >/dev/null 2>&1; do sleep 5; done
+fi
+
 echo "==> Step 1: Determinate Nix"
 if command -v nix >/dev/null 2>&1; then
   echo "    nix already installed, skipping"

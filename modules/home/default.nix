@@ -4,6 +4,7 @@
 {
   config,
   pkgs,
+  lib,
   user,
   ...
 }:
@@ -39,6 +40,26 @@ in
       ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";
       ".config/herdr".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/herdr";
     };
+
+    # Retires setups the final Ansible migration dropped rather than ported;
+    # converges any drifted machine on every rebuild.
+    activation.legacyReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      # amix/vimrc distro dropped - Neovim (live-symlinked config) is the editor.
+      [ -d "$HOME/.vim_runtime" ] && rm -rf "$HOME/.vim_runtime" || true
+      rm -f "$HOME/.vimrc" || true
+
+      # Ansible python role's packages: requests served only vimrc's updater,
+      # crcmod only the deprecated gsutil rsync. Its install mechanism was
+      # ambiguous (pip vs brew), so both removals are attempted, all guarded.
+      /usr/bin/python3 -m pip uninstall -y requests crcmod >/dev/null 2>&1 || true
+      _brew=/opt/homebrew/bin/brew
+      if [ -x "$_brew" ]; then
+        for _pkg in requests crcmod; do
+          "$_brew" list --formula "$_pkg" >/dev/null 2>&1 && \
+            "$_brew" uninstall "$_pkg" || true
+        done
+      fi
+    '';
   };
   fonts.fontconfig.enable = true;
 }

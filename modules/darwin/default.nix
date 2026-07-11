@@ -12,8 +12,18 @@
   system = {
     primaryUser = user;
     stateVersion = 6;
-    # system.defaults commented out to preserve existing macOS UI settings during
-    # Ansible coexistence. Uncomment and customise once fully migrated to Nix.
+
+    # Ports the Ansible mac role: Rosetta 2 so Apple Silicon runs Intel apps.
+    # Guarded by a functional test (arch -x86_64) - no-op once installed.
+    activationScripts.extraActivation.text = ''
+      if [ "$(uname -m)" = "arm64" ] && ! /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null; then
+        /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+      fi
+    '';
+
+    # system.defaults was originally commented out for Ansible coexistence, but
+    # the inventory showed Ansible never managed macOS UI defaults - it is now
+    # simply a deliberate-setup task deferred to its own session.
     defaults = {
       # NSGlobalDomain = {
       #   AppleInterfaceStyle = "Dark";
@@ -35,7 +45,7 @@
     enable = true;
     inherit user;
     autoMigrate = true; # take ownership of existing /opt/homebrew without reinstalling
-    mutableTaps = true; # preserve Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters)
+    mutableTaps = true; # taps (oven-sh/bun, redis-stack, terraform-linters) not yet declared - part of the pending zap-flip audit task
   };
   # Ports Ansible's `brew analytics off` declaratively for fresh machines.
   environment.variables.HOMEBREW_NO_ANALYTICS = "1";
@@ -54,7 +64,10 @@
   homebrew = {
     enable = true;
     onActivation = {
-      cleanup = "none"; # was "zap" - keep Ansible-installed brews/casks intact
+      # Ansible is retired; "none" remains only until the zap-flip audit task
+      # (diff `brew list` vs declared lists, declare or drop each stray, then
+      # flip to "zap" for full reproducibility).
+      cleanup = "none";
       autoUpdate = true; # Ansible also runs brew update; double-update is fine
       upgrade = true; # upgrade all installed brews on every rebuild
       # --force makes cask upgrades overwrite stale Caskroom artifacts left behind by
@@ -65,4 +78,22 @@
     greedyCasks = true; # ports Ansible's `greedy: true` - upgrade self-updating casks too
     caskArgs.no_quarantine = true; # ports Ansible's post-install quarantine stripping
   };
+
+  # Ports the Ansible cleanup role: prune brew caches and orphaned deps after
+  # every bundle run. Runs as the user - brew refuses root. (brew doctor was
+  # dropped: informational noise, never actionable in practice.)
+  home-manager.sharedModules = [
+    (
+      { lib, ... }:
+      {
+        home.activation.brewMaintenance = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          _brew=/opt/homebrew/bin/brew
+          if [ -x "$_brew" ]; then
+            "$_brew" cleanup --prune=all >/dev/null 2>&1 || true
+            "$_brew" autoremove >/dev/null 2>&1 || true
+          fi
+        '';
+      }
+    )
+  ];
 }
