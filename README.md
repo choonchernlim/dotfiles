@@ -3,7 +3,8 @@
 Personal Mac setup managed with nix-darwin and home-manager.
 
 - macOS settings, Homebrew (brews + casks), Touch ID for sudo
-- zsh with `rebuild` alias to apply changes from anywhere
+- zsh with autosuggestions, syntax highlighting, and a starship prompt (config live-symlinked)
+- mise for tool versions (node, terraform) - one fast version manager instead of nvm/sdkman/tfenv
 - CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
@@ -70,8 +71,8 @@ Anything installed outside this repo (via `claude plugin install`, `agy plugin i
 **`home/ai/AGENTS.md` is my personal agent policy.**
 It installs for Claude, Codex, Copilot, and OpenCode. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
 
-**High-agency shell aliases are commented out.**
-`cc` (claude --dangerously-skip-permissions) and `co` (codex --full-auto) are disabled until the Ansible migration is complete. Read them before uncommenting.
+**The shell setup is deliberately minimal.**
+oh-my-zsh, p10k, and the old alias pack were dropped (not ported) when the Ansible `ohmyzsh` role migrated here - autosuggestions/highlighting come from nixpkgs, the prompt is starship (`home/.config/starship.toml`, live-editable), and the only aliases are `rebuild` and `personal_claude`. Likewise nvm and sdkman were dropped for mise (`home/.config/mise/config.toml`), taking shell startup from ~4s to well under 1s. The `zshReconcile` activation script sweeps all the stale artifacts on every rebuild.
 
 **`rebuild` prints a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See AGENTS.md "Known upstream warning" for details and the one-line workaround.
 

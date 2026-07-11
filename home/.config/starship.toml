@@ -1,0 +1,113 @@
+# Starship prompt, styled after the previous powerlevel10k rainbow setup:
+# two-line prompt with box-drawing connectors; left = os icon / dir / git as
+# joined powerline blocks; right = contextual segments, only shown when relevant.
+#
+# This file is live-symlinked (mkOutOfStoreSymlink) - edits apply on the next
+# prompt, no rebuild needed. Colors are ANSI palette names/numbers so the
+# terminal theme stays in charge, same as p10k rainbow did.
+#
+# Nerd-font glyphs are written as \u/\U escapes (not literal chars) so they
+# survive any tooling that strips Private Use Area codepoints:
+#    powerline right arrow    git branch   \U000F0035 apple
+#   \U000F10FE kubernetes  \U000F1062 terraform   aws   cloud
+#    clock
+
+"$schema" = 'https://starship.rs/config-schema.json'
+
+add_newline = true
+
+# Left prompt, line 1: ╭─ os → directory → git, then input on line 2 after ╰─.
+# Arrows are hardcoded between segments (same tradeoff as starship's official
+# rainbow presets): outside a git repo the green git block collapses to a thin
+# chevron - tweak here if it bothers you.
+format = """
+[╭─](fg:242)\
+[](fg:white)\
+$os\
+[](fg:white bg:blue)\
+$directory\
+[](fg:blue bg:green)\
+$git_branch\
+$git_status\
+[](fg:green)\
+$line_break\
+[╰─](fg:242)\
+$character\
+"""
+
+# Right prompt: same segment order p10k showed - exit status, duration, jobs,
+# then context segments that appear only when configured/active, then time.
+right_format = """
+$status\
+$cmd_duration\
+$jobs\
+$kubernetes\
+$terraform\
+$aws\
+$gcloud\
+$time\
+"""
+
+[os]
+disabled = false
+style = "bg:white fg:black"
+format = "[ $symbol ]($style)"
+
+[os.symbols]
+Macos = "\U000F0035"
+
+[directory]
+style = "bg:blue fg:white"
+format = "[ $path ]($style)"
+truncation_length = 4
+truncation_symbol = "…/"
+
+[git_branch]
+style = "bg:green fg:black"
+symbol = ""
+format = "[ $symbol $branch ]($style)"
+
+[git_status]
+style = "bg:green fg:black"
+format = "[($all_status$ahead_behind )]($style)"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+[status]
+disabled = false
+symbol = "✘ "
+style = "fg:red"
+format = "[$symbol$status]($style) "
+
+[cmd_duration]
+min_time = 3000
+style = "fg:yellow"
+format = "[ $duration]($style) "
+
+[jobs]
+style = "fg:magenta"
+format = "[$symbol$number]($style) "
+
+[kubernetes]
+disabled = false
+style = "fg:blue"
+format = "[\U000F10FE $context( \\($namespace\\))]($style) "
+
+[terraform]
+style = "fg:105"
+format = "[\U000F1062 $workspace]($style) "
+
+[aws]
+style = "fg:208"
+format = "[ ($profile)(\\($region\\))]($style) "
+
+[gcloud]
+style = "fg:32"
+format = "[ $project]($style) "
+
+[time]
+disabled = false
+style = "fg:242"
+format = "[ $time]($style)"

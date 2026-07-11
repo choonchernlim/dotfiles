@@ -1,0 +1,12 @@
+# Global tool versions managed by mise (live-symlinked - edits apply
+# immediately; run `mise install` or `rebuild work` to fetch new versions).
+# Per-project overrides: .mise.toml or .nvmrc in the project root.
+
+[tools]
+node = "lts"        # replaces nvm; mise also honors per-project .nvmrc
+terraform = "1.7.4" # from TFENV_TERRAFORM_VERSION in the retired tfenv.sh
+
+[settings]
+# mise 2025+ ignores .nvmrc unless opted in - required for per-project node
+# pinning to keep working like it did under nvm.
+idiomatic_version_file_enable_tools = ["node"]

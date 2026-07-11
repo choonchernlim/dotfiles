@@ -19,7 +19,6 @@
       "bun"
       "coreutils"
       "curl"
-      "direnv"
       "exiftool"
       "ffmpeg"
       "go"
@@ -32,23 +31,30 @@
       "jq"
       "kubectl"
       "lazygit"
-      "maven"
       "minikube"
-      "nvm"
       "ollama"
       "pipx"
       "rsync"
       "rtk"
       "shellcheck"
-      "starship"
-      "tfenv"
       "tree"
       "uv"
       "wget"
       "yamllint"
       "yarn"
-      "zsh-autosuggestions"
-      "zsh-syntax-highlighting"
+      # Moved to nixpkgs via home-manager (programs.starship, programs.direnv,
+      # programs.zsh.*) when the Ansible ohmyzsh role was ported; zshReconcile
+      # uninstalls the brew copies.
+      # "direnv"
+      # "starship"
+      # "zsh-autosuggestions"
+      # "zsh-syntax-highlighting"
+      # Retired in the dev-toolchain rewrite: nvm/tfenv replaced by mise
+      # (programs.mise + home/.config/mise/config.toml), maven dropped with
+      # java/sdkman. zshReconcile uninstalls the brew copies.
+      # "maven"
+      # "nvm"
+      # "tfenv"
     ];
     # antigravity-cli, copilot-cli, tflint, zed were formulae in the Ansible list
     # but are cask-only in Homebrew 6, so they live here.

@@ -44,14 +44,20 @@ nix develop --impure
 flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); mkHost helper
                          produces darwinConfigurations.work and .personal
 hosts/
-  work.nix             - { system, darwin = <profile module> }  imports homebrew bundles: common + work
-  personal.nix         - same shape; imports homebrew bundles: common + personal
+  work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
+                         home imports the feature modules this host gets (zsh, mise, gcloud, ai)
+  personal.nix         - same shape; homebrew common + personal, same home feature modules
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior settings (nix-homebrew)
   darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
                          (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge)
-  home/default.nix     - user-level: Nix packages, zsh config, symlinks via mkOutOfStoreSymlink
-  home/ai.nix          - home-manager module: all AI agent config (symlinks, env vars, MCP activation)
+  home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts
+  home/zsh.nix         - feature module: zsh + starship + direnv, zshReconcile cleanup
+  home/mise.nix        - feature module: mise (node, terraform versions), miseReconcile cleanup
+  home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
+  home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
+                         (each feature module carries its own reconcile; hosts pick modules by import -
+                          same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
@@ -82,10 +88,9 @@ Current coexistence accommodations - do not revert without understanding the imp
 - `homebrew.onActivation.cleanup = "none"` - keeps Ansible-installed brews and casks intact. Do not change to `"zap"` until fully migrated off Ansible. (The long-term goal post-migration is `"zap"`; see AGENTS.md for rationale.)
 - `nix-homebrew.mutableTaps = true` - allows Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters) to survive.
 - `system.defaults` block is commented out - macOS UI settings currently owned by Ansible.
-- `programs.zsh.autosuggestion` and `syntaxHighlighting` are disabled - oh-my-zsh (installed by Ansible via `~/.zshrc_conf/`) already provides these.
-- `programs.starship` is commented out - Ansible manages p10k as the active prompt.
-- `shellAliases` in `home.nix` are commented out - revisit once migrated off Ansible.
-- `zsh.initContent` sources `~/.zshrc_conf/*.sh` to load all Ansible-managed shell snippets (oh-my-zsh, p10k, nvm, sdkman, gcloud, aliases).
+- `zsh.initContent` sources `~/.zshrc_conf/*.sh` to load Ansible-managed shell snippets (nvm, sdkman, gcloud) plus user/work-owned ones nix does not manage (alias-custom.sh, zscaler.sh, ...).
+- The `ohmyzsh` role in Ansible's `main.yml` is disabled - this repo now owns the shell setup: `programs.zsh.autosuggestion`/`syntaxHighlighting` from nixpkgs, `programs.direnv` with nix-direnv (replaces the omz direnv plugin), and starship as the prompt (config live-symlinked at `home/.config/starship.toml`). oh-my-zsh, p10k, and spaceship were dropped in the rewrite, not ported. The `activation.zshReconcile` script in `modules/home/default.nix` removes the stale Ansible artifacts and uninstalls all delisted brew copies on every rebuild.
+- The `nvm`, `sdkman`, and `gcloud` roles in Ansible's `main.yml` are disabled - the dev toolchain was rewritten, not ported: **mise** (`programs.mise` + live-symlinked `home/.config/mise/config.toml`) manages node (replaces nvm) and terraform (replaces tfenv); **java/sdkman/maven were dropped entirely** (user no longer writes Java; Android Studio bundles its own runtime); **gcloud** stays a brew cask but nix owns its shell wiring (PATH + completions in `zsh.initContent`), its `beta` component, and usage-reporting-off via `activation.gcloudSetup`. `zshReconcile` retires `~/.nvm`, `~/.sdkman`, the old `~/.zshrc_conf` snippets (nvm, sdkman, gcloud, tfenv), and the delisted brews (nvm, node, maven, tfenv). These were the last Ansible writers to `~/.zshrc_conf/`, so the temporary `ohmyzsh_conf_dir` play var was removed from Ansible's `main.yml` and the directory is now purely user-owned.
 - The `ai` role in Ansible's `main.yml` is disabled (`# - {role: ai, ...}`) because this repo now owns AI configs.
 - The `homebrew_common`, `homebrew_personal`, and `homebrew_work` roles in Ansible's `main.yml` are disabled - this repo now owns brew packages via `modules/darwin/homebrew/`. Exception: Ansible's `quicklook` role still installs its own 8 brew packages. While `cleanup = "none"`, removing a package from a nix list does NOT uninstall it - run `brew uninstall` manually. Ansible's old "absent" lists are preserved as comments in the bundle files for the eventual `"zap"` flip.
 

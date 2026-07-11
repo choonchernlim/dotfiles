@@ -5,8 +5,10 @@
 {
   homebrew = {
     brews = [
-      "node"
       "watchman"
+      # node moved to mise (was shadowed by nvm's node on PATH anyway);
+      # zshReconcile uninstalls the brew copy.
+      # "node"
     ];
     casks = [
       "android-studio"

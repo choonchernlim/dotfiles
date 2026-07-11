@@ -7,4 +7,13 @@
       ../modules/darwin/homebrew/work.nix
     ];
   };
+  # Home feature modules this host gets (core config is always included).
+  home = {
+    imports = [
+      ../modules/home/zsh.nix
+      ../modules/home/mise.nix
+      ../modules/home/gcloud.nix
+      ../modules/home/ai.nix
+    ];
+  };
 }

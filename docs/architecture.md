@@ -6,14 +6,20 @@
 flake.nix              - entry point; derives user from $SUDO_USER/$USER (impure)
                          mkHost helper produces darwinConfigurations.work and .personal
 hosts/
-  work.nix             - { system, darwin } - imports the homebrew bundles for this profile
+  work.nix             - { system, darwin, home } - darwin imports homebrew bundles;
+                         home imports the feature modules this host gets
   personal.nix         - same shape
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
   darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
                          (hosts pick which bundles to import; lists auto-merge)
-  home/default.nix     - user-level: packages, zsh, symlinks (mkOutOfStoreSymlink)
-  home/ai.nix          - AI agent config: symlinks, env vars, MCP activation
+  home/default.nix     - core home config every host gets: packages, app symlinks, fonts
+  home/zsh.nix         - feature: zsh + starship + direnv (+ zshReconcile)
+  home/mise.nix        - feature: mise tool versions - node, terraform (+ miseReconcile)
+  home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
+  home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
+                         (hosts pick feature modules by import, like homebrew bundles;
+                          each module carries its own reconcile cleanup)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
@@ -66,8 +72,7 @@ Current accommodations - do not revert without understanding the impact:
 | `homebrew.onActivation.cleanup`                  | `"none"`      | Keeps Ansible-installed brews/casks; target is `"zap"` post-migration     |
 | `nix-homebrew.mutableTaps`                       | `true`        | Allows Ansible-managed taps (oven-sh/bun, redis-stack, terraform-linters) |
 | `system.defaults`                                | commented out | macOS UI settings owned by Ansible                                        |
-| `programs.zsh.autosuggestion/syntaxHighlighting` | disabled      | oh-my-zsh via `~/.zshrc_conf/` provides these                             |
-| `programs.starship`                              | commented out | Ansible manages p10k                                                      |
-| `shellAliases`                                   | commented out | Revisit once off Ansible                                                  |
+| `ohmyzsh` role in Ansible `main.yml`             | disabled      | This repo owns the shell: nixpkgs autosuggestion/syntaxHighlighting, direnv (nix-direnv), starship prompt (live-symlinked `home/.config/starship.toml`); omz/p10k/spaceship dropped; `zshReconcile` sweeps stale artifacts |
+| `nvm`/`sdkman`/`gcloud` roles in Ansible `main.yml` | disabled   | mise (live-symlinked `home/.config/mise/config.toml`) manages node + terraform; java/sdkman/maven dropped; gcloud wiring/components/config owned by nix (`gcloudSetup`); `~/.zshrc_conf` now purely user-owned |
 | `ai` role in Ansible `main.yml`                  | disabled      | This repo now owns AI configs                                             |
 | `homebrew_*` roles in Ansible `main.yml`         | disabled      | This repo now owns brew packages (except quicklook's, still Ansible)      |

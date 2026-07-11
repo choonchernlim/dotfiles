@@ -40,6 +40,15 @@
   # Ports Ansible's `brew analytics off` declaratively for fresh machines.
   environment.variables.HOMEBREW_NO_ANALYTICS = "1";
 
+  # home-manager owns zsh completion init (cached compinit) and starship owns
+  # the prompt. The nix-darwin defaults would add a second, uncached compinit
+  # plus promptinit to /etc/zshrc costing ~1s on every interactive shell.
+  programs.zsh = {
+    enableCompletion = false;
+    enableBashCompletion = false;
+    promptInit = "";
+  };
+
   # Package lists live in ./homebrew/{common,personal,work}.nix, imported per-host
   # via hosts/*.nix. Only homebrew *behavior* settings belong here.
   homebrew = {

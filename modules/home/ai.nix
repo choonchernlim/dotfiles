@@ -181,6 +181,12 @@ in
           \( -name '*.hm-bak' -o -name 'settings.json.2[0-9][0-9][0-9]*' \) \
           -exec rm -rf {} + 2>/dev/null || true
       done
+
+      # ── Ansible ai-role leftover ────────────────────────────────────────────
+      # The disabled Ansible ai role wrote ~/.zshrc_conf/ai.sh (env vars now
+      # declared in sessionVariables here). Drifted machines still have it
+      # sourced on every shell; the .txt variant is a renamed leftover.
+      rm -f "$HOME/.zshrc_conf/ai.sh" "$HOME/.zshrc_conf/ai.sh.txt" || true
     '';
   };
 }

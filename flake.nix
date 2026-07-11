@@ -73,7 +73,12 @@
                   inherit user;
                   profile = name;
                 };
-                users.${user} = import ./modules/home;
+                # Core home config + the feature modules this host selected
+                # (same per-host bundle pattern as homebrew).
+                users.${user}.imports = [
+                  ./modules/home
+                  (host.home or { })
+                ];
               };
             }
           ];
