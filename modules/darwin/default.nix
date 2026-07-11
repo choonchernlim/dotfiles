@@ -64,15 +64,17 @@
   homebrew = {
     enable = true;
     onActivation = {
-      # Ansible is retired; "none" remains only until the zap-flip audit task
-      # (diff `brew list` vs declared lists, declare or drop each stray, then
-      # flip to "zap" for full reproducibility).
-      cleanup = "none";
+      # Zap-flip audit complete: declared lists in ./homebrew/{common,work,personal}.nix
+      # match what's installed and wanted. "zap" enforces reproducibility by removing
+      # any undeclared brew/cask on every rebuild - the declared lists are now the
+      # single source of truth for this machine's Homebrew state.
+      cleanup = "zap";
       autoUpdate = true; # Ansible also runs brew update; double-update is fine
       upgrade = true; # upgrade all installed brews on every rebuild
       # --force makes cask upgrades overwrite stale Caskroom artifacts left behind by
       # self-updating apps (e.g. Chrome), which otherwise fail with "already an App at...".
-      # Safe with cleanup=none: --force only triggers uninstalls alongside --cleanup/--zap.
+      # With cleanup=zap, --force also ensures strays are actually removed rather than
+      # skipped when brew is unsure about overwriting existing state.
       extraFlags = [ "--force" ];
     };
     greedyCasks = true; # ports Ansible's `greedy: true` - upgrade self-updating casks too

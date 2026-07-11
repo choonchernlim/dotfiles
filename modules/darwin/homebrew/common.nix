@@ -1,15 +1,14 @@
 # Homebrew packages shared by all profiles (ported from Ansible role homebrew_common).
 #
-# Removing a package from these lists does NOT uninstall it while
-# homebrew.onActivation.cleanup = "none" - run `brew uninstall <pkg>` manually.
-# Once fully migrated off Ansible, cleanup = "zap" will enforce absence automatically.
+# homebrew.onActivation.cleanup = "zap" enforces this list automatically on every
+# rebuild - removing a package here uninstalls it (and prunes now-orphaned deps) on
+# the next `rebuild`. No manual `brew uninstall` needed.
 {
   homebrew = {
     # Already tapped + trusted on this machine. On a fresh machine, if `brew bundle`
     # blocks on an untrusted tap, run `brew trust --tap <tap>` once.
     taps = [
       "oven-sh/bun"
-      "redis-stack/redis-stack"
       "terraform-linters/tap"
     ];
     brews = [
@@ -17,10 +16,14 @@
       "bash"
       "black"
       "bun"
+      "cloud-sql-proxy"
       "coreutils"
       "curl"
       "exiftool"
       "ffmpeg"
+      "firefoxpwa"
+      "gh"
+      "git-lfs"
       "go"
       "gpsbabel"
       "graphviz"
@@ -29,6 +32,7 @@
       "htop"
       "imagemagick"
       "jq"
+      "k6"
       "kubectl"
       "lazygit"
       "minikube"
@@ -72,6 +76,7 @@
         greedy = false;
       }
       "brave-browser"
+      "bruno"
       "calibrite-profiler"
       "chatgpt"
       "claude"
@@ -107,8 +112,9 @@
       "zed"
     ];
     # Ansible's "absent" lists - packages actively uninstalled by homebrew_common.
-    # Not expressible in nix-darwin while cleanup = "none"; already removed from this
-    # machine by Ansible. Revisit when cleanup flips to "zap" (absence becomes automatic).
+    # Already removed from this machine by Ansible; kept here as historical record.
+    # Now that cleanup = "zap", any of these would also be removed automatically if
+    # ever reinstalled outside this list.
     # brews absent:
     #   allure, ansible-lint (remove first before removing ansible), ansible, checkov,
     #   composer, dialog, gemini-cli, gobject-introspection, nghttp2, tldr

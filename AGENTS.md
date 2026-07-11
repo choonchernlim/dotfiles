@@ -87,12 +87,16 @@ All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per t
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, zscaler.sh, ...); nix only sources it.
 
 Remaining follow-up tasks unlocked by the retirement:
-1. **zap flip**: audit `brew list` vs declared lists, declare or drop each stray (including taps oven-sh/bun, redis-stack, terraform-linters), then set `homebrew.onActivation.cleanup = "zap"`.
+1. ~~**zap flip**~~ - done: audited `brew list` vs declared lists on the work machine,
+   declared or dropped each stray (dropped the `redis-stack/redis-stack` tap along with
+   its casks; `oven-sh/bun` and `terraform-linters/tap` stay - still used by `bun`/`tflint`),
+   and set `homebrew.onActivation.cleanup = "zap"`. Same audit for the personal profile is
+   a separate future task.
 2. **system.defaults**: design macOS UI defaults deliberately (the block was never actually Ansible-owned; the old comment was stale).
 
 ## Key Invariants (Do Not Silently Revert)
 
-- The `homebrew.onActivation.cleanup = "zap"` setting (end state) is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. It is currently `"none"` only until the zap-flip audit task (see "Ansible: Retired") completes.
+- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the work profile; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.
