@@ -2,8 +2,8 @@
 
 Known quirks and non-obvious behavior in this repo.
 
-**Homebrew cleanup is `"zap"` on the work profile.**
-`modules/darwin/default.nix` sets `homebrew.onActivation.cleanup = "zap"` - packages not declared in `modules/darwin/homebrew/{common,work}.nix` are removed automatically on each switch. Declared lists are the single source of truth; there is no manual `brew uninstall` step. The personal profile hasn't had its zap-flip audit yet, so double-check `brew list` against `modules/darwin/homebrew/{common,personal}.nix` before relying on the same guarantee there.
+**Homebrew cleanup is `"zap"` on both profiles.**
+`modules/darwin/default.nix` sets `homebrew.onActivation.cleanup = "zap"` - packages not declared in `modules/darwin/homebrew/{common,work,personal}.nix` are removed automatically on each switch. Declared lists are the single source of truth; there is no manual `brew uninstall` step. Both profiles have had their zap-flip audit (work first, personal on 2026-07-12 before its first bootstrap).
 
 **AI-agent plugins and extensions are nix-managed.**
 Anything installed outside this repo (via `claude plugin install`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild work`. To keep a plugin, declare it in nix. See AGENTS.md "AI Agent Plugin Reconcile" for details.

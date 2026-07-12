@@ -90,13 +90,15 @@ Remaining follow-up tasks unlocked by the retirement:
 1. ~~**zap flip**~~ - done: audited `brew list` vs declared lists on the work machine,
    declared or dropped each stray (dropped the `redis-stack/redis-stack` tap along with
    its casks; `oven-sh/bun` and `terraform-linters/tap` stay - still used by `bun`/`tflint`),
-   and set `homebrew.onActivation.cleanup = "zap"`. Same audit for the personal profile is
-   a separate future task.
+   and set `homebrew.onActivation.cleanup = "zap"`. The personal-profile audit is also
+   done (2026-07-12, via a `brew bundle cleanup --zap` dry-run before the first bootstrap):
+   Redis Stack was kept (tap + casks declared in `homebrew/personal.nix`); ngrok and the
+   java remnants (sdkman, maven, openjdk) were confirmed as intentional drops.
 2. **system.defaults**: design macOS UI defaults deliberately (the block was never actually Ansible-owned; the old comment was stale).
 
 ## Key Invariants (Do Not Silently Revert)
 
-- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the work profile; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth.
+- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on both profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.

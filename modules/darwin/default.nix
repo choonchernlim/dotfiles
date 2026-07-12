@@ -45,7 +45,7 @@
     enable = true;
     inherit user;
     autoMigrate = true; # take ownership of existing /opt/homebrew without reinstalling
-    mutableTaps = true; # taps (oven-sh/bun, redis-stack, terraform-linters) not yet declared - part of the pending zap-flip audit task
+    mutableTaps = true; # taps are declared in ./homebrew/{common,personal}.nix; mutable so brew CLI still works between rebuilds
   };
   # Ports Ansible's `brew analytics off` declaratively for fresh machines.
   environment.variables.HOMEBREW_NO_ANALYTICS = "1";
@@ -78,7 +78,11 @@
       extraFlags = [ "--force" ];
     };
     greedyCasks = true; # ports Ansible's `greedy: true` - upgrade self-updating casks too
-    caskArgs.no_quarantine = true; # ports Ansible's post-install quarantine stripping
+    # NOTE: caskArgs.no_quarantine was removed - Homebrew 6.0 deleted the
+    # --no-quarantine flag with no replacement (brew#20755). Passing it makes
+    # `brew bundle` abort with "invalid option: --no_quarantine". Quarantine
+    # stripping is now done post-install by the caskDequarantine activation below;
+    # QuickLook plugins strip their own in quicklook.nix.
   };
 
   # Ports the Ansible cleanup role: prune brew caches and orphaned deps after
@@ -93,6 +97,18 @@
           if [ -x "$_brew" ]; then
             "$_brew" cleanup --prune=all >/dev/null 2>&1 || true
             "$_brew" autoremove >/dev/null 2>&1 || true
+          fi
+        '';
+
+        # Replaces the removed `--no-quarantine` cask flag (Homebrew 6.0, no
+        # replacement). Strip the quarantine xattr from brew-managed cask
+        # artifacts so any unsigned cask still opens without a Gatekeeper
+        # prompt. Scoped to the Caskroom - never touches user apps in
+        # /Applications. QuickLook plugins strip their own (quicklook.nix).
+        home.activation.caskDequarantine = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          _caskroom=/opt/homebrew/Caskroom
+          if [ -d "$_caskroom" ]; then
+            /usr/bin/xattr -d -r com.apple.quarantine "$_caskroom" 2>/dev/null || true
           fi
         '';
       }
