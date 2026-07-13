@@ -78,7 +78,7 @@
       "brave-browser"
       "bruno"
       "calibrite-profiler"
-      "chatgpt"
+      "chatgpt-classic"
       "claude"
       "claude-code"
       "copilot-cli"
