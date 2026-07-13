@@ -19,4 +19,6 @@ oh-my-zsh, p10k, and the old alias pack were dropped (not ported) when the Ansib
 
 **`rebuild` prints a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See AGENTS.md "Known upstream warning" for details and the one-line workaround.
 
+**`rebuild` auto-syncs the repo before applying.** `rebuild.sh` runs `git pull --rebase --autostash` when on `main` (skipped with a notice on any other branch) so a machine always applies the latest committed config, not stale local state - useful when working across multiple machines. Autostash means uncommitted edits survive the pull. If the pull fails (offline, conflict), the rebuild aborts rather than applying on top of unresolved state - resolve the conflict/network issue and re-run.
+
 **Neovim bootstraps on first launch** - clones plugins from GitHub; needs network once.

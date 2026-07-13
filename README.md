@@ -47,6 +47,8 @@ nix fmt         # format all .nix files (also fires automatically on Claude edit
 
 Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place.
 
+`rebuild` first runs `git pull --rebase --autostash` on `main` (no-op on other branches) so every machine picks up the latest committed changes before applying. See [docs/gotchas.md](docs/gotchas.md).
+
 ## Details
 
 See [docs/architecture.md](docs/architecture.md) for repo layout, how symlinks work, formatter toolchain, and Ansible coexistence rules. See [docs/gotchas.md](docs/gotchas.md) for known quirks and non-obvious behavior.
