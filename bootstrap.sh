@@ -3,15 +3,19 @@
 # Run this once. After it finishes, use ./rebuild.sh for every later change.
 set -euo pipefail
 
-usage() { echo "usage: $(basename "$0") {work|personal}" >&2; }
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+usage() {
+  local hosts
+  hosts="$(cd "$DIR/hosts" && ls -- *.nix 2>/dev/null | sed 's/\.nix$//' | paste -sd '|' -)"
+  echo "usage: $(basename "$0") {${hosts:-work|personal}}" >&2
+}
 
 profile="${1:-}"
-case "$profile" in
-  work|personal) ;;
-  *) usage; exit 1 ;;
-esac
-
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+if [ -z "$profile" ] || [ ! -f "$DIR/hosts/$profile.nix" ]; then
+  usage
+  exit 1
+fi
 
 echo "==> Step 0: Xcode Command Line Tools"
 # git (needed to clone this repo) and several build steps require the CLT.

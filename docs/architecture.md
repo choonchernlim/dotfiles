@@ -4,15 +4,18 @@
 
 ```
 flake.nix              - entry point; derives user from $SUDO_USER/$USER (impure)
-                         mkHost helper produces darwinConfigurations.work and .personal
+                         mkHost helper produces darwinConfigurations.work, .personal, .work-atdj
 hosts/
   work.nix             - { system, darwin, home } - darwin imports homebrew bundles;
                          home imports the feature modules this host gets
   personal.nix         - same shape
+  work-atdj.nix        - same shape; standalone homebrew bundle (work-atdj.nix), home modules
+                         zsh/gcloud/ai/gitea (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
-  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
-                         (hosts pick which bundles to import; lists auto-merge)
+  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix, work-atdj.nix
+                         (hosts pick which bundles to import; lists auto-merge; work-atdj.nix is a
+                          standalone copy, not built from common+work imports)
   darwin/quicklook.nix - feature: QuickLook preview plugins (casks + refresh/reconcile)
   home/default.nix     - core home config every host gets: packages, app symlinks, fonts,
                          legacyReconcile (retired vim/pip artifacts)
@@ -21,16 +24,17 @@ modules/
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
-  home/gitea.nix       - feature (work only): local Gitea+Postgres via Docker Compose,
+  home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          started manually with gitea-up/-down/-status/-logs shell functions
                          (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
-                         in homebrew/work.nix
+                         per-host in the respective homebrew bundle
                          (hosts pick feature modules by import, like homebrew bundles;
                           each module carries its own reconcile cleanup)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
-rebuild.sh             - re-applies the flake; takes profile arg (work|personal)
+rebuild.sh             - re-applies the flake; takes profile arg, discovered dynamically from
+                         hosts/*.nix (work|personal|work-atdj)
 bootstrap.sh           - one-time setup: Nix, symlink, first switch, git hooks
 docs/                  - extended documentation (you are here)
 ```

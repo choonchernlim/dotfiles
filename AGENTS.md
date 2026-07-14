@@ -12,6 +12,7 @@ Personal Mac config managed with nix-darwin and home-manager. This repo is the s
 # Apply changes after editing any .nix file or rebuild.sh-relevant config
 ./rebuild.sh work       # or: rebuild work (alias works from anywhere)
 ./rebuild.sh personal
+./rebuild.sh work-atdj
 
 # Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude edits)
 nix fmt
@@ -33,7 +34,7 @@ nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warn
 nix develop --impure
 
 # First-time setup on a fresh machine
-./bootstrap.sh work     # or: ./bootstrap.sh personal
+./bootstrap.sh work     # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
 ```
 
 `home/` files (Neovim, WezTerm, herdr, AI configs) are live-symlinked - editing them takes effect immediately without running `rebuild.sh`. Only run rebuild when changing package lists, system defaults, or shell config in `.nix` files.
@@ -42,15 +43,19 @@ nix develop --impure
 
 ```
 flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); mkHost helper
-                         produces darwinConfigurations.work and .personal
+                         produces darwinConfigurations.work, .personal, and .work-atdj
 hosts/
   work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
                          home imports the feature modules this host gets (zsh, mise, gcloud, ai)
   personal.nix         - same shape; homebrew common + personal, same home feature modules
+  work-atdj.nix        - same shape; standalone homebrew bundle (work-atdj.nix - starts as a full
+                         copy of common+work, pruned independently) + quicklook; home imports
+                         zsh, gcloud, ai, gitea (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
-  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix
-                         (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge)
+  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix, work-atdj.nix
+                         (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge;
+                          work-atdj.nix is a standalone copy, not built from common+work imports)
   darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + refresh/reconcile)
   home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts,
                          legacyReconcile (retired vim/pip artifacts)
@@ -59,15 +64,17 @@ modules/
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
   home/ghostty.nix     - feature module: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
-  home/gitea.nix       - feature module (work only): local Gitea+Postgres via Docker Compose,
+  home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          manual gitea-up/-down/-status/-logs shell functions, giteaReconcile;
-                         runtime (colima/docker/docker-compose) declared in homebrew/work.nix
+                         runtime (colima/docker/docker-compose) declared per-host in the
+                         respective homebrew bundle (work.nix / work-atdj.nix)
                          (each feature module carries its own reconcile; hosts pick modules by import -
                           same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
-rebuild.sh             - re-applies the flake on every change; takes a profile arg (work|personal)
+rebuild.sh             - re-applies the flake on every change; takes a profile arg, discovered
+                         dynamically from hosts/*.nix (work|personal|work-atdj)
 bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch,
                          installs .git/hooks/pre-commit via `nix develop`
 docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, Ansible coexistence
@@ -101,7 +108,7 @@ Remaining follow-up tasks unlocked by the retirement:
 
 ## Key Invariants (Do Not Silently Revert)
 
-- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on both profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth.
+- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the `work`/`personal` profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth. `work-atdj.nix` is a newer, standalone bundle the user is pruning by hand - not yet through that audit.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.

@@ -88,6 +88,7 @@
       darwinConfigurations = {
         work = mkHost "work";
         personal = mkHost "personal";
+        work-atdj = mkHost "work-atdj";
       };
 
       # nix fmt - formats all .nix files via nixfmt
