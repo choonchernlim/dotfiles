@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 
@@ -8,6 +9,13 @@ let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
   mkOut = config.lib.file.mkOutOfStoreSymlink;
   aiDir = "${dotfiles}/home/ai";
+
+  # Single source of truth for the playwright MCP server every agent gets.
+  # Each agent's native config format is rendered from this below - change once, propagates everywhere.
+  playwrightMcp = {
+    command = "npx";
+    args = [ "@playwright/mcp@latest" ];
+  };
 
   # Nix-declared antigravity plugin names (basenames under ~/.gemini/antigravity-cli/plugins/).
   # The aiReconcile sweep removes every other entry.
@@ -55,14 +63,49 @@ in
         })
       )
 
-      # Per-agent settings and MCP configs
+      # Per-agent settings, rendered from playwrightMcp above where an MCP server is involved.
       {
         ".claude/settings.json".source = mkOut "${aiDir}/settings/claude.json";
         ".gemini/antigravity-cli/settings.json".source = mkOut "${aiDir}/settings/antigravity.json";
         ".copilot/settings.json".source = mkOut "${aiDir}/settings/copilot.json";
-        ".copilot/mcp-config.json".source = mkOut "${aiDir}/mcp/copilot/mcp-config.json";
-        ".codex/config.toml".source = mkOut "${aiDir}/mcp/codex/config.toml";
-        ".gemini/antigravity-cli/plugins/playwright".source = mkOut "${aiDir}/mcp/antigravity/playwright";
+
+        # Copilot MCP: JSON, mcpServers.<name>
+        ".copilot/mcp-config.json".text = builtins.toJSON {
+          mcpServers.playwright = {
+            type = "local";
+            inherit (playwrightMcp) command args;
+            tools = [ "*" ];
+          };
+        };
+
+        # Antigravity plugin: JSON server def + plugin manifest, both rendered.
+        ".gemini/antigravity-cli/plugins/playwright/mcp_config.json".text = builtins.toJSON {
+          mcpServers.playwright = {
+            inherit (playwrightMcp) command args;
+          };
+        };
+        ".gemini/antigravity-cli/plugins/playwright/plugin.json".text = builtins.toJSON {
+          name = "playwright";
+        };
+
+        # Codex: single config.toml holds both settings and MCP servers (no separate settings file).
+        ".codex/config.toml".source = (pkgs.formats.toml { }).generate "codex-config.toml" {
+          model = "gpt-5.4";
+          mcp_servers.playwright = {
+            inherit (playwrightMcp) command args;
+          };
+        };
+
+        # OpenCode: MCP servers live under the top-level "mcp" key, "command" as a single array.
+        ".config/opencode/opencode.json".text = builtins.toJSON {
+          "$schema" = "https://opencode.ai/config.json";
+          mcp.playwright = {
+            type = "local";
+            command = [ playwrightMcp.command ] ++ playwrightMcp.args;
+            enabled = true;
+          };
+        };
+
         # rtk hook integrations (declarative - rtk init never runs on this system)
         ".copilot/hooks/rtk-rewrite.json".source = mkOut "${aiDir}/hooks/copilot/rtk-rewrite.json";
         ".config/opencode/plugins/rtk.ts".source = mkOut "${aiDir}/hooks/opencode/rtk.ts";
@@ -80,7 +123,7 @@ in
     activation.claudePlaywrightMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       if command -v claude >/dev/null 2>&1; then
         if ! claude mcp list 2>/dev/null | grep -q '^playwright'; then
-          claude mcp add --scope user playwright -- npx @playwright/mcp@latest || true
+          claude mcp add --scope user playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} || true
         fi
       fi
     '';
