@@ -21,6 +21,10 @@ modules/
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
+  home/gitea.nix       - feature (work only): local Gitea+Postgres via Docker Compose,
+                         started manually with gitea-up/-down/-status/-logs shell functions
+                         (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
+                         in homebrew/work.nix
                          (hosts pick feature modules by import, like homebrew bundles;
                           each module carries its own reconcile cleanup)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.

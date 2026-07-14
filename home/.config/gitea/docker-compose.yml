@@ -1,0 +1,51 @@
+# Local Gitea git server (HTTP only) backed by Postgres. Started manually via
+# the gitea-up/gitea-down/gitea-status/gitea-logs zsh functions (modules/home/gitea.nix).
+# Localhost-only, single-user - the password below is intentionally not a secret.
+services:
+  server:
+    image: gitea/gitea:1.26
+    container_name: gitea
+    restart: unless-stopped
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=gitea
+      - GITEA__server__ROOT_URL=http://localhost:3100/
+      - GITEA__server__DISABLE_SSH=true
+    ports:
+      - "3100:3000"
+    volumes:
+      - gitea-data:/data
+    networks:
+      - gitea
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    container_name: gitea-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=gitea
+      - POSTGRES_PASSWORD=gitea
+      - POSTGRES_DB=gitea
+    volumes:
+      - gitea-db:/var/lib/postgresql/data
+    networks:
+      - gitea
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea"]
+      interval: 5s
+      retries: 5
+
+volumes:
+  gitea-data:
+  gitea-db:
+
+networks:
+  gitea:

@@ -11,6 +11,13 @@
       # watchman was for the mobile/React Native toolchain; dropped along with
       # android-studio, cocoapods, fastlane when mobile dev was retired.
       # "watchman"
+
+      # Container runtime for the local Gitea git server (modules/home/gitea.nix).
+      # colima runs a headless Linux VM; docker-compose is the standalone
+      # (hyphenated) formula - see gitea.nix for why that form is used.
+      "colima"
+      "docker"
+      "docker-compose"
     ];
     casks = [
       # android-studio: mobile dev retired, no longer needed.

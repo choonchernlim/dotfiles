@@ -9,6 +9,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
+- 🍵 Local Gitea git server (work only) via Docker Compose - `gitea-up`/`gitea-down` start/stop colima + the containers, then browse to http://localhost:3100
 
 ## Prerequisites
 
