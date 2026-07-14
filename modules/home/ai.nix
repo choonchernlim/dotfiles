@@ -17,6 +17,29 @@ let
     args = [ "@playwright/mcp@latest" ];
   };
 
+  # Antigravity plugin dir, assembled as ONE leaf (a directory derivation) rather than
+  # per-file home.file entries: the existing plugins/playwright path is a directory-symlink
+  # left over from the pre-unification layout, and home-manager's activation script can't
+  # mkdir -p through an existing symlink to place per-file entries inside it (force = true
+  # only overrides leaf-file collisions, not this structural case). linkFarm keeps the same
+  # single-leaf-symlink shape that force = true already handles correctly (see skills below).
+  playwrightAntigravityPlugin = pkgs.linkFarm "antigravity-playwright-plugin" [
+    {
+      name = "mcp_config.json";
+      path = pkgs.writeText "mcp_config.json" (
+        builtins.toJSON {
+          mcpServers.playwright = {
+            inherit (playwrightMcp) command args;
+          };
+        }
+      );
+    }
+    {
+      name = "plugin.json";
+      path = pkgs.writeText "plugin.json" (builtins.toJSON { name = "playwright"; });
+    }
+  ];
+
   # Nix-declared antigravity plugin names (basenames under ~/.gemini/antigravity-cli/plugins/).
   # The aiReconcile sweep removes every other entry.
   # To add a plugin: declare its source in home.file above AND add its name here.
@@ -78,21 +101,9 @@ in
           };
         };
 
-        # Antigravity plugin: JSON server def + plugin manifest, both rendered.
-        # force = true: plugins/playwright previously existed as a single directory
-        # symlink; converting it to per-file entries needs the same override skills uses.
-        ".gemini/antigravity-cli/plugins/playwright/mcp_config.json" = {
-          text = builtins.toJSON {
-            mcpServers.playwright = {
-              inherit (playwrightMcp) command args;
-            };
-          };
-          force = true;
-        };
-        ".gemini/antigravity-cli/plugins/playwright/plugin.json" = {
-          text = builtins.toJSON {
-            name = "playwright";
-          };
+        # Antigravity plugin dir: one leaf symlink to the linkFarm assembled above.
+        ".gemini/antigravity-cli/plugins/playwright" = {
+          source = playwrightAntigravityPlugin;
           force = true;
         };
 
