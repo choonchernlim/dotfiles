@@ -6,11 +6,13 @@
 # prompt, no rebuild needed. Colors are ANSI palette names/numbers so the
 # terminal theme stays in charge, same as p10k rainbow did.
 #
-# Nerd-font glyphs are written as \u/\U escapes (not literal chars) so they
-# survive any tooling that strips Private Use Area codepoints:
-#    powerline right arrow    git branch   \U000F0035 apple
-#   \U000F10FE kubernetes  \U000F1062 terraform   aws   cloud
-#    clock
+# Nerd-font glyphs are written as \u escapes (not literal chars) so they
+# survive tooling that mangles non-ASCII bytes. Kept to the BMP Private Use
+# Area (U+E000-U+F8FF: Font Awesome/Powerline/devicons) deliberately: herdr
+# (the terminal workspace manager) re-renders each pane through its own
+# libghostty-vt grid + SemanticFrame client protocol, which drops astral-
+# plane codepoints (>U+FFFF, e.g. the 5-hex-digit Material Design Icons
+# nerd-fonts also ships) as tofu boxes - BMP glyphs round-trip fine.
 
 "$schema" = 'https://starship.rs/config-schema.json'
 
@@ -54,7 +56,7 @@ style = "bg:white fg:black"
 format = "[ $symbol ]($style)"
 
 [os.symbols]
-Macos = "\U000F0035"
+Macos = ""
 
 [directory]
 style = "bg:blue fg:white"
@@ -93,11 +95,11 @@ format = "[$symbol$number]($style) "
 [kubernetes]
 disabled = false
 style = "fg:blue"
-format = "[\U000F10FE $context( \\($namespace\\))]($style) "
+format = "[ $context( \\($namespace\\))]($style) "
 
 [terraform]
 style = "fg:105"
-format = "[\U000F1062 $workspace]($style) "
+format = "[ $workspace]($style) "
 
 [aws]
 style = "fg:208"
