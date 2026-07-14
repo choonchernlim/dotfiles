@@ -79,13 +79,21 @@ in
         };
 
         # Antigravity plugin: JSON server def + plugin manifest, both rendered.
-        ".gemini/antigravity-cli/plugins/playwright/mcp_config.json".text = builtins.toJSON {
-          mcpServers.playwright = {
-            inherit (playwrightMcp) command args;
+        # force = true: plugins/playwright previously existed as a single directory
+        # symlink; converting it to per-file entries needs the same override skills uses.
+        ".gemini/antigravity-cli/plugins/playwright/mcp_config.json" = {
+          text = builtins.toJSON {
+            mcpServers.playwright = {
+              inherit (playwrightMcp) command args;
+            };
           };
+          force = true;
         };
-        ".gemini/antigravity-cli/plugins/playwright/plugin.json".text = builtins.toJSON {
-          name = "playwright";
+        ".gemini/antigravity-cli/plugins/playwright/plugin.json" = {
+          text = builtins.toJSON {
+            name = "playwright";
+          };
+          force = true;
         };
 
         # Codex: single config.toml holds both settings and MCP servers (no separate settings file).
