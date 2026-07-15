@@ -4,6 +4,10 @@
 # rebuild - removing a package here uninstalls it on the next `rebuild`.
 {
   homebrew = {
+    taps = [
+      "oven-sh/bun"
+      "terraform-linters/tap"
+    ];
     brews = [
       # node moved to mise (was shadowed by nvm's node on PATH anyway);
       # zshReconcile uninstalls the brew copy.
@@ -12,18 +16,53 @@
       # android-studio, cocoapods, fastlane when mobile dev was retired.
       # "watchman"
 
-      # General-purpose container runtime - colima runs a headless Linux VM,
-      # autostarted at login by modules/home/colima.nix. Currently used for
-      # the local Gitea git server (modules/home/gitea.nix); not gitea-specific.
-      # docker-compose is the standalone (hyphenated) formula - see gitea.nix
-      # for why that form is used.
-      "colima"
-      "docker"
-      "docker-compose"
+      # Moved down from common.nix in the 2026-07-15 all-hosts audit - not
+      # declared on work-atdj, so not part of the 3-way intersection.
+      "azure-cli"
+      "black"
+      "bun"
+      "cloud-sql-proxy"
+      "exiftool"
+      "ffmpeg"
+      "firefoxpwa"
+      "go"
+      "gpsbabel"
+      "graphviz"
+      "herdr"
+      "hf"
+      "htop"
+      "imagemagick"
+      "k6"
+      "kubectl"
+      "lazygit"
+      "minikube"
+      "ollama"
+      "pipx"
     ];
+    # copilot-cli, tflint, zed were formulae in the Ansible list but are cask-only in
+    # Homebrew 6, so they live here (antigravity-cli is the same case but stayed in
+    # common.nix - see there). Moved down from common.nix in the 2026-07-15 audit - not
+    # declared on work-atdj, so not part of the 3-way intersection.
     casks = [
       # android-studio: mobile dev retired, no longer needed.
       # "android-studio"
+      "bruno"
+      "calibrite-profiler"
+      "chatgpt-classic"
+      "claude"
+      "claude-code"
+      "copilot-cli"
+      "cyberduck"
+      "ghostty"
+      "google-drive"
+      "google-gemini"
+      "intellij-idea"
+      "postman"
+      "rancher"
+      "readdle-spark"
+      "spotify"
+      "tflint"
+      "zed"
     ];
     # Ansible's work "absent" list - homebrew_work actively uninstalled the personal
     # casks on the work profile. Already removed from this machine; kept as

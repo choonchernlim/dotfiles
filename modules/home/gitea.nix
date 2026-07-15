@@ -2,8 +2,8 @@
 # started manually with the gitea-up/gitea-down/gitea-status/gitea-logs shell
 # functions - no launchd daemon of its own (colima's autostart lives in
 # modules/home/colima.nix, kept generic/non-gitea-specific). Selected per-host
-# via hosts/*.nix home imports (work, work-atdj; the colima/docker/docker-compose
-# runtime it depends on is declared in the respective homebrew bundle). Because
+# via hosts/*.nix home imports (work, work-atdj only; the colima/docker/docker-compose
+# runtime it depends on is declared in modules/darwin/homebrew/common.nix). Because
 # colima autostarts at login and the compose services are `restart:
 # unless-stopped`, gitea-up only needs to be run once ever (or again after a
 # gitea-down) - the containers otherwise come back on their own.
@@ -30,9 +30,9 @@ in
   };
 
   programs.zsh.initContent = lib.mkOrder 900 ''
-    # colima/docker/docker-compose come from the homebrew bundle; colima
-    # autostarts at login (modules/home/colima.nix), so this is normally a
-    # no-op safety net. docker-compose is the standalone (hyphenated) formula -
+    # colima/docker/docker-compose come from common.nix (shared by all hosts);
+    # colima autostarts at login (modules/home/colima.nix), so this is normally
+    # a no-op safety net. docker-compose is the standalone (hyphenated) formula -
     # the "docker compose" subcommand form isn't wired up by that formula, so
     # use this form throughout.
     _gitea_compose="$HOME/.config/gitea/docker-compose.yml"

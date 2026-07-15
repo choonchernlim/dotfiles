@@ -1,8 +1,10 @@
 {
   system = "aarch64-darwin"; # use x86_64-darwin for Intel CPU
-  # work-atdj profile: standalone homebrew bundle (see homebrew/work-atdj.nix) + quicklook.
+  # work-atdj profile: common homebrew bundle + work-atdj's own (currently empty) extras,
+  # + quicklook.
   darwin = {
     imports = [
+      ../modules/darwin/homebrew/common.nix
       ../modules/darwin/homebrew/work-atdj.nix
       ../modules/darwin/quicklook.nix
     ];

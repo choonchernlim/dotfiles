@@ -46,16 +46,22 @@ flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impu
                          produces darwinConfigurations.work, .personal, and .work-atdj
 hosts/
   work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
-                         home imports the feature modules this host gets (zsh, mise, gcloud, ai)
-  personal.nix         - same shape; homebrew common + personal, same home feature modules
-  work-atdj.nix        - same shape; standalone homebrew bundle (work-atdj.nix - starts as a full
-                         copy of common+work, pruned independently) + quicklook; home imports
-                         zsh, gcloud, ai, colima, gitea (no mise/ghostty)
+                         home imports the feature modules this host gets (zsh, mise, gcloud, ai,
+                         colima, gitea)
+  personal.nix         - same shape; homebrew common + personal; home imports zsh, mise, gcloud,
+                         ai, colima (no gitea)
+  work-atdj.nix        - same shape; homebrew common + work-atdj (work-atdj.nix is an empty
+                         scaffold for host-specific extras - the 2026-07-15 all-hosts audit found
+                         nothing here wasn't already covered by common.nix) + quicklook; home
+                         imports zsh, gcloud, ai, colima, gitea (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
-  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix, work-atdj.nix
+  darwin/homebrew/     - homebrew package bundles: common.nix (the audited 3-way intersection -
+                         only packages every host declares live here), personal.nix, work.nix,
+                         work-atdj.nix (host-specific extras beyond common.nix; work-atdj.nix is
+                         empty right now, extended by hand as machine-specific needs come up)
                          (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge;
-                          work-atdj.nix is a standalone copy, not built from common+work imports)
+                          all 3 hosts import common.nix)
   darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + refresh/reconcile)
   home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts,
                          legacyReconcile (retired vim/pip artifacts)
@@ -64,15 +70,16 @@ modules/
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
   home/ghostty.nix     - feature module: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
-  home/colima.nix      - feature module (work, work-atdj): autostarts colima (container runtime)
-                         at login via a home-manager launchd agent; generic, not gitea-specific;
-                         no reconcile - home-manager owns the launchd plist lifecycle itself
+  home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
+                         colima (container runtime) at login via a home-manager launchd agent;
+                         generic, not gitea-specific; no reconcile - home-manager owns the launchd
+                         plist lifecycle itself
   home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          manual gitea-up/-down/-status/-logs shell functions, giteaReconcile;
-                         runtime (colima/docker/docker-compose) declared per-host in the
-                         respective homebrew bundle (work.nix / work-atdj.nix); colima itself
-                         autostarts via home/colima.nix, so gitea-up is normally only needed once
-                         (compose services are restart: unless-stopped)
+                         runtime (colima/docker/docker-compose) declared in
+                         darwin/homebrew/common.nix; colima itself autostarts via home/colima.nix,
+                         so gitea-up is normally only needed once (compose services are restart:
+                         unless-stopped)
                          (each feature module carries its own reconcile; hosts pick modules by import -
                           same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
@@ -113,7 +120,7 @@ Remaining follow-up tasks unlocked by the retirement:
 
 ## Key Invariants (Do Not Silently Revert)
 
-- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the `work`/`personal` profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth. `work-atdj.nix` is a newer, standalone bundle the user is pruning by hand - not yet through that audit.
+- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the `work`/`personal` profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth. `common.nix` itself was audited 2026-07-15 against all 3 hosts (work/personal/work-atdj) to be the true 3-way intersection - only packages every host declares live there; anything not universal is duplicated into the specific host bundle(s) that need it. `work-atdj.nix` now imports `common.nix` like the other two profiles and is otherwise an empty scaffold - the user extends it by hand for whatever is unique to that machine.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.

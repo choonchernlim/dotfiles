@@ -1,10 +1,11 @@
 # Colima feature module: autostarts the colima container runtime at login via
 # a home-manager launchd agent. Deliberately generic - not gitea-specific, so
 # any container workload (gitea, or others added later) finds colima already
-# running. Selected per-host via hosts/*.nix home imports (work, work-atdj);
-# those hosts' homebrew bundles (modules/darwin/homebrew/{work,work-atdj}.nix)
-# declare the colima/docker/docker-compose brews this agent depends on -
-# importing this module without that brew leaves the agent unable to exec.
+# running. Selected per-host via hosts/*.nix home imports (work, personal,
+# work-atdj - all 3 hosts). The colima/docker/docker-compose brews this agent
+# depends on live in modules/darwin/homebrew/common.nix (the all-hosts
+# intersection) - importing this module without that brew leaves the agent
+# unable to exec.
 #
 # No custom reconcile here, unlike the other feature modules: home-manager's
 # launchd.agents already owns the plist lifecycle (writes it to

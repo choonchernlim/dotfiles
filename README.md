@@ -9,7 +9,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
-- 🐳 colima (work, work-atdj) autostarts at login via a launchd agent - no manual start needed for any container workload
+- 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
 - 🍵 Local Gitea git server (work, work-atdj) via Docker Compose - since colima autostarts and the containers are `restart: unless-stopped`, `gitea-up` is only needed once ever (or again after a `gitea-down`); browse to http://localhost:3100
 
 ## Prerequisites

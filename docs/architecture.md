@@ -9,13 +9,15 @@ hosts/
   work.nix             - { system, darwin, home } - darwin imports homebrew bundles;
                          home imports the feature modules this host gets
   personal.nix         - same shape
-  work-atdj.nix        - same shape; standalone homebrew bundle (work-atdj.nix), home modules
-                         zsh/gcloud/ai/gitea (no mise/ghostty)
+  work-atdj.nix        - same shape; common homebrew bundle + work-atdj's own (currently empty)
+                         extras; home modules zsh/gcloud/ai/colima/gitea (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
-  darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix, work-atdj.nix
-                         (hosts pick which bundles to import; lists auto-merge; work-atdj.nix is a
-                          standalone copy, not built from common+work imports)
+  darwin/homebrew/     - homebrew package bundles: common.nix (audited 3-way intersection - only
+                         packages every host declares live here), personal.nix, work.nix,
+                         work-atdj.nix (host-specific extras beyond common.nix; empty right now)
+                         (hosts pick which bundles to import; lists auto-merge; all 3 hosts import
+                          common.nix)
   darwin/quicklook.nix - feature: QuickLook preview plugins (casks + refresh/reconcile)
   home/default.nix     - core home config every host gets: packages, app symlinks, fonts,
                          legacyReconcile (retired vim/pip artifacts)
@@ -24,10 +26,12 @@ modules/
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
+  home/colima.nix      - feature (all 3 hosts): autostarts colima (container runtime) at login
+                         via a home-manager launchd agent; generic, not gitea-specific
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          started manually with gitea-up/-down/-status/-logs shell functions
                          (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
-                         per-host in the respective homebrew bundle
+                         in darwin/homebrew/common.nix
                          (hosts pick feature modules by import, like homebrew bundles;
                           each module carries its own reconcile cleanup)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
