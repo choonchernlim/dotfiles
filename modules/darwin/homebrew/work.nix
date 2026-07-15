@@ -51,6 +51,7 @@
       "chatgpt-classic"
       "claude"
       "claude-code"
+      "codex"
       "copilot-cli"
       "cyberduck"
       "ghostty"
