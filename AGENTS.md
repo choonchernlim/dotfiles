@@ -50,7 +50,7 @@ hosts/
   personal.nix         - same shape; homebrew common + personal, same home feature modules
   work-atdj.nix        - same shape; standalone homebrew bundle (work-atdj.nix - starts as a full
                          copy of common+work, pruned independently) + quicklook; home imports
-                         zsh, gcloud, ai, gitea (no mise/ghostty)
+                         zsh, gcloud, ai, colima, gitea (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
   darwin/homebrew/     - homebrew package bundles: common.nix, personal.nix, work.nix, work-atdj.nix
@@ -64,10 +64,15 @@ modules/
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
   home/ghostty.nix     - feature module: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
+  home/colima.nix      - feature module (work, work-atdj): autostarts colima (container runtime)
+                         at login via a home-manager launchd agent; generic, not gitea-specific;
+                         no reconcile - home-manager owns the launchd plist lifecycle itself
   home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          manual gitea-up/-down/-status/-logs shell functions, giteaReconcile;
                          runtime (colima/docker/docker-compose) declared per-host in the
-                         respective homebrew bundle (work.nix / work-atdj.nix)
+                         respective homebrew bundle (work.nix / work-atdj.nix); colima itself
+                         autostarts via home/colima.nix, so gitea-up is normally only needed once
+                         (compose services are restart: unless-stopped)
                          (each feature module carries its own reconcile; hosts pick modules by import -
                           same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.

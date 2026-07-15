@@ -1,7 +1,8 @@
 # Homebrew packages for the work-atdj profile - standalone starting copy of common.nix's full
-# taps/brews/casks plus work.nix's colima/docker/docker-compose (gitea runtime). Deliberately
-# NOT `imports = [ common.nix work.nix ]` - a standalone copy means the user pruning this list
-# down later never affects work/personal, and vice versa.
+# taps/brews/casks plus work.nix's colima/docker/docker-compose (general-purpose container
+# runtime, autostarted at login by modules/home/colima.nix; also used for the gitea runtime).
+# Deliberately NOT `imports = [ common.nix work.nix ]` - a standalone copy means the user
+# pruning this list down later never affects work/personal, and vice versa.
 {
   homebrew = {
     taps = [

@@ -13,6 +13,7 @@
       ../modules/home/zsh.nix
       ../modules/home/gcloud.nix
       ../modules/home/ai.nix
+      ../modules/home/colima.nix
       ../modules/home/gitea.nix
     ];
   };

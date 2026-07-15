@@ -12,9 +12,11 @@
       # android-studio, cocoapods, fastlane when mobile dev was retired.
       # "watchman"
 
-      # Container runtime for the local Gitea git server (modules/home/gitea.nix).
-      # colima runs a headless Linux VM; docker-compose is the standalone
-      # (hyphenated) formula - see gitea.nix for why that form is used.
+      # General-purpose container runtime - colima runs a headless Linux VM,
+      # autostarted at login by modules/home/colima.nix. Currently used for
+      # the local Gitea git server (modules/home/gitea.nix); not gitea-specific.
+      # docker-compose is the standalone (hyphenated) formula - see gitea.nix
+      # for why that form is used.
       "colima"
       "docker"
       "docker-compose"
