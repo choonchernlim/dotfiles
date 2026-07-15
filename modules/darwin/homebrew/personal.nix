@@ -59,7 +59,6 @@
       "intellij-idea"
       "nordvpn"
       "postman"
-      "rancher"
       "readdle-spark"
       "redis-stack"
       "redis-stack-redisinsight"

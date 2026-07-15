@@ -58,7 +58,6 @@
       "google-gemini"
       "intellij-idea"
       "postman"
-      "rancher"
       "readdle-spark"
       "spotify"
       "tflint"
