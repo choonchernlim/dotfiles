@@ -22,6 +22,17 @@
       ProgramArguments = [
         "/opt/homebrew/bin/colima"
         "start"
+        # 8GiB, up from colima's 2GiB default - langfuse's docker-compose stack
+        # (ClickHouse in particular) needs the headroom. Codifies a manual `colima
+        # start --memory 8` done while debugging that setup, so a `colima delete`
+        # or fresh-machine bootstrap doesn't silently regress to 2GiB. Only takes
+        # effect on first VM creation or after an explicit `colima stop` + next
+        # start - `colima start` is a no-op ("already running, ignoring") whenever
+        # the VM is already up, flags included, so this line has no effect on an
+        # already-running VM. Same category of declarative-but-not-force-reconciled
+        # gap as the SIGTERM caveat below.
+        "--memory"
+        "8"
       ];
       RunAtLoad = true;
       KeepAlive = false; # one-shot launcher; colima daemonizes its own VM after start
