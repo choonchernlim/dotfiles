@@ -2,17 +2,30 @@
 
 Personal Mac setup managed with nix-darwin and home-manager.
 
-- 🍎 macOS settings, Homebrew (brews + casks), Touch ID for sudo
+- 🍎 macOS settings, Homebrew (brews + casks), Touch ID for sudo, QuickLook preview plugins
 - 🐚 zsh with autosuggestions, syntax highlighting, and a starship prompt (config live-symlinked)
 - 📦 mise for tool versions (node, terraform) - one fast version manager instead of nvm/sdkman/tfenv
+- ☁️ gcloud shell wiring, config, and components kept in sync
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
-- 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
+- 🔗 Neovim, WezTerm, ghostty, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 - 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
 - 🍵 Local Gitea git server (work, work-atdj) via Docker Compose - since colima autostarts and the containers are `restart: unless-stopped`, `gitea-up` is only needed once ever (or again after a `gitea-down`); browse to http://localhost:3100
 - 🔐 `~/.docker/config.json` reconciled to Keychain-backed credentials (all 3 profiles), with GCP Artifact Registry routed through the gcloud helper
 - 🔒 Corporate Zscaler MITM cert trusted automatically - host-side (git, npm) and inside the colima guest VM for `docker pull` (work, work-atdj)
+
+## Profiles
+
+Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI agents, colima, docker, QuickLook. Each adds a bit more on top:
+
+| Profile     | Adds beyond the common base                     |
+|-------------|--------------------------------------------------|
+| `work`      | mise, ghostty, gitea, Zscaler cert trust         |
+| `personal`  | mise, ghostty                                    |
+| `work-atdj` | gitea, Zscaler cert trust (no mise, no ghostty)  |
+
+See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.
 
 ## Prerequisites
 
@@ -55,4 +68,4 @@ Only run `rebuild` when changing a package list, system default, or `.nix` confi
 
 ## Details
 
-See [docs/architecture.md](docs/architecture.md) for repo layout, how symlinks work, formatter toolchain, and Ansible coexistence rules. See [docs/gotchas.md](docs/gotchas.md) for known quirks and non-obvious behavior.
+See [docs/architecture.md](docs/architecture.md) for repo layout, how symlinks work, formatter toolchain, and Ansible coexistence rules. See [docs/gotchas.md](docs/gotchas.md) for known quirks and non-obvious behavior. See [docs/implementation_guardrails.md](docs/implementation_guardrails.md) for the guardrails AI agents follow when making changes here.
