@@ -33,7 +33,12 @@ in
       # the font everything renders in
       nerd-fonts.hack
     ];
-    sessionVariables.EDITOR = "nvim";
+    sessionVariables = {
+      EDITOR = "nvim";
+      # Ported from the old user-owned ~/.zshrc_conf/env.sh - TERM alone (xterm-256color)
+      # doesn't promise 24-bit color, and not every terminal sets this itself.
+      COLORTERM = "truecolor";
+    };
     # Edit-in-place: the real file stays in my repo, ~/.config just points at it.
     file = {
       ".config/wezterm".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/wezterm";
@@ -47,6 +52,9 @@ in
       # amix/vimrc distro dropped - Neovim (live-symlinked config) is the editor.
       [ -d "$HOME/.vim_runtime" ] && rm -rf "$HOME/.vim_runtime" || true
       rm -f "$HOME/.vimrc" || true
+
+      # COLORTERM now set via sessionVariables above - drop the old user-owned snippet.
+      rm -f "$HOME/.zshrc_conf/env.sh" || true
 
       # Ansible python role's packages: requests served only vimrc's updater,
       # crcmod only the deprecated gsutil rsync. Its install mechanism was
