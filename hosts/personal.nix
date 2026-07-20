@@ -17,6 +17,7 @@
       ../modules/home/ghostty.nix
       ../modules/home/ai.nix
       ../modules/home/colima.nix
+      ../modules/home/docker.nix
     ];
   };
 }

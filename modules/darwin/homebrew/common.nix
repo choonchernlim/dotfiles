@@ -34,6 +34,12 @@
       "colima"
       "docker"
       "docker-compose"
+      # Standalone (non-Docker-Desktop) credential helper, providing
+      # docker-credential-osxkeychain. Consumed by modules/home/docker.nix, which sets
+      # ~/.docker/config.json's credsStore to "osxkeychain" so registry logins are
+      # encrypted in the macOS Keychain by default (rather than base64 plaintext in the
+      # config file) as more private registries get added over time.
+      "docker-credential-helper"
 
       # Moved to nixpkgs via home-manager (programs.starship, programs.direnv,
       # programs.zsh.*) when the Ansible ohmyzsh role was ported; zshReconcile
