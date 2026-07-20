@@ -12,8 +12,17 @@ let
 
   # Single source of truth for the playwright MCP server every agent gets.
   # Each agent's native config format is rendered from this below - change once, propagates everywhere.
+  # command is an absolute nix-store path, not bare "npx": node/npx on this machine come only
+  # from mise, which puts them on PATH via its interactive-shell hook. Agents spawn MCP child
+  # processes with a reduced environment that doesn't carry that hook (confirmed: codex fails
+  # with "No such file or directory (os error 2)" trying to exec bare "npx"), so a PATH-based
+  # lookup silently fails there. ${pkgs.nodejs}/bin/npx resolves regardless of PATH, on every
+  # host (including work-atdj, which has no mise), without adding node to the interactive PATH
+  # (pkgs.nodejs is referenced here only, never added to home.packages, so it can't collide
+  # with mise's own node). Same fix class as the hardcoded /opt/homebrew/bin/claude and
+  # ${pkgs.gawk}/bin/awk paths below.
   playwrightMcp = {
-    command = "npx";
+    command = "${pkgs.nodejs}/bin/npx";
     args = [ "@playwright/mcp@latest" ];
   };
 
@@ -131,17 +140,19 @@ in
 
     activation = {
       # Register playwright MCP for Claude (stored in ~/.claude.json, not symlinkable).
-      # Guard: no-op if already registered or if claude is not installed. Absolute path,
-      # not `command -v` - home-manager's activation PATH is hermetic (bash/coreutils/
-      # grep/sed/jq from the nix store only, confirmed via the generated activate script),
-      # it never includes /opt/homebrew/bin, so a PATH-based lookup here always silently
+      # Remove-then-add every rebuild (not add-if-absent): playwrightMcp.command is a nix-store
+      # path that changes on every nodejs update, so an add-if-absent guard would leave a stale
+      # registered command on disk forever once it's registered once. remove is a no-op (|| true)
+      # when nothing is registered, making this idempotent either way. No-op if claude is not
+      # installed. Absolute path, not `command -v` - home-manager's activation PATH is hermetic
+      # (bash/coreutils/grep/sed/jq from the nix store only, confirmed via the generated activate
+      # script), it never includes /opt/homebrew/bin, so a PATH-based lookup here always silently
       # no-ops. Same fix ghostty.nix already uses for its own brew invocation.
       claudePlaywrightMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         _claude=/opt/homebrew/bin/claude
         if [ -x "$_claude" ]; then
-          if ! "$_claude" mcp list 2>/dev/null | grep -q '^playwright'; then
-            "$_claude" mcp add --scope user playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} || true
-          fi
+          "$_claude" mcp remove --scope user playwright 2>/dev/null || true
+          "$_claude" mcp add --scope user playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} || true
         fi
       '';
 
@@ -167,8 +178,11 @@ in
       #
       # MCP registration is delegated to `codex mcp add` (mirrors claudePlaywrightMcp
       # above) so Codex's own TOML writer owns the `[mcp_servers.playwright]` table.
-      # Deliberate asymmetry vs Claude/Copilot: nothing here removes an undeclared Codex
-      # MCP server on reconcile - codex has no bulk list-and-prune equivalent wired yet.
+      # Remove-then-add every rebuild, same reasoning as claudePlaywrightMcp: the command is
+      # a nix-store path that changes on nodejs updates, so add-if-absent would leave a stale
+      # command in config.toml forever once registered once. Deliberate asymmetry vs
+      # Claude/Copilot: nothing here removes an undeclared Codex MCP server on reconcile -
+      # codex has no bulk list-and-prune equivalent wired yet.
       codexConfig = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
         _codex_config="$HOME/.codex/config.toml"
         mkdir -p "$HOME/.codex"
@@ -195,9 +209,8 @@ in
         fi
         _codex=/opt/homebrew/bin/codex
         if [ -x "$_codex" ]; then
-          if ! "$_codex" mcp list 2>/dev/null | grep -q '^playwright'; then
-            "$_codex" mcp add playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} 2>/dev/null || true
-          fi
+          "$_codex" mcp remove playwright 2>/dev/null || true
+          "$_codex" mcp add playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} 2>/dev/null || true
         fi
       '';
 

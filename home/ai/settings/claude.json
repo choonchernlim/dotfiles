@@ -42,7 +42,6 @@
   },
   "enabledPlugins": {},
   "effortLevel": "high",
-  "advisorModel": "opus",
   "theme": "dark-ansi",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true
