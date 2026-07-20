@@ -11,6 +11,8 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 - 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
 - 🍵 Local Gitea git server (work, work-atdj) via Docker Compose - since colima autostarts and the containers are `restart: unless-stopped`, `gitea-up` is only needed once ever (or again after a `gitea-down`); browse to http://localhost:3100
+- 🔐 `~/.docker/config.json` reconciled to Keychain-backed credentials (all 3 profiles), with GCP Artifact Registry routed through the gcloud helper
+- 🔒 Corporate Zscaler MITM cert trusted automatically - host-side (git, npm) and inside the colima guest VM for `docker pull` (work, work-atdj)
 
 ## Prerequisites
 

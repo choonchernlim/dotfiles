@@ -19,7 +19,9 @@ in
     # Cleanup from the Ansible ohmyzsh role port, kept as a permanent reconcile
     # so a drifted machine converges with `rebuild` alone (aiReconcile pattern).
     # Removes ONLY named files - ~/.zshrc_conf also holds user- and work-owned
-    # snippets (alias-custom.sh, zscaler.sh, ...) that must survive.
+    # snippets (alias-custom.sh, ...) that must survive. zscaler.sh used to live
+    # here but is now nix-managed (home/zscaler.nix, work/work-atdj only), which
+    # sweeps it via its own zscalerReconcile if it reappears.
     activation.zshReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       # User/work-owned snippets live here; the dir must exist for the zshrc
       # sourcing loop on a fresh machine.
@@ -92,8 +94,8 @@ in
           bindkey '^f' autosuggest-accept
           # Case-insensitive completion (behavior previously provided by oh-my-zsh).
           zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
-          # Source user/work-owned shell snippets (alias-custom, zscaler, ...) -
-          # not managed by nix. All Ansible-written snippets have been ported.
+          # Source user/work-owned shell snippets (alias-custom, ...) - not
+          # managed by nix. All Ansible-written snippets have been ported.
           for f in ~/.zshrc_conf/*.sh; do
             [ -r "$f" ] && source "$f"
           done

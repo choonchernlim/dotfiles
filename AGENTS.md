@@ -47,13 +47,13 @@ flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impu
 hosts/
   work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
                          home imports the feature modules this host gets (zsh, mise, gcloud, ai,
-                         colima, gitea)
+                         colima, docker, gitea, zscaler)
   personal.nix         - same shape; homebrew common + personal; home imports zsh, mise, gcloud,
-                         ai, colima (no gitea)
+                         ai, colima, docker (no gitea, no zscaler - personal is not behind Zscaler)
   work-atdj.nix        - same shape; homebrew common + work-atdj (work-atdj.nix is an empty
                          scaffold for host-specific extras - the 2026-07-15 all-hosts audit found
                          nothing here wasn't already covered by common.nix) + quicklook; home
-                         imports zsh, gcloud, ai, colima, gitea (no mise/ghostty)
+                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
   darwin/homebrew/     - homebrew package bundles: common.nix (the audited 3-way intersection -
@@ -72,14 +72,25 @@ modules/
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
                          colima (container runtime) at login via a home-manager launchd agent;
-                         generic, not gitea-specific; no reconcile - home-manager owns the launchd
-                         plist lifecycle itself
+                         generic, not gitea-specific or network-specific; no reconcile - home-manager
+                         owns the launchd plist lifecycle itself
+  home/docker.nix      - feature module (work, personal, work-atdj - all 3 hosts): reconciles
+                         ~/.docker/config.json (credsStore=osxkeychain + credHelpers for GCP
+                         Artifact Registry) via an idempotent jq-merge activation - not a home.file
+                         symlink, since docker login/gcloud write into the same file at runtime
   home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          manual gitea-up/-down/-status/-logs shell functions, giteaReconcile;
                          runtime (colima/docker/docker-compose) declared in
                          darwin/homebrew/common.nix; colima itself autostarts via home/colima.nix,
                          so gitea-up is normally only needed once (compose services are restart:
                          unless-stopped)
+  home/zscaler.nix     - feature module (work, work-atdj): wiring for the corporate Zscaler MITM
+                         proxy - NODE_EXTRA_CA_CERTS, git http.sslcainfo, and trusting the cert
+                         inside the colima guest VM (hash-guarded, restarts dockerd only on cert
+                         rotation - its trust store is separate from the host's). The cert file
+                         itself (~/.ca_certs/zscalercert.pem) stays user-owned, not nix-managed
+                         (public repo; bootstrap needs OS-level trust before nix runs anyway) -
+                         zscalerReconcile removes the superseded ~/.zshrc_conf/zscaler.sh
                          (each feature module carries its own reconcile; hosts pick modules by import -
                           same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
@@ -106,7 +117,9 @@ All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per t
 
 - **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), ghostty config (`ghostty.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
 - **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm + ghostty are the terminals), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins.
-- `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, zscaler.sh, ...); nix only sources it.
+- `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
+  `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
+  own reconcile if it reappears.
 
 Remaining follow-up tasks unlocked by the retirement:
 1. ~~**zap flip**~~ - done: audited `brew list` vs declared lists on the work machine,

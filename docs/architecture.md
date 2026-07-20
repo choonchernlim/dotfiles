@@ -10,7 +10,8 @@ hosts/
                          home imports the feature modules this host gets
   personal.nix         - same shape
   work-atdj.nix        - same shape; common homebrew bundle + work-atdj's own (currently empty)
-                         extras; home modules zsh/gcloud/ai/colima/gitea (no mise/ghostty)
+                         extras; home modules zsh/gcloud/ai/colima/docker/gitea/zscaler
+                         (no mise/ghostty)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
   darwin/homebrew/     - homebrew package bundles: common.nix (audited 3-way intersection - only
@@ -27,11 +28,18 @@ modules/
   home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
   home/colima.nix      - feature (all 3 hosts): autostarts colima (container runtime) at login
-                         via a home-manager launchd agent; generic, not gitea-specific
+                         via a home-manager launchd agent; generic, not gitea- or network-specific
+  home/docker.nix      - feature (all 3 hosts): reconciles ~/.docker/config.json
+                         (credsStore=osxkeychain + credHelpers for GCP Artifact Registry) via
+                         an idempotent jq-merge activation, not a home.file symlink
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          started manually with gitea-up/-down/-status/-logs shell functions
                          (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
                          in darwin/homebrew/common.nix
+  home/zscaler.nix     - feature (work, work-atdj): corporate Zscaler MITM wiring -
+                         NODE_EXTRA_CA_CERTS, git http.sslcainfo, colima guest VM cert trust
+                         (+ zscalerReconcile); the cert file itself stays user-owned, not
+                         nix-managed (public repo)
                          (hosts pick feature modules by import, like homebrew bundles;
                           each module carries its own reconcile cleanup)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
