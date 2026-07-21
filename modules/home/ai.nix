@@ -75,9 +75,56 @@ let
   claudeKeepMarketplaceCases = lib.concatMapStringsSep "\n              " (
     p: ''"${p}") continue ;;''
   ) claudeKeepMarketplaces;
+
+  # Local patch giving the installed langfuse-observability plugin a custom-tag env
+  # var (CC_LANGFUSE_TAGS), which upstream 1.0.0 has no equivalent of - its
+  # get_trace_tags() only ever returns ["claude-code"] + auto skill:<name> tags.
+  # Mirrors the Codex plugin's existing LANGFUSE_CODEX_TAGS support. Inserted by
+  # claudeLangfuseTagsPatch below, just before the `if __name__ == "__main__":`
+  # guard - the module calls main() at EOF, so appending after that point would
+  # never run. Rebinds the module-global `get_trace_tags` (referenced by name at
+  # its call site further up the file, so the rebinding takes effect at call time)
+  # rather than editing the original function body, keeping the patch a pure
+  # insertion - no line inside the upstream file is touched or reflowed.
+  # TEMPORARY: a stopgap to validate the tagging behavior now; see the "Staging"
+  # note in the plan this shipped from. Once confirmed, the plan is to move this
+  # into a fork of the plugin (or upstream it) and drop this activation entirely -
+  # at that point only the marketplace URL in claudeLangfusePlugin changes; the
+  # CC_LANGFUSE_TAGS env var and the `claude` shellAlias below stay as-is.
+  claudeTagsPatch = pkgs.writeText "claude-langfuse-cc-tags-patch.py" ''
+    # --- nix-managed: CC_LANGFUSE_TAGS support (dotfiles modules/home/ai.nix) ---
+    _orig_get_trace_tags = get_trace_tags
+
+
+    def get_trace_tags(*args, **kwargs):
+        tags = _orig_get_trace_tags(*args, **kwargs)
+        _custom = _opt("CC_LANGFUSE_TAGS")
+        if _custom:
+            tags = tags + [t.strip() for t in _custom.split(",") if t.strip()]
+        return tags
+
+
+    # --- end nix-managed: CC_LANGFUSE_TAGS support ---
+  '';
 in
 
 {
+  # Tag Codex's and Claude's Langfuse traces with the folder each is launched in.
+  # Both plugins (codexLangfusePlugin / claudeLangfusePlugin + claudeTagsPatch
+  # below) read a *_TAGS env var when their trace-emitting hook fires; a
+  # prefix-assignment alias sets it for just that one process, evaluated at
+  # launch so ${PWD:t} is the real launch dir. The trailing bare command name
+  # hits the real binary (zsh alias-recursion guard). Declared here to keep AI
+  # config in this module; merges into zsh.nix's shellAliases.
+  #   - codex: LANGFUSE_CODEX_TAGS is native to the Codex plugin -> codex,<dir>.
+  #   - claude: CC_LANGFUSE_TAGS only exists because of the claudeTagsPatch
+  #     activation below (upstream 1.0.0 has no custom-tag var); its own
+  #     "claude-code" base tag is already automatic, so just <dir> here.
+  programs.zsh.shellAliases = {
+    codex = ''LANGFUSE_CODEX_TAGS="codex,''${PWD:t}" codex'';
+    claude = ''CC_LANGFUSE_TAGS="''${PWD:t}" claude'';
+  };
+
   home = {
     # Shared instructions -> each agent's canonical filename
     file = lib.mkMerge [
@@ -202,6 +249,31 @@ in
             PATH="/usr/bin:$PATH" "$_claude" plugin install langfuse-observability@langfuse-observability 2>/dev/null || true
           fi
         fi
+      '';
+
+      # Claude: give the installed langfuse plugin CC_LANGFUSE_TAGS support (see
+      # claudeTagsPatch above for why - upstream 1.0.0 has no custom-tag env var).
+      # entryAfter claudeLangfusePlugin so the plugin is installed first. Marker-
+      # guarded (grep before patching) so a rebuild never inserts a second copy,
+      # and a fresh reinstall (undeclared-plugin wipe + reinstall) is re-patched
+      # automatically on the next rebuild. Globs every version dir under cache/,
+      # not just 1.0.0, so a future plugin upgrade is still patched without an
+      # edit here (though the insertion point - just before the __main__ guard -
+      # is an assumption about upstream's file layout and could need revisiting
+      # if that layout changes).
+      claudeLangfuseTagsPatch = lib.hm.dag.entryAfter [ "writeBoundary" "claudeLangfusePlugin" ] ''
+        for _hook in "$HOME"/.claude/plugins/cache/langfuse-observability/langfuse-observability/*/hooks/langfuse_hook.py; do
+          [ -e "$_hook" ] || continue
+          grep -q 'nix-managed: CC_LANGFUSE_TAGS support' "$_hook" && continue
+          if ${pkgs.gawk}/bin/awk -v pf='${claudeTagsPatch}' '
+               /^if __name__ == "__main__":/ && !ins { while ((getline l < pf) > 0) print l; close(pf); ins=1 }
+               { print }
+             ' "$_hook" > "$_hook.tmp" && [ -s "$_hook.tmp" ]; then
+            mv "$_hook.tmp" "$_hook"
+          else
+            rm -f "$_hook.tmp" || true
+          fi
+        done
       '';
 
       # Codex: unlike every other agent here, ~/.codex/config.toml cannot be a home.file
