@@ -253,18 +253,33 @@ in
 
       # Claude: give the installed langfuse plugin CC_LANGFUSE_TAGS support (see
       # claudeTagsPatch above for why - upstream 1.0.0 has no custom-tag env var).
-      # entryAfter claudeLangfusePlugin so the plugin is installed first. Marker-
-      # guarded (grep before patching) so a rebuild never inserts a second copy,
-      # and a fresh reinstall (undeclared-plugin wipe + reinstall) is re-patched
+      # entryAfter claudeLangfusePlugin so the plugin is installed first. Guarded
+      # (grep before patching) so a rebuild never inserts a second copy, and a
+      # fresh reinstall (undeclared-plugin wipe + reinstall) is re-patched
       # automatically on the next rebuild. Globs every version dir under cache/,
       # not just 1.0.0, so a future plugin upgrade is still patched without an
       # edit here (though the insertion point - just before the __main__ guard -
       # is an assumption about upstream's file layout and could need revisiting
       # if that layout changes).
+      #
+      # The guard matches EITHER our own marker comment OR a call reading the
+      # CC_LANGFUSE_TAGS env var - not just the marker. Without the second
+      # alternative, pointing the plugin's marketplace at a fork/build that
+      # already has CC_LANGFUSE_TAGS support (no marker comment, since it's not
+      # our patch) would look "unpatched" to this grep and get a second wrapper
+      # stacked on top, double-appending every custom tag. Same gap would
+      # otherwise resurface once upstream ships this feature for real, so the
+      # dual guard is a permanent fix, not just a fork-testing workaround.
+      # Matches on `_opt("CC_LANGFUSE_TAGS")` - the env var name itself, i.e. the
+      # actual config contract - rather than on a variable name like
+      # `CUSTOM_TAGS` some particular implementation happens to store it in:
+      # variable names are an implementation detail a maintainer could rename
+      # during review (e.g. merging this repo's own upstream PR under a
+      # different name), which would silently break a marker keyed on it.
       claudeLangfuseTagsPatch = lib.hm.dag.entryAfter [ "writeBoundary" "claudeLangfusePlugin" ] ''
         for _hook in "$HOME"/.claude/plugins/cache/langfuse-observability/langfuse-observability/*/hooks/langfuse_hook.py; do
           [ -e "$_hook" ] || continue
-          grep -q 'nix-managed: CC_LANGFUSE_TAGS support' "$_hook" && continue
+          grep -qE 'nix-managed: CC_LANGFUSE_TAGS support|_opt\("CC_LANGFUSE_TAGS"\)' "$_hook" && continue
           if ${pkgs.gawk}/bin/awk -v pf='${claudeTagsPatch}' '
                /^if __name__ == "__main__":/ && !ins { while ((getline l < pf) > 0) print l; close(pf); ins=1 }
                { print }
