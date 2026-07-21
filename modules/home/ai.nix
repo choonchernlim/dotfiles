@@ -262,6 +262,52 @@ in
         fi
       '';
 
+      # Codex: install + enable the langfuse "tracing" plugin (marketplace + plugin) if
+      # absent, mirroring claudeLangfusePlugin above. entryAfter codexConfig so the
+      # config.toml preamble/model upsert settles first - guard (b) below appends new
+      # [table]s at EOF while codexConfig's awk only ever rewrites the preamble, so this
+      # ordering means the two writes never race on the same file.
+      #
+      # Two independent, idempotent guards (never aborts the rebuild - all `|| true`):
+      #   (a) install-if-absent: `codex plugin` has `add`, not `install` (confirmed via
+      #       `codex plugin --help` on codex-cli 0.144.6). Grep the JSON text of
+      #       `codex plugin list --json` rather than parse it with jq - the exact
+      #       installed-entry shape wasn't worth locking to a schema. Same HTTPS-URL +
+      #       /usr/bin/git reasoning as claudeLangfusePlugin above: the marketplace source
+      #       must be an explicit URL (the `owner/repo` shorthand resolves to an SSH clone,
+      #       and the hermetic activation PATH has no `ssh`), and /usr/bin/git (macOS
+      #       Keychain trust) is used instead of ${pkgs.git} (relies solely on
+      #       `http.sslcainfo`, pinned on this machine to the Zscaler MITM cert - fails
+      #       whenever the network path isn't actually going through Zscaler).
+      #   (b) enable-if-absent, defensive fallback only: confirmed via a live rebuild that
+      #       `plugin add` already writes `[plugins."tracing@codex-observability-plugin"]
+      #       enabled = true` into config.toml itself, and no `[features] plugin_hooks`
+      #       table is needed at all - the plugin's own README claiming otherwise turned out
+      #       stale (same class of doc drift as the Claude TRACE_TO_LANGFUSE mistake noted in
+      #       memory). This guard is kept only in case a future codex version stops
+      #       self-writing that table; it appends both at EOF, gated on the plugin table
+      #       being absent so it stays a no-op in the common case, with `[features]` gated
+      #       separately so a pre-existing `[features]` table never gets a second one (TOML
+      #       rejects duplicate tables).
+      #
+      # No keep-set needed here (unlike Claude): aiReconcile never touches Codex plugin
+      # state, and codexConfig's awk never rewrites past the preamble, so these tables are
+      # never at risk of being pruned on a later rebuild.
+      codexLangfusePlugin = lib.hm.dag.entryAfter [ "writeBoundary" "codexConfig" ] ''
+        _codex=/opt/homebrew/bin/codex
+        _cfg="$HOME/.codex/config.toml"
+        if [ -x "$_codex" ]; then
+          if ! "$_codex" plugin list --json 2>/dev/null | grep -q 'tracing@codex-observability-plugin'; then
+            PATH="/usr/bin:$PATH" "$_codex" plugin marketplace add https://github.com/langfuse/codex-observability-plugin 2>/dev/null || true
+            PATH="/usr/bin:$PATH" "$_codex" plugin add tracing@codex-observability-plugin 2>/dev/null || true
+          fi
+          if [ -e "$_cfg" ] && ! grep -q '^\[plugins."tracing@codex-observability-plugin"\]' "$_cfg"; then
+            grep -q '^\[features\]' "$_cfg" || printf '\n[features]\nplugin_hooks = true\n' >> "$_cfg"
+            printf '\n[plugins."tracing@codex-observability-plugin"]\nenabled = true\n' >> "$_cfg"
+          fi
+        fi
+      '';
+
       # Enforce nix as the single source of truth for all AI-agent plugins, extensions, and MCP,
       # with one declared exception: Claude plugins/marketplaces in claudeKeepInstalled /
       # claudeKeepMarketplaces above (installed imperatively via `claude plugin install`, then
