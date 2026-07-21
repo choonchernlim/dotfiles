@@ -146,7 +146,7 @@ Each agent maintains its own plugin/extension store that nix does not own, so re
 
 | Agent             | Mechanism                                                                                                            | Keep-set                                                      |
 |-------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| Claude            | Reset `installed_plugins.json` + `known_marketplaces.json`; remove cache dir; `claude mcp remove` for undeclared MCP | playwright MCP only                                           |
+| Claude            | Keep-set prune of `installed_plugins.json` + `known_marketplaces.json` + `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP + `langfuse-observability` plugin (`claudeKeepInstalled`/`claudeKeepMarketplaces` in `modules/home/ai.nix`) |
 | Gemini CLI        | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}`                               | (none - gemini extensions are the root import source for agy) |
 | Antigravity (agy) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json`                                            | playwright (nix symlink declared in `home.file`)              |
 | Copilot           | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json`                                     | (none)                                                        |

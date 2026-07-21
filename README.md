@@ -9,6 +9,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - 🔗 Neovim, WezTerm, ghostty, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
+- 📊 Claude Code sessions traced to a local Langfuse via the official `langfuse-observability` plugin - kept alive across rebuilds by a declared keep-set in `aiReconcile` (`modules/home/ai.nix`), instead of being reverted like other undeclared plugins
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 - 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
 - 🍵 Local Gitea git server (work, work-atdj) via Docker Compose - since colima autostarts and the containers are `restart: unless-stopped`, `gitea-up` is only needed once ever (or again after a `gitea-down`); browse to http://localhost:3100

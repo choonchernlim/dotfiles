@@ -40,7 +40,17 @@
     "type": "command",
     "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); if [ -n \"$used\" ]; then printf \"%s | Context: %.0f%% used\" \"$model\" \"$used\"; else printf \"%s\" \"$model\"; fi"
   },
-  "enabledPlugins": {},
+  "enabledPlugins": {
+    "langfuse-observability@langfuse-observability": true
+  },
+  "extraKnownMarketplaces": {
+    "langfuse-observability": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/langfuse/Claude-Observability-Plugin.git"
+      }
+    }
+  },
   "effortLevel": "high",
   "theme": "dark-ansi",
   "inputNeededNotifEnabled": true,

@@ -59,6 +59,22 @@ let
   antigravityKeepCases = lib.concatMapStringsSep "\n        " (
     p: ''"${p}") continue ;;''
   ) antigravityKeepPlugins;
+
+  # Nix-declared Claude plugins/marketplaces that aiReconcile preserves instead of wiping.
+  # Installed imperatively via `claude plugin marketplace add` / `claude plugin install` -
+  # the plugin's own installer writes installed_plugins.json/known_marketplaces.json/cache
+  # dirs; nix only guards the declared keys from the reconcile sweep below (same pattern as
+  # antigravityKeepPlugins). To add another plugin: install it, then add its "name@marketplace"
+  # key here and its marketplace name to claudeKeepMarketplaces.
+  claudeKeepInstalled = [ "langfuse-observability@langfuse-observability" ];
+  claudeKeepMarketplaces = [ "langfuse-observability" ];
+  claudeKeepInstalledJson = builtins.toJSON claudeKeepInstalled;
+  claudeKeepMarketplacesJson = builtins.toJSON claudeKeepMarketplaces;
+
+  # Shell case-branches for the marketplaces/ and cache/ dir sweep, keyed by marketplace name.
+  claudeKeepMarketplaceCases = lib.concatMapStringsSep "\n              " (
+    p: ''"${p}") continue ;;''
+  ) claudeKeepMarketplaces;
 in
 
 {
@@ -156,6 +172,38 @@ in
         fi
       '';
 
+      # Claude: install the langfuse-observability plugin (marketplace + plugin) if it's
+      # absent, so the keep-set above has something to preserve on a fresh/wiped machine
+      # instead of only ever guarding an already-installed plugin. Check-if-absent, not
+      # remove-then-add like claudePlaywrightMcp above - a plugin install has no nix-store
+      # path that churns on every rebuild, so re-running it every time would just be a
+      # wasted network round-trip (marketplace git clone + plugin fetch). Absolute path,
+      # not `command -v` - see claudePlaywrightMcp above for why.
+      #
+      # The marketplace source is an explicit HTTPS URL, not the `owner/repo` shorthand -
+      # the CLI resolves that shorthand to an SSH clone (git@github.com:...), which needs the
+      # user's SSH agent and always fails silently under `|| true` here: home-manager's
+      # activation PATH is hermetic and carries no `ssh` at all (confirmed via the generated
+      # activate script - bash/coreutils/diffutils/findutils/gettext/grep/sed/jq/ncurses only).
+      # HTTPS needs no credentials for this public repo. `git` itself is also absent from that
+      # PATH, so /usr/bin/git (Xcode CLT, present per bootstrap.sh's CLT check) is prepended
+      # locally for just this command - not ${pkgs.git}: that hermetic build has no bundled CA
+      # trust and relies on `http.sslcainfo`, which on this machine points at the Zscaler MITM
+      # cert only (modules/home/zscaler.nix) and fails TLS verification whenever the network
+      # path isn't actually going through Zscaler at that moment (the real GitHub cert chain
+      # isn't rooted in that cert). /usr/bin/git instead validates against the macOS Keychain
+      # trust store, which is correct on every network path.
+      claudeLangfusePlugin = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        _claude=/opt/homebrew/bin/claude
+        _ip="$HOME/.claude/plugins/installed_plugins.json"
+        if [ -x "$_claude" ]; then
+          if ! jq -e '.plugins["langfuse-observability@langfuse-observability"]' "$_ip" >/dev/null 2>&1; then
+            PATH="/usr/bin:$PATH" "$_claude" plugin marketplace add https://github.com/langfuse/Claude-Observability-Plugin 2>/dev/null || true
+            PATH="/usr/bin:$PATH" "$_claude" plugin install langfuse-observability@langfuse-observability 2>/dev/null || true
+          fi
+        fi
+      '';
+
       # Codex: unlike every other agent here, ~/.codex/config.toml cannot be a home.file
       # symlink into /nix/store. Codex persists per-directory "trust" decisions by writing
       # directly into this same file (a `[projects."<path>"] trust_level = "trusted"` table)
@@ -214,111 +262,137 @@ in
         fi
       '';
 
-      # Enforce nix as the single source of truth for all AI-agent plugins, extensions, and MCP.
-      # Runs on every rebuild after claudePlaywrightMcp (so playwright is registered first).
-      # Anything not declared in this file is removed. Adding a capability must be done in nix;
-      # an out-of-band install via an agent CLI will be reverted on the next rebuild.
+      # Enforce nix as the single source of truth for all AI-agent plugins, extensions, and MCP,
+      # with one declared exception: Claude plugins/marketplaces in claudeKeepInstalled /
+      # claudeKeepMarketplaces above (installed imperatively via `claude plugin install`, then
+      # kept alive here - same pattern as antigravityKeepPlugins). Everything else not declared
+      # is removed. Runs on every rebuild after claudePlaywrightMcp and claudeLangfusePlugin (so
+      # playwright is registered and langfuse is installed first). Adding a capability must be
+      # done in nix (or, for Claude, installed then added to
+      # the keep-set); an undeclared out-of-band install is reverted on the next rebuild.
       #
       # Mechanism (hybrid):
-      #   - Claude plugins: filesystem reset (installed_plugins.json + cache dirs).
+      #   - Claude plugins: keep-set prune (installed_plugins.json + known_marketplaces.json +
+      #     marketplaces/cache dirs) instead of a blanket reset, so a declared plugin survives.
       #     MCP registry in ~/.claude.json must go through the CLI (claude mcp remove).
-      #   - Gemini extensions, antigravity, copilot: filesystem + JSON reset.
-      #     Their CLIs are networked or disagree with on-disk state (unreliable offline).
+      #   - Gemini extensions, antigravity, copilot: filesystem + JSON reset (antigravity also
+      #     has its own keep-set). Their CLIs are networked or disagree with on-disk state
+      #     (unreliable offline).
       #
       # Safety: every rm is on an explicit quoted path; [ -e ] or find guards prevent abort
       # on missing files; || true keeps a transient failure from killing the whole rebuild.
-      aiReconcile = lib.hm.dag.entryAfter [ "writeBoundary" "claudePlaywrightMcp" ] ''
-        # ── Claude: plugin store + undeclared MCP ──────────────────────────────
-        # Plugin JSON state files live under ~/.claude/plugins/ which we own directly.
-        # ~/.claude.json (MCP registry) must be mutated via the claude CLI, not by hand.
-        _claude_plugins="$HOME/.claude/plugins"
-        if [ -d "$_claude_plugins" ]; then
-          printf '{"version":2,"plugins":{}}' > "$_claude_plugins/installed_plugins.json" || true
-          printf '{}' > "$_claude_plugins/known_marketplaces.json" || true
-          [ -d "$_claude_plugins/cache/claude-plugins-official" ] && \
-            rm -rf "$_claude_plugins/cache/claude-plugins-official" || true
-          [ -d "$_claude_plugins/marketplaces/claude-plugins-official" ] && \
-            rm -rf "$_claude_plugins/marketplaces/claude-plugins-official" || true
-        fi
-        # Absolute path, not `command -v` - see claudePlaywrightMcp above for why.
-        _claude=/opt/homebrew/bin/claude
-        if [ -x "$_claude" ]; then
-          "$_claude" mcp remove --scope user context7 2>/dev/null || true
-        fi
-
-        # ── Gemini CLI extensions (root import source for antigravity) ──────────
-        # nix declares no gemini extensions; remove all extension dirs and reset enablement.
-        # context7 and superpowers live here and are imported into antigravity on agy startup.
-        _gemini_ext="$HOME/.gemini/extensions"
-        if [ -d "$_gemini_ext" ]; then
-          for _entry in "$_gemini_ext"/*; do
-            [ -e "$_entry" ] || continue
-            _name=$(basename "$_entry")
-            [ "$_name" = "extension-enablement.json" ] && continue
-            rm -rf "$_entry" || true
-          done
-          printf '{}' > "$_gemini_ext/extension-enablement.json" || true
-        fi
-
-        # ── Antigravity (agy) plugins ───────────────────────────────────────────
-        # Keep-set is declared above as antigravityKeepPlugins = [ "playwright" ].
-        # Every other entry (including *.hm-bak backup dirs) is removed.
-        _agy_plugins="$HOME/.gemini/antigravity-cli/plugins"
-        if [ -d "$_agy_plugins" ]; then
-          for _entry in "$_agy_plugins"/*; do
-            [ -e "$_entry" ] || continue
-            _name=$(basename "$_entry")
-            case "$_name" in
-              ${antigravityKeepCases}
-              *) rm -rf "$_entry" || true ;;
-            esac
-          done
-        fi
-        # Reset import manifest so agy does not reimport removed plugins.
-        _agy_manifest="$HOME/.gemini/antigravity-cli/import_manifest.json"
-        [ -e "$_agy_manifest" ] && printf '{"imports":[]}' > "$_agy_manifest" || true
-
-        # ── Copilot ─────────────────────────────────────────────────────────────
-        # nix declares no copilot plugins; remove installed-plugins dir entirely.
-        # config.json is JSONC (// comment header); use jq to clear installedPlugins
-        # while preserving trustedFolders, expAssignmentsCache, and other fields.
-        _cop="$HOME/.copilot"
-        if [ -d "$_cop" ]; then
-          rm -rf "$_cop/installed-plugins" || true
-          _cf="$_cop/config.json"
-          if [ -e "$_cf" ] && command -v jq >/dev/null 2>&1; then
-            _updated=$(grep -v '^//' "$_cf" | jq '.installedPlugins = []' 2>/dev/null) || true
-            if [ -n "$_updated" ]; then
-              {
-                printf '// User settings belong in settings.json.\n'
-                printf '// This file is managed automatically.\n'
-                printf '%s\n' "$_updated"
-              } > "$_cf" || true
+      aiReconcile =
+        lib.hm.dag.entryAfter [ "writeBoundary" "claudePlaywrightMcp" "claudeLangfusePlugin" ]
+          ''
+            # ── Claude: plugin store + undeclared MCP ──────────────────────────────
+            # Plugin JSON state files live under ~/.claude/plugins/ which we own directly.
+            # ~/.claude.json (MCP registry) must be mutated via the claude CLI, not by hand.
+            _claude_plugins="$HOME/.claude/plugins"
+            if [ -d "$_claude_plugins" ]; then
+              _ip="$_claude_plugins/installed_plugins.json"
+              if [ -e "$_ip" ]; then
+                _pruned=$(jq --argjson keep '${claudeKeepInstalledJson}' \
+                  '.version = (.version // 2) | .plugins = ((.plugins // {}) | with_entries(select(.key as $k | $keep | index($k))))' \
+                  "$_ip" 2>/dev/null) || true
+                [ -n "$_pruned" ] && printf '%s\n' "$_pruned" > "$_ip" || true
+              else
+                printf '{"version":2,"plugins":{}}' > "$_ip" || true
+              fi
+              _km="$_claude_plugins/known_marketplaces.json"
+              if [ -e "$_km" ]; then
+                _pruned=$(jq --argjson keep '${claudeKeepMarketplacesJson}' \
+                  'with_entries(select(.key as $k | $keep | index($k)))' \
+                  "$_km" 2>/dev/null) || true
+                [ -n "$_pruned" ] && printf '%s\n' "$_pruned" > "$_km" || true
+              else
+                printf '{}' > "$_km" || true
+              fi
+              for _base in marketplaces cache; do
+                _dir="$_claude_plugins/$_base"
+                [ -d "$_dir" ] || continue
+                for _entry in "$_dir"/*; do
+                  [ -e "$_entry" ] || continue
+                  _name=$(basename "$_entry")
+                  case "$_name" in
+                    ${claudeKeepMarketplaceCases}
+                    *) rm -rf "$_entry" || true ;;
+                  esac
+                done
+              done
             fi
-          fi
-        fi
+            # Absolute path, not `command -v` - see claudePlaywrightMcp above for why.
+            _claude=/opt/homebrew/bin/claude
+            if [ -x "$_claude" ]; then
+              "$_claude" mcp remove --scope user context7 2>/dev/null || true
+            fi
 
-        # ── Stale backups (.hm-bak and agent-created dated copies) ──────────────
-        # home-manager creates *.hm-bak when replacing a file that already existed.
-        # Agents create settings.json.YYYYMMDD before overwriting their config.
-        # Both are dead weight once the symlinks and reconcile are in place.
-        for _dir in \
-          "$HOME/.claude" \
-          "$HOME/.codex" \
-          "$HOME/.copilot" \
-          "$HOME/.gemini/antigravity-cli"; do
-          [ -d "$_dir" ] || continue
-          find "$_dir" -maxdepth 1 \
-            \( -name '*.hm-bak' -o -name 'settings.json.2[0-9][0-9][0-9]*' \) \
-            -exec rm -rf {} + 2>/dev/null || true
-        done
+            # ── Gemini CLI extensions (root import source for antigravity) ──────────
+            # nix declares no gemini extensions; remove all extension dirs and reset enablement.
+            # context7 and superpowers live here and are imported into antigravity on agy startup.
+            _gemini_ext="$HOME/.gemini/extensions"
+            if [ -d "$_gemini_ext" ]; then
+              for _entry in "$_gemini_ext"/*; do
+                [ -e "$_entry" ] || continue
+                _name=$(basename "$_entry")
+                [ "$_name" = "extension-enablement.json" ] && continue
+                rm -rf "$_entry" || true
+              done
+              printf '{}' > "$_gemini_ext/extension-enablement.json" || true
+            fi
 
-        # ── Ansible ai-role leftover ────────────────────────────────────────────
-        # The disabled Ansible ai role wrote ~/.zshrc_conf/ai.sh (env vars now
-        # declared in sessionVariables here). Drifted machines still have it
-        # sourced on every shell; the .txt variant is a renamed leftover.
-        rm -f "$HOME/.zshrc_conf/ai.sh" "$HOME/.zshrc_conf/ai.sh.txt" || true
-      '';
+            # ── Antigravity (agy) plugins ───────────────────────────────────────────
+            # Keep-set is declared above as antigravityKeepPlugins = [ "playwright" ].
+            # Every other entry (including *.hm-bak backup dirs) is removed.
+            _agy_plugins="$HOME/.gemini/antigravity-cli/plugins"
+            if [ -d "$_agy_plugins" ]; then
+              for _entry in "$_agy_plugins"/*; do
+                [ -e "$_entry" ] || continue
+                _name=$(basename "$_entry")
+                case "$_name" in
+                  ${antigravityKeepCases}
+                  *) rm -rf "$_entry" || true ;;
+                esac
+              done
+            fi
+            # Reset import manifest so agy does not reimport removed plugins.
+            _agy_manifest="$HOME/.gemini/antigravity-cli/import_manifest.json"
+            [ -e "$_agy_manifest" ] && printf '{"imports":[]}' > "$_agy_manifest" || true
+
+            # ── Copilot ─────────────────────────────────────────────────────────────
+            # nix declares no copilot plugins; remove installed-plugins dir entirely.
+            # config.json is JSONC (// comment header); use jq to clear installedPlugins
+            # while preserving trustedFolders, expAssignmentsCache, and other fields.
+            _cop="$HOME/.copilot"
+            if [ -d "$_cop" ]; then
+              rm -rf "$_cop/installed-plugins" || true
+              _cf="$_cop/config.json"
+              if [ -e "$_cf" ] && command -v jq >/dev/null 2>&1; then
+                _updated=$(grep -v '^//' "$_cf" | jq '.installedPlugins = []' 2>/dev/null) || true
+                if [ -n "$_updated" ]; then
+                  {
+                    printf '// User settings belong in settings.json.\n'
+                    printf '// This file is managed automatically.\n'
+                    printf '%s\n' "$_updated"
+                  } > "$_cf" || true
+                fi
+              fi
+            fi
+
+            # ── Stale backups (.hm-bak and agent-created dated copies) ──────────────
+            # home-manager creates *.hm-bak when replacing a file that already existed.
+            # Agents create settings.json.YYYYMMDD before overwriting their config.
+            # Both are dead weight once the symlinks and reconcile are in place.
+            for _dir in \
+              "$HOME/.claude" \
+              "$HOME/.codex" \
+              "$HOME/.copilot" \
+              "$HOME/.gemini/antigravity-cli"; do
+              [ -d "$_dir" ] || continue
+              find "$_dir" -maxdepth 1 \
+                \( -name '*.hm-bak' -o -name 'settings.json.2[0-9][0-9][0-9]*' \) \
+                -exec rm -rf {} + 2>/dev/null || true
+            done
+          '';
     };
   };
 }
