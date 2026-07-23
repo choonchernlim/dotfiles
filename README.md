@@ -9,10 +9,11 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - 🔗 Neovim, WezTerm, ghostty, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
-- 📊 Claude Code sessions traced to a local Langfuse via the official `langfuse-observability` plugin - kept alive across rebuilds by a declared keep-set in `aiReconcile` (`modules/home/ai.nix`), instead of being reverted like other undeclared plugins
+- 📊 Local Langfuse observability stack (work) via Docker Compose, with Claude and Codex tracing plugins kept in sync by `aiReconcile`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 - 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
 - 🍵 Local Gitea git server (work, work-atdj) via Docker Compose - since colima autostarts and the containers are `restart: unless-stopped`, `gitea-up` is only needed once ever (or again after a `gitea-down`); browse to http://localhost:3100
+- 🔭 Local Langfuse server (work) via Docker Compose - run `langfuse-up` once on a fresh host; Docker restores the containers on later logins; browse to http://localhost:3200
 - 🔐 `~/.docker/config.json` reconciled to Keychain-backed credentials (all 3 profiles), with GCP Artifact Registry routed through the gcloud helper
 - 🔒 Corporate Zscaler MITM cert trusted automatically - host-side (git, npm) and inside the colima guest VM for `docker pull` (work, work-atdj)
 
@@ -22,7 +23,7 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI ag
 
 | Profile     | Adds beyond the common base                     |
 |-------------|--------------------------------------------------|
-| `work`      | mise, ghostty, gitea, Zscaler cert trust         |
+| `work`      | mise, ghostty, gitea, Langfuse, Zscaler cert trust |
 | `personal`  | mise, ghostty                                    |
 | `work-atdj` | gitea, Zscaler cert trust (no mise, no ghostty)  |
 
@@ -48,6 +49,16 @@ cd dotfiles
 4. Installs the git pre-commit hooks via `nix develop`
 
 After that, use `rebuild work` for every subsequent change.
+
+On a fresh work host, create the local service containers once:
+
+```sh
+gitea-up
+langfuse-up
+```
+
+Colima starts automatically at login, and Docker restores both stacks after
+their containers have been created.
 
 ### Validate without applying
 

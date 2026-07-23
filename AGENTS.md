@@ -84,6 +84,11 @@ modules/
                          darwin/homebrew/common.nix; colima itself autostarts via home/colima.nix,
                          so gitea-up is normally only needed once (compose services are restart:
                          unless-stopped)
+  home/langfuse.nix    - feature module (work only): local Langfuse observability stack via Docker
+                         Compose, manual langfuse-up/-down/-status/-logs shell functions,
+                         langfuseReconcile; colima autostarts via home/colima.nix, so
+                         langfuse-up is needed only once on a fresh host (compose services are
+                         restart: always); all published ports are localhost-only
   home/zscaler.nix     - feature module (work, work-atdj): wiring for the corporate Zscaler MITM
                          proxy - NODE_EXTRA_CA_CERTS, git http.sslcainfo, and trusting the cert
                          inside the colima guest VM (hash-guarded, restarts dockerd only on cert

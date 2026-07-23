@@ -11,7 +11,7 @@ hosts/
   personal.nix         - same shape
   work-atdj.nix        - same shape; common homebrew bundle + work-atdj's own (currently empty)
                          extras; home modules zsh/gcloud/ai/colima/docker/gitea/zscaler
-                         (no mise/ghostty)
+                         (no mise/ghostty/langfuse)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
   darwin/homebrew/     - homebrew package bundles: common.nix (audited 3-way intersection - only
@@ -36,6 +36,10 @@ modules/
                          started manually with gitea-up/-down/-status/-logs shell functions
                          (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
                          in darwin/homebrew/common.nix
+  home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
+                         started manually with langfuse-up/-down/-status/-logs shell functions;
+                         existing containers restart after login through Colima + Docker
+                         (+ langfuseReconcile)
   home/zscaler.nix     - feature (work, work-atdj): corporate Zscaler MITM wiring -
                          NODE_EXTRA_CA_CERTS, git http.sslcainfo, colima guest VM cert trust
                          (+ zscalerReconcile); the cert file itself stays user-owned, not
