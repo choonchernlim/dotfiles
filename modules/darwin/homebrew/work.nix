@@ -48,7 +48,7 @@
       # "android-studio"
       "bruno"
       "calibrite-profiler"
-      "chatgpt-classic"
+      "chatgpt"
       "claude"
       "claude-code"
       "codex"
