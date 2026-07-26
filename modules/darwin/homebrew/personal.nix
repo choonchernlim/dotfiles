@@ -63,6 +63,7 @@
       "redis-stack"
       "redis-stack-redisinsight"
       "redis-stack-server"
+      "signal"
       "spotify"
       "tflint"
       "trezor-suite"

@@ -81,6 +81,7 @@
       }
       "grandperspective"
       "logi-options+"
+      "obsidian"
       "rectangle"
       "sublime-text"
       "visual-studio-code"
