@@ -48,7 +48,12 @@
     mutableTaps = true; # taps are declared in ./homebrew/{common,personal}.nix; mutable so brew CLI still works between rebuilds
   };
   # Ports Ansible's `brew analytics off` declaratively for fresh machines.
-  environment.variables.HOMEBREW_NO_ANALYTICS = "1";
+  # NO_ENV_HINTS silences the analytics/donations/"hide these hints" noise that
+  # Homebrew prints on every auto-update during `rebuild`.
+  environment.variables = {
+    HOMEBREW_NO_ANALYTICS = "1";
+    HOMEBREW_NO_ENV_HINTS = "1";
+  };
 
   # home-manager owns zsh completion init (cached compinit) and starship owns
   # the prompt. The nix-darwin defaults would add a second, uncached compinit
