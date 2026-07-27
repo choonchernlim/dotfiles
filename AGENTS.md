@@ -53,7 +53,7 @@ hosts/
   work-atdj.nix        - same shape; homebrew common + work-atdj (work-atdj.nix is an empty
                          scaffold for host-specific extras - the 2026-07-15 all-hosts audit found
                          nothing here wasn't already covered by common.nix) + quicklook; home
-                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler (no mise/ghostty)
+                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler (no mise)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
   darwin/homebrew/     - homebrew package bundles: common.nix (the audited 3-way intersection -
@@ -68,7 +68,6 @@ modules/
   home/zsh.nix         - feature module: zsh + starship + direnv, zshReconcile cleanup
   home/mise.nix        - feature module: mise (node, terraform versions), miseReconcile cleanup
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
-  home/ghostty.nix     - feature module: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
                          colima (container runtime) at login via a home-manager launchd agent;
@@ -120,8 +119,8 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 
 All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
-- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), ghostty config (`ghostty.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm + ghostty are the terminals), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins.
+- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
+- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together.
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
   `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
   own reconcile if it reappears.

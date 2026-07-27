@@ -11,7 +11,7 @@ hosts/
   personal.nix         - same shape
   work-atdj.nix        - same shape; common homebrew bundle + work-atdj's own (currently empty)
                          extras; home modules zsh/gcloud/ai/colima/docker/gitea/zscaler
-                         (no mise/ghostty/langfuse)
+                         (no mise/langfuse)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Touch ID for sudo
   darwin/homebrew/     - homebrew package bundles: common.nix (audited 3-way intersection - only
@@ -25,7 +25,6 @@ modules/
   home/zsh.nix         - feature: zsh + starship + direnv (+ zshReconcile)
   home/mise.nix        - feature: mise tool versions - node, terraform (+ miseReconcile)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
-  home/ghostty.nix     - feature: ghostty config symlink + terminal cleanup (iTerm2 removal)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
   home/colima.nix      - feature (all 3 hosts): autostarts colima (container runtime) at login
                          via a home-manager launchd agent; generic, not gitea- or network-specific
@@ -90,7 +89,7 @@ The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on eve
 
 [mac-dev-bootstrap](../../mac-dev-bootstrap/) is fully retired - every role in its `main.yml` is commented out (per the guardrails' comment-don't-delete rule) and the repo can be archived. Each capability was ported to a nix feature module or deliberately dropped in a modern rewrite; every drop is swept by the owning module's reconcile activation so any machine, new or drifted, converges from `rebuild` alone.
 
-Highlights of what was dropped rather than ported: oh-my-zsh/p10k/spaceship (native plugins + starship), nvm/sdkman/tfenv (mise), java/maven, iTerm2 (WezTerm + ghostty), amix/vimrc (Neovim), 4 abandoned QuickLook plugins.
+Highlights of what was dropped rather than ported: oh-my-zsh/p10k/spaceship (native plugins + starship), nvm/sdkman/tfenv (mise), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim), 4 abandoned QuickLook plugins.
 
 Follow-up tasks unlocked by the retirement:
 

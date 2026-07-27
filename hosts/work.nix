@@ -14,7 +14,6 @@
       ../modules/home/zsh.nix
       ../modules/home/mise.nix
       ../modules/home/gcloud.nix
-      ../modules/home/ghostty.nix
       ../modules/home/ai.nix
       ../modules/home/colima.nix
       ../modules/home/docker.nix

@@ -7,7 +7,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 📦 mise for tool versions (node, terraform) - one fast version manager instead of nvm/sdkman/tfenv
 - ☁️ gcloud shell wiring, config, and components kept in sync
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
-- 🔗 Neovim, WezTerm, ghostty, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
+- 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
 - 🤖 AI agents: Claude, Codex, Copilot, OpenCode share one `home/ai/AGENTS.md`
 - 📊 Local Langfuse observability stack (work) via Docker Compose, with Claude and Codex tracing plugins kept in sync by `aiReconcile`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
@@ -23,9 +23,9 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI ag
 
 | Profile     | Adds beyond the common base                     |
 |-------------|--------------------------------------------------|
-| `work`      | mise, ghostty, gitea, Langfuse, Zscaler cert trust |
-| `personal`  | mise, ghostty                                    |
-| `work-atdj` | gitea, Zscaler cert trust (no mise, no ghostty)  |
+| `work`      | mise, gitea, Langfuse, Zscaler cert trust |
+| `personal`  | mise                                      |
+| `work-atdj` | gitea, Zscaler cert trust (no mise)       |
 
 See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.
 

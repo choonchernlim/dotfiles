@@ -210,7 +210,7 @@ in
       # installed. Absolute path, not `command -v` - home-manager's activation PATH is hermetic
       # (bash/coreutils/grep/sed/jq from the nix store only, confirmed via the generated activate
       # script), it never includes /opt/homebrew/bin, so a PATH-based lookup here always silently
-      # no-ops. Same fix ghostty.nix already uses for its own brew invocation.
+      # no-ops - hence the absolute /opt/homebrew/bin/claude path below.
       claudePlaywrightMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         _claude=/opt/homebrew/bin/claude
         if [ -x "$_claude" ]; then
