@@ -4,9 +4,17 @@
 # rebuild - removing a package here uninstalls it on the next `rebuild`.
 {
   homebrew = {
+    # Homebrew 6.0 Tap-Trust requires third-party taps to be explicitly trusted or
+    # brew bundle aborts on a fresh bootstrap. Use the submodule form with trusted = true.
     taps = [
-      "oven-sh/bun"
-      "terraform-linters/tap"
+      {
+        name = "oven-sh/bun";
+        trusted = true;
+      }
+      {
+        name = "terraform-linters/tap";
+        trusted = true;
+      }
     ];
     brews = [
       # node moved to mise (was shadowed by nvm's node on PATH anyway);
