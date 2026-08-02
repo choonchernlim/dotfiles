@@ -62,7 +62,9 @@
       "alfred"
       # Self-updating apps that brew cannot cleanly upgrade here are pinned greedy=false:
       # - antigravity-cli: agy self-update replaces brew's binary at /opt/homebrew/bin/agy,
-      #   so a greedy upgrade always fails with "already a Binary" and rolls back.
+      #   so a greedy upgrade always fails with "already a Binary" and rolls back. The
+      #   `agyUpdate` activation in modules/home/ai.nix runs `agy update` on every rebuild
+      #   instead, so the CLI still tracks upstream deterministically.
       # - google-chrome: /Applications/Google Chrome.app is root-owned (legacy Ansible sudo
       #   install); brew runs unprivileged during activation and cannot replace it.
       # Both apps keep themselves up to date; brew only guarantees they are installed.

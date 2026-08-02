@@ -395,6 +395,18 @@ in
         fi
       '';
 
+      # agy self-updates in the background during a session, but the fresh binary only takes
+      # effect on the NEXT launch (updater/update_status.json says "restart CLI to use"). That
+      # leaves a window where a rebuild-then-launch cycle still runs the previous version. Force
+      # the update here so, by the time `rebuild` returns, the on-disk binary is current.
+      # `|| true` so a network hiccup does not fail the whole rebuild.
+      agyUpdate = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        _agy=/opt/homebrew/bin/agy
+        if [ -x "$_agy" ]; then
+          "$_agy" update || true
+        fi
+      '';
+
       # Enforce nix as the single source of truth for all AI-agent plugins, extensions, and MCP,
       # with one declared exception: Claude plugins/marketplaces in claudeKeepInstalled /
       # claudeKeepMarketplaces above (installed imperatively via `claude plugin install`, then
