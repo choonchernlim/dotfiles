@@ -30,8 +30,8 @@ nix build --impure .#checks.aarch64-darwin.pre-commit
 # Expected output: empty (no new warnings)
 nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"
 
-# Enter devShell - installs/refreshes .git/hooks/pre-commit (hermetic Nix store paths)
-nix develop --impure
+# Refresh .git/hooks/pre-commit by hand (normally auto-installed by direnv on cd; see .envrc)
+direnv allow && direnv exec . true
 
 # First-time setup on a fresh machine
 ./bootstrap.sh work     # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
@@ -103,7 +103,7 @@ treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt
 rebuild.sh             - re-applies the flake on every change; takes a profile arg, discovered
                          dynamically from hosts/*.nix (work|personal|work-atdj)
 bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch,
-                         installs .git/hooks/pre-commit via `nix develop`
+                         installs .git/hooks/pre-commit via direnv (`.envrc` -> `use flake . --impure`)
 docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, Ansible coexistence
 ```
 

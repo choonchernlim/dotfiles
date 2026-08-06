@@ -46,9 +46,11 @@ cd dotfiles
 1. Installs Determinate Nix (skips if already installed)
 2. Symlinks this repo to `~/.dotfiles` (required before the first build)
 3. Runs the first `darwin-rebuild switch` (fetches `darwin-rebuild` from nix-darwin 26.05)
-4. Installs the git pre-commit hooks via `nix develop`
+4. Installs the git pre-commit hooks via direnv (`.envrc` runs `use flake . --impure`)
 
-After that, use `rebuild work` for every subsequent change.
+After that, use `rebuild work` for every subsequent change. In a new terminal, direnv
+prompts a one-time `direnv allow` on first `cd` into the repo - this also pins the hook's
+Nix store closure so garbage collection can't break it later.
 
 On a fresh work host, create the local service containers once:
 

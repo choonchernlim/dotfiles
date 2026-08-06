@@ -17,3 +17,6 @@ result-*
 
 # git-hooks.nix generates this on `nix develop`; it is a derived artifact, not hand-authored
 .pre-commit-config.yaml
+
+# nix-direnv per-repo devShell cache + GC root (machine-local; pins the pre-commit closure)
+.direnv/

@@ -78,10 +78,17 @@ The repo uses treefmt-nix (nixfmt) for formatting and git-hooks.nix for pre-comm
 nix fmt                                               # format all .nix files
 nix build --impure .#checks.aarch64-darwin.formatting # formatting gate (CI-style)
 nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix)
-nix develop --impure                                  # install .git/hooks/pre-commit
+direnv allow && direnv exec . true                    # install .git/hooks/pre-commit by hand
 ```
 
-The pre-commit hook (installed by `bootstrap.sh` step 4 and `nix develop`) runs nixfmt, statix, and deadnix before every commit. Hook binaries are baked from Nix store paths - no PATH dependency, hermetic on a bare machine.
+The pre-commit hook (installed by `bootstrap.sh` step 4, and refreshed automatically by
+direnv on every `cd` into the repo via `.envrc` -> `use flake . --impure`) runs nixfmt,
+statix, and deadnix before every commit. Hook binaries are baked from Nix store paths - no
+PATH dependency, hermetic on a bare machine. Because `nix develop`/`nix print-dev-env` alone
+only creates a transient GC root, an unrooted hook closure could be reclaimed by Nix's
+periodic garbage collection, leaving the hook pointing at a deleted store path. nix-direnv
+(`programs.direnv.nix-direnv.enable` in `modules/home/zsh.nix`) fixes this by creating a
+persistent GC root under `.direnv/` the first time `direnv allow` is run in the repo.
 
 The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on every Claude edit via a PostToolUse hook. It gracefully no-ops if nixfmt is not yet on PATH (pre-`rebuild`).
 
