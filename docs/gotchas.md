@@ -8,9 +8,6 @@ Known quirks and non-obvious behavior in this repo.
 **AI-agent plugins and extensions are nix-managed.**
 Anything installed outside this repo (via `claude plugin install`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild work`. To keep a plugin, declare it in nix. See AGENTS.md "AI Agent Plugin Reconcile" for details.
 
-**rtk (Rust Token Killer) hooks are nix-managed - do not run `rtk init`.**
-`rtk` rewrites Bash tool calls to use token-optimized proxies (e.g. `git status` -> `rtk git status`). The binary comes from Homebrew; hooks for Claude, Copilot, and opencode are declared in `home/ai/` as nix-owned symlinks. Running `rtk init` would overwrite those symlinks with real files that get reverted on the next `rebuild work`.
-
 **`home/ai/AGENTS.md` is my personal agent policy.**
 It installs for Claude, Codex, Copilot, and OpenCode. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
 

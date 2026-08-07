@@ -188,10 +188,6 @@ in
             enabled = true;
           };
         };
-
-        # rtk hook integrations (declarative - rtk init never runs on this system)
-        ".copilot/hooks/rtk-rewrite.json".source = mkOut "${aiDir}/hooks/copilot/rtk-rewrite.json";
-        ".config/opencode/plugins/rtk.ts".source = mkOut "${aiDir}/hooks/opencode/rtk.ts";
       }
     ];
 
@@ -522,6 +518,16 @@ in
                 fi
               fi
             fi
+
+            # ── rtk (retired 2026-08-07) ─────────────────────────────────────────────
+            # Command rewriting removed from all agents. home-manager unlinks the two
+            # symlinks itself; these cover drift, .hm-bak residue, and anything a stray
+            # `rtk init` re-creates. The state dir is not nix-owned, so sweep it here.
+            rm -f "$HOME/.copilot/hooks/rtk-rewrite.json" \
+                  "$HOME/.copilot/hooks/rtk-rewrite.json.hm-bak" || true
+            rm -f "$HOME/.config/opencode/plugins/rtk.ts" \
+                  "$HOME/.config/opencode/plugins/rtk.ts.hm-bak" || true
+            rm -rf "$HOME/Library/Application Support/rtk" || true
 
             # ── Stale backups (.hm-bak and agent-created dated copies) ──────────────
             # home-manager creates *.hm-bak when replacing a file that already existed.

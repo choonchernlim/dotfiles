@@ -18,7 +18,6 @@
       "git-lfs"
       "jq"
       "rsync"
-      "rtk"
       "shellcheck"
       "tree"
       "uv"
@@ -54,6 +53,12 @@
       # "maven"
       # "nvm"
       # "tfenv"
+      # Retired 2026-08-07: rtk command rewriting removed from all agents
+      # (Claude/Copilot/OpenCode hooks + vendored files under home/ai/hooks/
+      # deleted); aiReconcile in modules/home/ai.nix sweeps any leftover
+      # hook files and rtk's state dir. cleanup = "zap" above uninstalls
+      # the formula itself on the next rebuild.
+      # "rtk"
     ];
     # antigravity-cli is a formula in the Ansible list but cask-only in Homebrew 6,
     # so it lives here.

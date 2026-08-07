@@ -120,7 +120,7 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
 - **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together.
+- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `aiReconcile` sweeps any leftover hook files plus its state dir.
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
   `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
   own reconcile if it reappears.
@@ -159,21 +159,7 @@ The gemini extension removal is the critical step: `superpowers` and `context7` 
 
 Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`.
 
-`aiReconcile` does NOT sweep `~/.copilot/hooks/` or `~/.config/opencode/plugins/` - those are owned by nix symlinks declared in `home.file`, so they are safe from the sweep.
-
-## rtk (Rust Token Killer)
-
-`rtk` rewrites Bash tool calls to token-optimized proxies (e.g. `git status` -> `rtk git status`), cutting context consumption 60-90% on common dev commands. It is wired in **declaratively** - `rtk init` never runs on this machine.
-
-| Agent    | Hook location                                                                   | Mechanism                                                                     |
-|----------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| Claude   | `home/ai/settings/claude.json` `hooks.PreToolUse`                               | `rtk hook claude` reads PreToolUse JSON on stdin, emits rewritten command     |
-| Copilot  | `home/ai/hooks/copilot/rtk-rewrite.json` -> `~/.copilot/hooks/rtk-rewrite.json` | `rtk hook copilot` (transparent in VS Code Chat; deny+suggest in Copilot CLI) |
-| OpenCode | `home/ai/hooks/opencode/rtk.ts` -> `~/.config/opencode/plugins/rtk.ts`          | TypeScript plugin intercepts `tool.execute.before`, calls `rtk rewrite`       |
-
-**Do not run `rtk init`.** It patches agent config files that nix owns as read-only `mkOutOfStoreSymlink` symlinks. Any files it writes are reverted on the next `rebuild work` and create `.hm-bak` churn. To update the hook schemas, capture the new schema from `rtk init -g --no-patch` and update the vendored files in `home/ai/hooks/`.
-
-The binary is installed via Homebrew (`brews = [ ... "rtk" ]` in `modules/darwin/default.nix`).
+`aiReconcile` also sweeps the rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
 
 ## Known Upstream Warning
 
