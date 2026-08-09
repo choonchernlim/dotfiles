@@ -2,12 +2,14 @@
 # prompt, direnv. Selected per-host via hosts/*.nix home imports.
 {
   config,
+  pkgs,
   lib,
   ...
 }:
 
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  mkReconcile = import ./lib/reconcile.nix { inherit pkgs lib; };
 in
 
 {
@@ -16,52 +18,29 @@ in
     file.".config/starship.toml".source =
       config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/starship.toml";
 
-    # Cleanup from the Ansible ohmyzsh role port, kept as a permanent reconcile
-    # so a drifted machine converges with `rebuild` alone (aiReconcile pattern).
-    # Removes ONLY named files - ~/.zshrc_conf also holds user- and work-owned
-    # snippets (alias-custom.sh, ...) that must survive. zscaler.sh used to live
-    # here but is now nix-managed (home/zscaler.nix, work/work-atdj only), which
-    # sweeps it via its own zscalerReconcile if it reappears.
-    activation.zshReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      # User/work-owned snippets live here; the dir must exist for the zshrc
-      # sourcing loop on a fresh machine.
-      mkdir -p "$HOME/.zshrc_conf" || true
+    # Permanent per-rebuild setup. (Ansible-era ohmyzsh/nvm cleanup moved to
+    # legacy.nix; retired brews are removed by cleanup = "zap".)
+    activation.zshSetup = mkReconcile {
+      name = "zsh-setup";
+      text = ''
+        # User/work-owned snippets (alias-custom.sh, ...) live here; the dir
+        # must exist for the zshrc sourcing loop on a fresh machine.
+        mkdir -p "$HOME/.zshrc_conf"
 
-      # oh-my-zsh replaced by native home-manager plugins + starship.
-      rm -f "$HOME/.zshrc_conf/ohmyzsh.sh" "$HOME/.zshrc_conf/alias.sh" || true
-      rm -f "$HOME/.p10k.zsh" || true
-      [ -d "$HOME/.oh-my-zsh" ] && rm -rf "$HOME/.oh-my-zsh" || true
-
-      # home-manager backs up a pre-existing starship config as .hm-bak when it
-      # first takes over the path; aiReconcile's sweep only covers agent dirs.
-      rm -f "$HOME/.config/starship.toml.hm-bak" || true
-
-      # Host/version-suffixed compdumps were written by the system-level
-      # compinit in /etc/zshrc (now disabled); only ~/.zcompdump (used by
-      # home-manager's cached compinit) is legitimate.
-      rm -f "$HOME"/.zcompdump-* || true
-
-      # Delisted brews now provided by nixpkgs; cleanup="none" never
-      # uninstalls, so reconcile does. No-op once converged.
-      _brew=/opt/homebrew/bin/brew
-      if [ -x "$_brew" ]; then
-        for _pkg in zsh-autosuggestions zsh-syntax-highlighting starship direnv; do
-          "$_brew" list --formula "$_pkg" >/dev/null 2>&1 && \
-            "$_brew" uninstall "$_pkg" || true
-        done
-      fi
-
-      # Resolve nix-homebrew's patched-brew completions dir once per rebuild
-      # (globbing /nix/store costs ~200ms - too slow for every shell startup;
-      # zshrc reads this cache file instead).
-      mkdir -p "$HOME/.cache/zsh" || true
-      for _d in /nix/store/*brew*patched/completions/zsh; do
-        if [ -d "$_d" ]; then
-          printf '%s' "$_d" > "$HOME/.cache/zsh/brew-zsh-completions" || true
-          break
+        # Resolve nix-homebrew's patched-brew completions dir once per rebuild
+        # (globbing /nix/store costs ~200ms - too slow for every shell startup;
+        # zshrc reads this cache file instead). Resolved via the live
+        # /opt/homebrew/Library/Homebrew symlink, which nix-homebrew points at
+        # the CURRENT patched-brew generation - a bare /nix/store glob could
+        # pick a stale generation that GC later deletes.
+        mkdir -p "$HOME/.cache/zsh"
+        _hb_lib=$(readlink -f /opt/homebrew/Library/Homebrew 2>/dev/null) || _hb_lib=""
+        _comp_dir="''${_hb_lib%/Library/Homebrew}/completions/zsh"
+        if [ -d "$_comp_dir" ]; then
+          printf '%s' "$_comp_dir" > "$HOME/.cache/zsh/brew-zsh-completions"
         fi
-      done
-    '';
+      '';
+    };
   };
 
   programs = {
@@ -82,7 +61,7 @@ in
       initContent = lib.mkMerge [
         (lib.mkOrder 550 ''
           # Add brew completions (nix store path) before compinit. The path is
-          # resolved at rebuild time by zshReconcile into a cache file - globbing
+          # resolved at rebuild time by zshSetup into a cache file - globbing
           # /nix/store here would cost ~200ms on every shell.
           if [[ -r ~/.cache/zsh/brew-zsh-completions ]]; then
             _d="$(<~/.cache/zsh/brew-zsh-completions)"

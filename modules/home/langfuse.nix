@@ -15,17 +15,11 @@ let
 in
 
 {
-  home = {
-    # Link only the compose file so the directory remains available for a
-    # future user-owned .env without ever committing secrets to this public repo.
-    file.".config/langfuse/docker-compose.yml".source =
-      config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/langfuse/docker-compose.yml";
-
-    activation.langfuseReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      rm -f "$HOME/.config/langfuse/docker-compose.yml.hm-bak" || true
-      [ -d "$HOME/.config/langfuse.hm-bak" ] && rm -rf "$HOME/.config/langfuse.hm-bak" || true
-    '';
-  };
+  # Link only the compose file so the directory remains available for a
+  # future user-owned .env without ever committing secrets to this public repo.
+  # (First-takeover .hm-bak cleanup lives in legacy.nix.)
+  home.file.".config/langfuse/docker-compose.yml".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/langfuse/docker-compose.yml";
 
   programs.zsh.initContent = lib.mkOrder 900 ''
     _langfuse_compose="$HOME/.config/langfuse/docker-compose.yml"

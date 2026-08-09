@@ -17,25 +17,23 @@ _:
 
   home-manager.sharedModules = [
     (
-      { lib, ... }:
+      { pkgs, lib, ... }:
+      let
+        mkReconcile = import ../home/lib/reconcile.nix { inherit pkgs lib; };
+      in
       {
-        home.activation.quicklookReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          # Catalina-era plugins dropped in the port - broken on modern macOS.
-          _brew=/opt/homebrew/bin/brew
-          if [ -x "$_brew" ]; then
-            for _pkg in qlstephen qlmarkdown quicklook-json quicklookase; do
-              "$_brew" list --cask "$_pkg" >/dev/null 2>&1 && \
-                "$_brew" uninstall --cask "$_pkg" || true
-            done
-          fi
-
-          # Ports the Ansible role's post-install steps: strip quarantine so
-          # Finder loads the generators, then refresh the QuickLook registry.
-          [ -d "$HOME/Library/QuickLook" ] && \
-            /usr/bin/xattr -d -r com.apple.quarantine "$HOME/Library/QuickLook" 2>/dev/null || true
-          /usr/bin/qlmanage -r >/dev/null 2>&1 || true
-          /usr/bin/qlmanage -r cache >/dev/null 2>&1 || true
-        '';
+        # Ports the Ansible role's post-install steps: strip quarantine so
+        # Finder loads the generators, then refresh the QuickLook registry.
+        # (The Catalina-era dead plugins are removed by cleanup = "zap".)
+        home.activation.quicklookRefresh = mkReconcile {
+          name = "quicklook-refresh";
+          text = ''
+            [ -d "$HOME/Library/QuickLook" ] && \
+              /usr/bin/xattr -d -r com.apple.quarantine "$HOME/Library/QuickLook" 2>/dev/null || true
+            /usr/bin/qlmanage -r >/dev/null 2>&1 || true
+            /usr/bin/qlmanage -r cache >/dev/null 2>&1 || true
+          '';
+        };
       }
     )
   ];

@@ -18,7 +18,7 @@
     ];
     brews = [
       # node moved to mise (was shadowed by nvm's node on PATH anyway);
-      # zshReconcile uninstalls the brew copy.
+      # cleanup="zap" removes the brew copy.
       # "node"
       # watchman was for the mobile/React Native toolchain; dropped along with
       # android-studio, cocoapods, fastlane when mobile dev was retired.

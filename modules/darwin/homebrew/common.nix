@@ -41,15 +41,15 @@
       "docker-credential-helper"
 
       # Moved to nixpkgs via home-manager (programs.starship, programs.direnv,
-      # programs.zsh.*) when the Ansible ohmyzsh role was ported; zshReconcile
-      # uninstalls the brew copies.
+      # programs.zsh.*) when the Ansible ohmyzsh role was ported; cleanup="zap"
+      # removes the brew copies.
       # "direnv"
       # "starship"
       # "zsh-autosuggestions"
       # "zsh-syntax-highlighting"
       # Retired in the dev-toolchain rewrite: nvm/tfenv replaced by mise
       # (programs.mise + home/.config/mise/config.toml), maven dropped with
-      # java/sdkman. zshReconcile uninstalls the brew copies.
+      # java/sdkman. cleanup="zap" removes the brew copies.
       # "maven"
       # "nvm"
       # "tfenv"

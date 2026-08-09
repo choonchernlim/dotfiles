@@ -95,27 +95,36 @@
   # dropped: informational noise, never actionable in practice.)
   home-manager.sharedModules = [
     (
-      { lib, ... }:
+      { pkgs, lib, ... }:
+      let
+        mkReconcile = import ../home/lib/reconcile.nix { inherit pkgs lib; };
+      in
       {
-        home.activation.brewMaintenance = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          _brew=/opt/homebrew/bin/brew
-          if [ -x "$_brew" ]; then
-            "$_brew" cleanup --prune=all >/dev/null 2>&1 || true
-            "$_brew" autoremove >/dev/null 2>&1 || true
-          fi
-        '';
+        home.activation.brewMaintenance = mkReconcile {
+          name = "brew-maintenance";
+          text = ''
+            _brew=/opt/homebrew/bin/brew
+            if [ -x "$_brew" ]; then
+              "$_brew" cleanup --prune=all >/dev/null 2>&1 || true
+              "$_brew" autoremove >/dev/null 2>&1 || true
+            fi
+          '';
+        };
 
         # Replaces the removed `--no-quarantine` cask flag (Homebrew 6.0, no
         # replacement). Strip the quarantine xattr from brew-managed cask
         # artifacts so any unsigned cask still opens without a Gatekeeper
         # prompt. Scoped to the Caskroom - never touches user apps in
         # /Applications. QuickLook plugins strip their own (quicklook.nix).
-        home.activation.caskDequarantine = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          _caskroom=/opt/homebrew/Caskroom
-          if [ -d "$_caskroom" ]; then
-            /usr/bin/xattr -d -r com.apple.quarantine "$_caskroom" 2>/dev/null || true
-          fi
-        '';
+        home.activation.caskDequarantine = mkReconcile {
+          name = "cask-dequarantine";
+          text = ''
+            _caskroom=/opt/homebrew/Caskroom
+            if [ -d "$_caskroom" ]; then
+              /usr/bin/xattr -d -r com.apple.quarantine "$_caskroom" 2>/dev/null || true
+            fi
+          '';
+        };
       }
     )
   ];

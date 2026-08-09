@@ -19,32 +19,40 @@ modules/
                          work-atdj.nix (host-specific extras beyond common.nix; empty right now)
                          (hosts pick which bundles to import; lists auto-merge; all 3 hosts import
                           common.nix)
-  darwin/quicklook.nix - feature: QuickLook preview plugins (casks + refresh/reconcile)
-  home/default.nix     - core home config every host gets: packages, app symlinks, fonts,
-                         legacyReconcile (retired vim/pip artifacts)
-  home/zsh.nix         - feature: zsh + starship + direnv (+ zshReconcile)
-  home/mise.nix        - feature: mise tool versions - node, terraform (+ miseReconcile)
+  darwin/quicklook.nix - feature: QuickLook preview plugins (casks + quarantine strip/refresh)
+  home/lib/reconcile.nix - mkReconcile helper: the single way activation shell is written -
+                         wraps scripts in writeShellApplication (shellcheck at build time,
+                         strict mode, declared tool deps on PATH, atomic json_edit, dry-run
+                         aware via home-manager's `run`)
+  home/legacy.nix      - one-time Ansible-migration sweeps, consolidated; DELETE once every
+                         host has run one rebuild containing it (see file header)
+  home/default.nix     - core home config every host gets: packages, app symlinks, fonts;
+                         imports legacy.nix
+  home/zsh.nix         - feature: zsh + starship + direnv (+ zshSetup: ~/.zshrc_conf dir,
+                         brew-completions cache)
+  home/mise.nix        - feature: mise tool versions - node, terraform (+ miseSetup:
+                         `mise install` provisioning)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
   home/colima.nix      - feature (all 3 hosts): autostarts colima (container runtime) at login
                          via a home-manager launchd agent; generic, not gitea- or network-specific
   home/docker.nix      - feature (all 3 hosts): reconciles ~/.docker/config.json
                          (credsStore=osxkeychain + credHelpers for GCP Artifact Registry) via
-                         an idempotent jq-merge activation, not a home.file symlink
+                         an idempotent atomic jq-merge activation, not a home.file symlink
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
-                         started manually with gitea-up/-down/-status/-logs shell functions
-                         (+ giteaReconcile); runtime (colima/docker/docker-compose) declared
-                         in darwin/homebrew/common.nix
+                         started manually with gitea-up/-down/-status/-logs shell functions;
+                         runtime (colima/docker/docker-compose) declared in
+                         darwin/homebrew/common.nix
   home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
                          started manually with langfuse-up/-down/-status/-logs shell functions;
                          existing containers restart after login through Colima + Docker
-                         (+ langfuseReconcile)
   home/zscaler.nix     - feature (work, work-atdj): corporate Zscaler MITM wiring -
-                         NODE_EXTRA_CA_CERTS, git http.sslcainfo, colima guest VM cert trust
-                         (+ zscalerReconcile); the cert file itself stays user-owned, not
-                         nix-managed (public repo)
+                         NODE_EXTRA_CA_CERTS, git http.sslcainfo, colima guest VM cert trust;
+                         the cert file itself stays user-owned, not nix-managed (public repo)
                          (hosts pick feature modules by import, like homebrew bundles;
-                          each module carries its own reconcile cleanup)
+                          permanent reconciles live with their feature; one-time migration
+                          sweeps live in legacy.nix; retired brews/casks are removed by
+                          homebrew cleanup = "zap", never by activation shell)
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix

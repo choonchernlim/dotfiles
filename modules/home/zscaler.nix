@@ -14,11 +14,17 @@
 # variables below (NODE_EXTRA_CA_CERTS, git http.sslcainfo - its other lines, SSL_CERT_FILE/
 # CURL_CA_BUNDLE/wget/pip/gcloud, were already commented out and are not migrated - the
 # on-demand brew CURL_CA_BUNDLE/SSL_CERT_FILE workflow documented in the
-# reference_zscaler_brew_cert memory is unaffected). zscalerReconcile below removes that file
-# so it can't drift back out of sync with this module.
-{ config, lib, ... }:
+# reference_zscaler_brew_cert memory is unaffected). legacy.nix removes that file so it can't
+# drift back out of sync with this module.
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   certPath = "${config.home.homeDirectory}/.ca_certs/zscalercert.pem";
+  mkReconcile = import ./lib/reconcile.nix { inherit pkgs lib; };
 in
 {
   home = {
@@ -35,13 +41,16 @@ in
       # Absolute path, not `command -v` - home-manager's activation PATH is hermetic (bash/
       # coreutils/grep/sed/jq from the nix store only, no /usr/bin), so a PATH-based lookup here
       # would silently no-op. /usr/bin/git is the Xcode CLT git; this machine has no brew git.
-      zscalerGitCert = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        _zscaler_cert="${certPath}"
-        _git=/usr/bin/git
-        if [ -f "$_zscaler_cert" ] && [ -x "$_git" ]; then
-          "$_git" config --global http.sslcainfo "$_zscaler_cert" || true
-        fi
-      '';
+      zscalerGitCert = mkReconcile {
+        name = "zscaler-git-cert";
+        text = ''
+          _zscaler_cert="${certPath}"
+          _git=/usr/bin/git
+          if [ -f "$_zscaler_cert" ] && [ -x "$_git" ]; then
+            "$_git" config --global http.sslcainfo "$_zscaler_cert" || true
+          fi
+        '';
+      };
 
       # Trust the Zscaler MITM root CA inside the colima guest VM. Without this, any
       # `docker pull`/`docker-compose up` against a registry fails with "x509: certificate
@@ -59,26 +68,31 @@ in
       # rotation. Best-effort on VM readiness: if colima isn't up yet when this activation runs,
       # it no-ops and self-heals on the next rebuild once colima has started - same accepted
       # timing gap as colima.nix's own SIGTERM caveat.
-      colimaZscalerCert = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        _zscaler_cert="${certPath}"
-        _colima=/opt/homebrew/bin/colima
-        if [ -f "$_zscaler_cert" ] && [ -x "$_colima" ] && "$_colima" status >/dev/null 2>&1; then
-          _local_sum=$(sha256sum "$_zscaler_cert" | awk '{print $1}') || true
-          _remote_sum=$("$_colima" ssh -- sha256sum /usr/local/share/ca-certificates/zscaler.crt 2>/dev/null | awk '{print $1}') || true
-          if [ -n "$_local_sum" ] && [ "$_local_sum" != "$_remote_sum" ]; then
-            "$_colima" ssh -- sudo cp "$_zscaler_cert" /usr/local/share/ca-certificates/zscaler.crt 2>/dev/null || true
-            "$_colima" ssh -- sudo update-ca-certificates 2>/dev/null || true
-            "$_colima" ssh -- sudo systemctl restart docker 2>/dev/null || true
+      #
+      # History: this block was a silent no-op from its introduction until 2026-08-08 - it piped
+      # sha256sum through bare `awk`, which the hermetic activation PATH does not carry, so the
+      # hash always came back empty and the guard skipped everything. Now `cut` (coreutils,
+      # always on the activation PATH) extracts the hash, and shellcheck via mkReconcile gates
+      # this class of bug at build time. /opt/homebrew/bin is prepended for the colima calls:
+      # colima shells out to limactl there (see colima.nix on the same launchd pitfall).
+      # (The old ~/.zshrc_conf/zscaler.sh removal moved to legacy.nix.)
+      colimaZscalerCert = mkReconcile {
+        name = "colima-zscaler-cert";
+        text = ''
+          export PATH="/opt/homebrew/bin:$PATH"
+          _zscaler_cert="${certPath}"
+          _colima=/opt/homebrew/bin/colima
+          if [ -f "$_zscaler_cert" ] && [ -x "$_colima" ] && "$_colima" status >/dev/null 2>&1; then
+            _local_sum=$(sha256sum "$_zscaler_cert" | cut -d' ' -f1) || _local_sum=""
+            _remote_sum=$("$_colima" ssh -- sha256sum /usr/local/share/ca-certificates/zscaler.crt 2>/dev/null | cut -d' ' -f1) || _remote_sum=""
+            if [ -n "$_local_sum" ] && [ "$_local_sum" != "$_remote_sum" ]; then
+              "$_colima" ssh -- sudo cp "$_zscaler_cert" /usr/local/share/ca-certificates/zscaler.crt 2>/dev/null || true
+              "$_colima" ssh -- sudo update-ca-certificates 2>/dev/null || true
+              "$_colima" ssh -- sudo systemctl restart docker 2>/dev/null || true
+            fi
           fi
-        fi
-      '';
-
-      # Superseded by this module (NODE_EXTRA_CA_CERTS + git sslcainfo above) - removed so it
-      # can't drift out of sync or double-set the same config. Same pattern as aiReconcile
-      # removing the old ~/.zshrc_conf/ai.sh in modules/home/ai.nix.
-      zscalerReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        rm -f "$HOME/.zshrc_conf/zscaler.sh" || true
-      '';
+        '';
+      };
     };
   };
 }

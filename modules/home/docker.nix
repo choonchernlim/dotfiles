@@ -21,23 +21,23 @@
 #     from the gcloud-cli cask) instead of a stored password. Merged in, not
 #     overwritten - `gcloud auth configure-docker` legitimately adds other GCP
 #     registry entries (gcr.io, us-docker.pkg.dev, ...) here and those must survive.
-{ lib, ... }:
+{ pkgs, lib, ... }:
+
+let
+  mkReconcile = import ./lib/reconcile.nix { inherit pkgs lib; };
+in
 
 {
-  home.activation.dockerCredsSetup = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    _docker_dir="$HOME/.docker"
-    _docker_config="$_docker_dir/config.json"
-    mkdir -p "$_docker_dir"
-    [ -e "$_docker_config" ] || printf '{}' > "$_docker_config"
+  home.activation.dockerCredsSetup = mkReconcile {
+    name = "docker-creds-setup";
+    text = ''
+      _docker_config="$HOME/.docker/config.json"
+      mkdir -p "$HOME/.docker"
+      [ -e "$_docker_config" ] || printf '{}' > "$_docker_config"
 
-    if command -v jq >/dev/null 2>&1; then
-      _updated=$(jq \
+      json_edit "$_docker_config" \
         '.credsStore = "osxkeychain"
-         | .credHelpers = ((.credHelpers // {}) + {"us-central1-docker.pkg.dev": "gcloud"})' \
-        "$_docker_config" 2>/dev/null) || true
-      if [ -n "$_updated" ]; then
-        printf '%s\n' "$_updated" > "$_docker_config"
-      fi
-    fi
-  '';
+         | .credHelpers = ((.credHelpers // {}) + {"us-central1-docker.pkg.dev": "gcloud"})'
+    '';
+  };
 }

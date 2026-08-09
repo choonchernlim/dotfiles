@@ -18,16 +18,10 @@ let
 in
 
 {
-  home = {
-    # Edit-in-place: the real compose file stays in my repo, ~/.config just
-    # points at it.
-    file.".config/gitea".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/gitea";
-
-    activation.giteaReconcile = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      rm -f "$HOME/.config/gitea/docker-compose.yml.hm-bak" || true
-      [ -d "$HOME/.config/gitea.hm-bak" ] && rm -rf "$HOME/.config/gitea.hm-bak" || true
-    '';
-  };
+  # Edit-in-place: the real compose file stays in my repo, ~/.config just
+  # points at it. (First-takeover .hm-bak cleanup lives in legacy.nix.)
+  home.file.".config/gitea".source =
+    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/gitea";
 
   programs.zsh.initContent = lib.mkOrder 900 ''
     # colima/docker/docker-compose come from common.nix (shared by all hosts);

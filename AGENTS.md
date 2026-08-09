@@ -62,11 +62,20 @@ modules/
                          empty right now, extended by hand as machine-specific needs come up)
                          (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge;
                           all 3 hosts import common.nix)
-  darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + refresh/reconcile)
-  home/default.nix     - core home config every host gets: Nix packages, app-config symlinks, fonts,
-                         legacyReconcile (retired vim/pip artifacts)
-  home/zsh.nix         - feature module: zsh + starship + direnv, zshReconcile cleanup
-  home/mise.nix        - feature module: mise (node, terraform versions), miseReconcile cleanup
+  darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + quarantine strip /
+                         registry refresh)
+  home/lib/reconcile.nix - mkReconcile: the single way activation shell is written - wraps each
+                         script in writeShellApplication (shellcheck gates the build, strict
+                         mode, tool deps declared via `path`, atomic json_edit helper, dry-run
+                         aware via home-manager's `run`)
+  home/legacy.nix      - ALL one-time Ansible-migration sweeps, consolidated; DELETE this file
+                         once every host has run one rebuild containing it (see its header)
+  home/default.nix     - core home config every host gets: Nix packages, app-config symlinks,
+                         fonts; imports legacy.nix
+  home/zsh.nix         - feature module: zsh + starship + direnv, zshSetup (~/.zshrc_conf dir +
+                         brew-completions cache)
+  home/mise.nix        - feature module: mise (node, terraform versions), miseSetup
+                         (`mise install` provisioning)
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
@@ -75,17 +84,18 @@ modules/
                          owns the launchd plist lifecycle itself
   home/docker.nix      - feature module (work, personal, work-atdj - all 3 hosts): reconciles
                          ~/.docker/config.json (credsStore=osxkeychain + credHelpers for GCP
-                         Artifact Registry) via an idempotent jq-merge activation - not a home.file
-                         symlink, since docker login/gcloud write into the same file at runtime
+                         Artifact Registry) via an idempotent atomic jq-merge activation - not a
+                         home.file symlink, since docker login/gcloud write into the same file at
+                         runtime
   home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
-                         manual gitea-up/-down/-status/-logs shell functions, giteaReconcile;
+                         manual gitea-up/-down/-status/-logs shell functions;
                          runtime (colima/docker/docker-compose) declared in
                          darwin/homebrew/common.nix; colima itself autostarts via home/colima.nix,
                          so gitea-up is normally only needed once (compose services are restart:
                          unless-stopped)
   home/langfuse.nix    - feature module (work only): local Langfuse observability stack via Docker
-                         Compose, manual langfuse-up/-down/-status/-logs shell functions,
-                         langfuseReconcile; colima autostarts via home/colima.nix, so
+                         Compose, manual langfuse-up/-down/-status/-logs shell functions;
+                         colima autostarts via home/colima.nix, so
                          langfuse-up is needed only once on a fresh host (compose services are
                          restart: always); all published ports are localhost-only
   home/zscaler.nix     - feature module (work, work-atdj): wiring for the corporate Zscaler MITM
@@ -93,10 +103,11 @@ modules/
                          inside the colima guest VM (hash-guarded, restarts dockerd only on cert
                          rotation - its trust store is separate from the host's). The cert file
                          itself (~/.ca_certs/zscalercert.pem) stays user-owned, not nix-managed
-                         (public repo; bootstrap needs OS-level trust before nix runs anyway) -
-                         zscalerReconcile removes the superseded ~/.zshrc_conf/zscaler.sh
-                         (each feature module carries its own reconcile; hosts pick modules by import -
-                          same pattern as homebrew bundles)
+                         (public repo; bootstrap needs OS-level trust before nix runs anyway)
+                         (permanent reconciles live with their feature module via mkReconcile;
+                          one-time migration sweeps live in home/legacy.nix; retired brews/casks
+                          are removed by homebrew cleanup = "zap", never by activation shell;
+                          hosts pick modules by import - same pattern as homebrew bundles)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
@@ -120,7 +131,7 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
 - **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept by reconciles**: oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `aiReconcile` sweeps any leftover hook files plus its state dir.
+- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir.
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
   `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
   own reconcile if it reappears.
@@ -137,6 +148,9 @@ Remaining follow-up tasks unlocked by the retirement:
 
 ## Key Invariants (Do Not Silently Revert)
 
+- **Always confirm the target host with the user before running `rebuild.sh` / `darwin-rebuild`.** This repo is checked out on three different machines (work, personal, work-atdj) and nothing in the repo tells you which one you are on. Applying the wrong profile installs/uninstalls the wrong module set - and with `cleanup = "zap"`, actively removes that machine's packages. Never assume; ask.
+- **All activation shell goes through `mkReconcile`** (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`. It gates every script with shellcheck at build time (a script calling a tool missing from the hermetic activation PATH fails `rebuild` instead of silently no-oping - this exact bug shipped once, see the history note in `zscaler.nix`), declares tool deps via `path`, provides atomic `json_edit`, and respects `--dry-run`.
+- **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes every undeclared formula/cask on each switch; such loops are dead code by construction.
 - The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the `work`/`personal` profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth. `common.nix` itself was audited 2026-07-15 against all 3 hosts (work/personal/work-atdj) to be the true 3-way intersection - only packages every host declares live there; anything not universal is duplicated into the specific host bundle(s) that need it. `work-atdj.nix` now imports `common.nix` like the other two profiles and is otherwise an empty scaffold - the user extends it by hand for whatever is unique to that machine.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
@@ -159,7 +173,7 @@ The gemini extension removal is the critical step: `superpowers` and `context7` 
 
 Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`.
 
-`aiReconcile` also sweeps the rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
+The rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir are swept by `legacy.nix` - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
 
 ## Known Upstream Warning
 
