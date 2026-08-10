@@ -74,8 +74,8 @@ modules/
                          fonts; imports legacy.nix
   home/zsh.nix         - feature module: zsh + starship + direnv, zshSetup (~/.zshrc_conf dir +
                          brew-completions cache)
-  home/mise.nix        - feature module: mise (node, terraform versions), miseSetup
-                         (`mise install` provisioning)
+  home/mise.nix        - feature module (work/personal): mise (Temurin Java 25, node,
+                         terraform versions), miseSetup (`mise install` provisioning)
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
   home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
@@ -130,8 +130,8 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 
 All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
-- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), java/maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir.
+- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: Temurin Java 25 + node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
+- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. Java was initially dropped with SDKMAN, then restored as Temurin Java 25 through mise for work/personal. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir.
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
   `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
   own reconcile if it reappears.
@@ -143,7 +143,8 @@ Remaining follow-up tasks unlocked by the retirement:
    and set `homebrew.onActivation.cleanup = "zap"`. The personal-profile audit is also
    done (2026-07-12, via a `brew bundle cleanup --zap` dry-run before the first bootstrap):
    Redis Stack was kept (tap + casks declared in `homebrew/personal.nix`); ngrok and the
-   java remnants (sdkman, maven, openjdk) were confirmed as intentional drops.
+   old Java remnants (sdkman, maven, openjdk) were confirmed as intentional drops. Java
+   later returned as a mise-managed Temurin JDK, without restoring those remnants.
 2. **system.defaults**: design macOS UI defaults deliberately (the block was never actually Ansible-owned; the old comment was stale).
 
 ## Key Invariants (Do Not Silently Revert)

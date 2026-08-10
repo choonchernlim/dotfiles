@@ -1,5 +1,5 @@
-# Tool-version feature module: mise replaces nvm (node) and tfenv (terraform);
-# would also cover java if it ever returns. Selected per-host via hosts/*.nix.
+# Tool-version feature module: mise replaces sdkman (java), nvm (node), and tfenv
+# (terraform). Selected per-host via hosts/*.nix (work and personal, not work-atdj).
 # Tool versions are declared in home/.config/mise/config.toml (live-symlinked);
 # the zsh hook costs ~5ms vs the ~4s the retired nvm+sdkman init scripts took.
 {
@@ -19,7 +19,7 @@ in
     file.".config/mise/config.toml".source =
       config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/mise/config.toml";
 
-    # Provision the mise-declared tools (node, terraform) so a bare rebuild
+    # Provision the mise-declared tools (java, node, terraform) so a bare rebuild
     # yields a working toolchain. No-op when versions are already installed;
     # best-effort (|| true) so an offline rebuild still succeeds. (Ansible-era
     # nvm/sdkman cleanup moved to legacy.nix; retired brews are removed by

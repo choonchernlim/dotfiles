@@ -31,7 +31,7 @@ in
       rm -f "$HOME/.zshrc_conf/ohmyzsh.sh"  # oh-my-zsh -> home/zsh.nix (hm plugins + starship)
       rm -f "$HOME/.zshrc_conf/alias.sh"    # ohmyzsh-era aliases, ported
       rm -f "$HOME/.zshrc_conf/nvm.sh"      # nvm -> home/mise.nix
-      rm -f "$HOME/.zshrc_conf/sdkman.sh"   # sdkman/java dropped
+      rm -f "$HOME/.zshrc_conf/sdkman.sh"   # sdkman -> home/mise.nix (Java 25)
       rm -f "$HOME/.zshrc_conf/tfenv.sh"    # tfenv -> home/mise.nix
       rm -f "$HOME/.zshrc_conf/gcloud.sh"   # gcloud wiring -> home/gcloud.nix
       rm -f "$HOME/.zshrc_conf/zscaler.sh"  # zscaler wiring -> home/zscaler.nix

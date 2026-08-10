@@ -4,7 +4,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 
 - 🍎 macOS settings, Homebrew (brews + casks), Touch ID for sudo, QuickLook preview plugins
 - 🐚 zsh with autosuggestions, syntax highlighting, and a starship prompt (config live-symlinked)
-- 📦 mise for tool versions (node, terraform) - one fast version manager instead of nvm/sdkman/tfenv
+- 📦 mise for tool versions (Temurin Java 25, node, terraform) - one fast manager instead of sdkman/nvm/tfenv
 - ☁️ gcloud shell wiring, config, and components kept in sync
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)

@@ -48,8 +48,8 @@
       # "zsh-autosuggestions"
       # "zsh-syntax-highlighting"
       # Retired in the dev-toolchain rewrite: nvm/tfenv replaced by mise
-      # (programs.mise + home/.config/mise/config.toml), maven dropped with
-      # java/sdkman. cleanup="zap" removes the brew copies.
+      # (programs.mise + home/.config/mise/config.toml). Java later returned
+      # through mise; Maven remains dropped. cleanup="zap" removes brew copies.
       # "maven"
       # "nvm"
       # "tfenv"
