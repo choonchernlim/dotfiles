@@ -19,6 +19,7 @@
       ../modules/home/docker.nix
       ../modules/home/gitea.nix
       ../modules/home/zscaler.nix
+      ../modules/home/cachepurge.nix
     ];
   };
 }

@@ -30,4 +30,4 @@ else
 fi
 
 ln -sfn "$DIR" ~/.dotfiles
-exec sudo darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"
+exec sudo --preserve-env=CACHE_PURGE darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"

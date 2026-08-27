@@ -47,13 +47,15 @@ flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impu
 hosts/
   work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
                          home imports the feature modules this host gets (zsh, mise, gcloud, ai,
-                         colima, docker, gitea, zscaler)
+                         colima, docker, gitea, langfuse, zscaler, cachepurge)
   personal.nix         - same shape; homebrew common + personal; home imports zsh, mise, gcloud,
-                         ai, colima, docker (no gitea, no zscaler - personal is not behind Zscaler)
+                         ai, colima, docker, cachepurge (no gitea, no zscaler - personal is not
+                         behind Zscaler)
   work-atdj.nix        - same shape; homebrew common + work-atdj (work-atdj.nix is an empty
                          scaffold for host-specific extras - the 2026-07-15 all-hosts audit found
                          nothing here wasn't already covered by common.nix) + quicklook; home
-                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler (no mise)
+                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler, cachepurge
+                         (no mise)
 modules/
   darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
   darwin/homebrew/     - homebrew package bundles: common.nix (the audited 3-way intersection -
@@ -108,6 +110,17 @@ modules/
                           one-time migration sweeps live in home/legacy.nix; retired brews/casks
                           are removed by homebrew cleanup = "zap", never by activation shell;
                           hosts pick modules by import - same pattern as homebrew bundles)
+  home/cachepurge.nix  - feature module (work, personal, work-atdj - all 3 hosts): a `cache-purge`
+                         CLI (pkgs.writeShellApplication) that reclaims stale tool caches
+                         (JetBrains, playwright, Cypress, huggingface, whisper, etc.) and
+                         dev-tree build artifacts under ~/Documents/development, pruning at
+                         node_modules/.venv/venv/.git and guarding `.terraform` workspaces;
+                         bare `cache-purge` is a dry-run report, `--apply` reclaims now;
+                         home.activation.cachePurgeAuto (mkReconcile) runs `cache-purge --auto`
+                         on every rebuild, gated on free space < 100G and staleness >= 14 days
+                         (probed recursively via /usr/bin/find, not top-level dir mtime); set
+                         CACHE_PURGE=off to skip it (forwarded through rebuild.sh's
+                         `sudo --preserve-env=CACHE_PURGE`)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix

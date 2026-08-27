@@ -16,6 +16,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - 🔭 Local Langfuse server (work) via Docker Compose - run `langfuse-up` once on a fresh host; Docker restores the containers on later logins; browse to http://localhost:3200
 - 🔐 `~/.docker/config.json` reconciled to Keychain-backed credentials (all 3 profiles), with GCP Artifact Registry routed through the gcloud helper
 - 🔒 Corporate Zscaler MITM cert trusted automatically - host-side (git, npm) and inside the colima guest VM for `docker pull` (work, work-atdj)
+- 🧹 `cache-purge` (all 3 profiles): reclaims stale tool caches and dev-tree build artifacts, auto-triggered by `rebuild` when free space drops below 100G; run it anytime for a dry-run report, or `cache-purge --apply`/`CACHE_PURGE=off rebuild work` to control it manually - see [docs/architecture.md](docs/architecture.md)
 
 ## Profiles
 

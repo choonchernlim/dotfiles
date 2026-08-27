@@ -20,6 +20,7 @@
       ../modules/home/gitea.nix
       ../modules/home/langfuse.nix
       ../modules/home/zscaler.nix
+      ../modules/home/cachepurge.nix
     ];
   };
 }
