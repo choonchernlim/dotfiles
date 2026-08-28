@@ -29,5 +29,16 @@ else
   echo ">> on branch '${branch:-unknown}' (not main) - skipping git pull" >&2
 fi
 
+# home-manager aborts activation ("would be clobbered by backing up") when a stale
+# *.hm-bak already occupies the backup path of a file an app has replaced. A .hm-bak is
+# displaced garbage by definition - legacy.nix and ai.nix's aiReconcile both already
+# delete them - but those sweeps run after checkLinkTargets, too late to unblock it.
+echo ">> clearing stale *.hm-bak backups" >&2
+find "$HOME" -maxdepth 1 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
+for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/.gemini"; do
+  [ -d "$d" ] || continue
+  find "$d" -maxdepth 3 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
+done
+
 ln -sfn "$DIR" ~/.dotfiles
 exec sudo --preserve-env=CACHE_PURGE darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"

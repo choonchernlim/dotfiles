@@ -79,7 +79,10 @@ modules/
   home/mise.nix        - feature module (work/personal): mise (Temurin Java 25, node,
                          terraform versions), miseSetup (`mise install` provisioning)
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
-  home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile)
+  home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile);
+                         antigravity's settings.json is merge-reconciled (antigravitySettings),
+                         not symlinked, since agy rewrites it at runtime - same rationale as
+                         home/docker.nix
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
                          colima (container runtime) at login via a home-manager launchd agent;
                          generic, not gitea-specific or network-specific; no reconcile - home-manager
@@ -185,7 +188,7 @@ Each agent maintains its own plugin/extension store that nix does not own, so re
 
 The gemini extension removal is the critical step: `superpowers` and `context7` are installed there and auto-imported into antigravity on `agy` startup. Removing only the antigravity copy without removing the gemini source lets them re-appear on the next `agy` launch.
 
-Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`.
+Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`. This alone isn't enough for `.gemini/antigravity-cli/settings.json.hm-bak`: home-manager's `checkLinkTargets` inspects (and can abort on) a stale `.hm-bak` *before* any activation script runs, so `aiReconcile`'s own sweep can never reach the file that blocks it. `rebuild.sh` runs a preflight sweep of `*.hm-bak` under all agent config dirs before invoking `darwin-rebuild` to close that gap (this is also why antigravity's settings.json moved to a merge-reconcile instead of a symlink - see `home/ai.nix` above).
 
 The rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir are swept by `legacy.nix` - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
 

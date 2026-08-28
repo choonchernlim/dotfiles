@@ -160,9 +160,13 @@ in
       )
 
       # Per-agent settings, rendered from playwrightMcp above where an MCP server is involved.
+      # antigravity's settings.json is NOT here - unlike claude/copilot, agy rewrites it at
+      # runtime (trustedWorkspaces, permissions), so a plain symlink gets replaced by a real
+      # file and home-manager's checkLinkTargets aborts activation trying to back it up.
+      # It's merge-reconciled instead by antigravitySettings below, same rationale as
+      # modules/home/docker.nix (owns only the keys it declares, merges around the rest).
       {
         ".claude/settings.json".source = mkOut "${aiDir}/settings/claude.json";
-        ".gemini/antigravity-cli/settings.json".source = mkOut "${aiDir}/settings/antigravity.json";
         ".copilot/settings.json".source = mkOut "${aiDir}/settings/copilot.json";
 
         # Copilot MCP: JSON, mcpServers.<name>
@@ -408,6 +412,27 @@ in
               grep -q '^\[features\]' "$_cfg" || printf '\n[features]\nplugin_hooks = true\n' >> "$_cfg"
               printf '\n[plugins."tracing@codex-observability-plugin"]\nenabled = true\n' >> "$_cfg"
             fi
+          fi
+        '';
+      };
+
+      # Merge-reconcile antigravity's settings.json instead of symlinking it (see the
+      # home.file comment above for why): own only the declared keys, pass through
+      # everything agy has written at runtime (trustedWorkspaces, permissions, ...).
+      # `. * $_d[0]` is jq's recursive merge with the declared side winning, so
+      # enableTelemetry/model here always match home/ai/settings/antigravity.json.
+      # Reads the declared file from the live repo checkout (aiDir), not the nix
+      # store, matching home/ai/*'s existing edit-without-rebuild behavior where
+      # possible - though a rebuild is still needed here to actually apply the merge.
+      antigravitySettings = mkReconcile {
+        name = "antigravity-settings";
+        text = ''
+          _decl="${aiDir}/settings/antigravity.json"
+          _f="$HOME/.gemini/antigravity-cli/settings.json"
+          if [ -e "$_decl" ]; then
+            mkdir -p "$(dirname "$_f")"
+            [ -e "$_f" ] || printf '{}' > "$_f"
+            json_edit "$_f" --slurpfile _d "$_decl" '. * $_d[0]'
           fi
         '';
       };
