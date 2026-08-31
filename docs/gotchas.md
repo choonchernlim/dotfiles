@@ -28,12 +28,12 @@ On the next rebuild, home-manager's `checkLinkTargets` tries to move that file a
 sitting there, it refuses rather than overwrite it, aborting activation with "would be
 clobbered by backing up". This happened to `~/.gemini/antigravity-cli/settings.json` (agy
 writes `trustedWorkspaces`/`permissions` into it at runtime). Two-part fix: (1) for that
-specific file, `modules/home/ai.nix`'s `antigravitySettings` reconcile replaced the symlink
+specific file, `modules/home/ai/antigravity.nix`'s `antigravitySettings` reconcile replaced the symlink
 with a jq merge that owns only the nix-declared keys and passes through everything the
 agent wrote (same pattern as `modules/home/docker.nix` for `~/.docker/config.json`, which
 `docker login`/`gcloud` also write into); (2) generally, `rebuild.sh` now sweeps stale
 `*.hm-bak` files under all agent config dirs *before* invoking `darwin-rebuild`, since
-`aiReconcile`'s own `.hm-bak` sweep (`modules/home/ai.nix`) runs as a home-manager
+`antigravityReconcile`'s own `.hm-bak` sweep (`modules/home/ai/antigravity.nix`) runs as a home-manager
 activation script - too late, after `checkLinkTargets` already aborted. If another agent
 (claude, copilot) starts fighting nix for one of its own settings files, apply the same
 merge-reconcile pattern rather than `force = true` on the symlink - `force = true` wins but

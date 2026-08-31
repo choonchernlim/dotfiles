@@ -79,10 +79,19 @@ modules/
   home/mise.nix        - feature module (work/personal): mise (Temurin Java 25, node,
                          terraform versions), miseSetup (`mise install` provisioning)
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
-  home/ai.nix          - feature module: all AI agent config (symlinks, env vars, MCP, aiReconcile);
-                         antigravity's settings.json is merge-reconciled (antigravitySettings),
-                         not symlinked, since agy rewrites it at runtime - same rationale as
-                         home/docker.nix
+  home/ai/             - feature module (directory): all AI agent config, split one
+                         deliberately self-contained file per agent - default.nix (umbrella
+                         imports; hosts import the directory), claude.nix, codex.nix,
+                         antigravity.nix, copilot.nix, opencode.nix. Each file holds that
+                         agent's symlinks, env vars, MCP, plugins, and reconcile sweep
+                         (claudeReconcile, codexReconcile, antigravityReconcile,
+                         copilotReconcile - together replacing the old aiReconcile); shared
+                         definitions like playwrightMcp are intentionally duplicated per
+                         file - change every copy, not just one. The gemini-extensions
+                         sweep lives in antigravity.nix (root import source for agy).
+                         antigravity's settings.json is merge-reconciled
+                         (antigravitySettings), not symlinked, since agy rewrites it at
+                         runtime - same rationale as home/docker.nix
   home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
                          colima (container runtime) at login via a home-manager launchd agent;
                          generic, not gitea-specific or network-specific; no reconcile - home-manager
@@ -147,7 +156,7 @@ so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass 
 All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
 
 - **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: Temurin Java 25 + node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. Java was initially dropped with SDKMAN, then restored as Temurin Java 25 through mise for work/personal. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir.
+- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. Java was initially dropped with SDKMAN, then restored as Temurin Java 25 through mise for work/personal. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir. gemini CLI was also retired (2026-08-30) - antigravity (agy) replaced it; it was never repo-installed (the `gemini-cli` formula sits in common.nix's historical absent list), and `legacy.nix` sweeps its CLI-owned state under `~/.gemini` (GEMINI.md, settings/oauth/account files, `history/`, `tmp/`, and `skills/` - which held only "forge", the predecessor of the repo's grill-me skill), leaving `antigravity-cli/`, `extensions/` (managed by `antigravityReconcile`), and the still-active `config/`, `users/`, `tasks/` dirs untouched. The `google-gemini` cask (work/personal) is the separate Gemini desktop app and stays.
 - `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
   `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
   own reconcile if it reappears.
@@ -173,22 +182,22 @@ Remaining follow-up tasks unlocked by the retirement:
 - When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
 - When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.
 - `rebuild work` must be warning-free except for the one documented upstream `options.json` warning (see "Known upstream warning" below). Any *new* warning that appears must be investigated and eliminated before committing - never let an unexplained warning slide.
-- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, skills, extensions, and MCP servers. The `activation.aiReconcile` script in `modules/home/ai.nix` enforces this by removing any undeclared content on every rebuild. To add a capability, declare it in nix. Installing it via an agent CLI (e.g. `claude plugin install`, `agy plugin import`) will be reverted on the next `rebuild work`.
+- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, skills, extensions, and MCP servers. The per-agent reconcile scripts in `modules/home/ai/` (`claudeReconcile`, `antigravityReconcile`, `copilotReconcile`, `codexReconcile`) enforce this by removing any undeclared content on every rebuild. To add a capability, declare it in nix. Installing it via an agent CLI (e.g. `claude plugin install`, `agy plugin import`) will be reverted on the next `rebuild work`.
 
 ## AI Agent Plugin Reconcile
 
-Each agent maintains its own plugin/extension store that nix does not own, so removed config silently persists. The `aiReconcile` home-manager activation script sweeps these stores on every rebuild:
+Each agent maintains its own plugin/extension store that nix does not own, so removed config silently persists. Per-agent reconcile activation scripts in `modules/home/ai/` sweep these stores on every rebuild:
 
-| Agent             | Mechanism                                                                                                            | Keep-set                                                      |
+| Agent (module)    | Mechanism                                                                                                            | Keep-set                                                      |
 |-------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| Claude            | Keep-set prune of `installed_plugins.json` + `known_marketplaces.json` + `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP + `langfuse-observability` plugin (`claudeKeepInstalled`/`claudeKeepMarketplaces` in `modules/home/ai.nix`) |
-| Gemini CLI        | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}`                               | (none - gemini extensions are the root import source for agy) |
-| Antigravity (agy) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json`                                            | playwright (nix symlink declared in `home.file`)              |
-| Copilot           | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json`                                     | (none)                                                        |
+| Claude (`ai/claude.nix`, `claudeReconcile`) | Keep-set prune of `installed_plugins.json` + `known_marketplaces.json` + `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP + `langfuse-observability` plugin (`claudeKeepInstalled`/`claudeKeepMarketplaces` in `modules/home/ai/claude.nix`) |
+| Gemini CLI (`ai/antigravity.nix`, `antigravityReconcile`) | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}`                               | (none - gemini extensions are the root import source for agy) |
+| Antigravity (agy) (`ai/antigravity.nix`, `antigravityReconcile`) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json`                                            | playwright (nix symlink declared in `home.file`)              |
+| Copilot (`ai/copilot.nix`, `copilotReconcile`) | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json`                                     | (none)                                                        |
 
 The gemini extension removal is the critical step: `superpowers` and `context7` are installed there and auto-imported into antigravity on `agy` startup. Removing only the antigravity copy without removing the gemini source lets them re-appear on the next `agy` launch.
 
-Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) across all agent dirs are also cleaned up by `aiReconcile`. This alone isn't enough for `.gemini/antigravity-cli/settings.json.hm-bak`: home-manager's `checkLinkTargets` inspects (and can abort on) a stale `.hm-bak` *before* any activation script runs, so `aiReconcile`'s own sweep can never reach the file that blocks it. `rebuild.sh` runs a preflight sweep of `*.hm-bak` under all agent config dirs before invoking `darwin-rebuild` to close that gap (this is also why antigravity's settings.json moved to a merge-reconcile instead of a symlink - see `home/ai.nix` above).
+Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) are also cleaned up per agent dir by each agent's reconcile (codex's `codexReconcile` exists only for this). This alone isn't enough for `.gemini/antigravity-cli/settings.json.hm-bak`: home-manager's `checkLinkTargets` inspects (and can abort on) a stale `.hm-bak` *before* any activation script runs, so `antigravityReconcile`'s own sweep can never reach the file that blocks it. `rebuild.sh` runs a preflight sweep of `*.hm-bak` under all agent config dirs before invoking `darwin-rebuild` to close that gap (this is also why antigravity's settings.json moved to a merge-reconcile instead of a symlink - see `home/ai/` above).
 
 The rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir are swept by `legacy.nix` - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
 

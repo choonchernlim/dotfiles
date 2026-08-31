@@ -1,5 +1,5 @@
 # Core home config shared by every host: packages, live-symlinked app configs,
-# fonts. Feature modules (zsh.nix, mise.nix, gcloud.nix, ai.nix) are selected
+# fonts. Feature modules (zsh.nix, mise.nix, gcloud.nix, ai/) are selected
 # per-host in hosts/*.nix - same pattern as the homebrew bundles.
 {
   config,

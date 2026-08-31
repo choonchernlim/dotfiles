@@ -55,7 +55,7 @@
       # "tfenv"
       # Retired 2026-08-07: rtk command rewriting removed from all agents
       # (Claude/Copilot/OpenCode hooks + vendored files under home/ai/hooks/
-      # deleted); aiReconcile in modules/home/ai.nix sweeps any leftover
+      # deleted); modules/home/legacy.nix sweeps any leftover
       # hook files and rtk's state dir. cleanup = "zap" above uninstalls
       # the formula itself on the next rebuild.
       # "rtk"
@@ -68,7 +68,7 @@
       # Self-updating apps that brew cannot cleanly upgrade here are pinned greedy=false:
       # - antigravity-cli: agy self-update replaces brew's binary at /opt/homebrew/bin/agy,
       #   so a greedy upgrade always fails with "already a Binary" and rolls back. The
-      #   `agyUpdate` activation in modules/home/ai.nix runs `agy update` on every rebuild
+      #   `agyUpdate` activation in modules/home/ai/antigravity.nix runs `agy update` on every rebuild
       #   instead, so the CLI still tracks upstream deterministically.
       # - google-chrome: /Applications/Google Chrome.app is root-owned (legacy Ansible sudo
       #   install); brew runs unprivileged during activation and cannot replace it.

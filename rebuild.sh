@@ -31,8 +31,9 @@ fi
 
 # home-manager aborts activation ("would be clobbered by backing up") when a stale
 # *.hm-bak already occupies the backup path of a file an app has replaced. A .hm-bak is
-# displaced garbage by definition - legacy.nix and ai.nix's aiReconcile both already
-# delete them - but those sweeps run after checkLinkTargets, too late to unblock it.
+# displaced garbage by definition - legacy.nix and the per-agent reconciles in
+# modules/home/ai/ both already delete them - but those sweeps run after
+# checkLinkTargets, too late to unblock it.
 echo ">> clearing stale *.hm-bak backups" >&2
 find "$HOME" -maxdepth 1 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
 for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/.gemini"; do

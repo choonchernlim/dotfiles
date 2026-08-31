@@ -29,7 +29,7 @@ in
 {
   home = {
     # NPM/Node: matches the old zscaler.sh export. Unconditional (cheap to declare; Node only
-    # warns, non-fatally, if the path doesn't exist), consistent with ai.nix's sessionVariables.
+    # warns, non-fatally, if the path doesn't exist), consistent with ai/claude.nix's sessionVariables.
     sessionVariables.NODE_EXTRA_CA_CERTS = certPath;
 
     activation = {

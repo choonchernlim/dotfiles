@@ -33,7 +33,9 @@ modules/
   home/mise.nix        - feature (work/personal): mise tool versions - Temurin Java 25, node,
                          terraform (+ miseSetup: `mise install` provisioning)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
-  home/ai.nix          - feature: AI agent config - symlinks, env vars, MCP (+ aiReconcile)
+  home/ai/             - feature (directory): AI agent config, one self-contained file per
+                         agent (claude, codex, antigravity, copilot, opencode), each with
+                         its own symlinks, MCP, and reconcile sweep
   home/colima.nix      - feature (all 3 hosts): autostarts colima (container runtime) at login
                          via a home-manager launchd agent; generic, not gitea- or network-specific
   home/docker.nix      - feature (all 3 hosts): reconciles ~/.docker/config.json
