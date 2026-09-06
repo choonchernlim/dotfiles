@@ -22,7 +22,9 @@
       "Read(./secrets/**)"
     ]
   },
-  "model": "opusplan[1m]",
+  "disableAgentView": true,
+  "disableWorkflows": true,
+  "disableArtifact": true,
   "statusLine": {
     "type": "command",
     "command": "bash ~/.dotfiles/home/ai/statusline.sh"
@@ -41,5 +43,5 @@
   "effortLevel": "high",
   "theme": "dark-ansi",
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": false
 }

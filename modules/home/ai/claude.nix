@@ -113,8 +113,6 @@ in
 
     sessionVariables = {
       ANTHROPIC_MODEL = "opusplan";
-      ANTHROPIC_DEFAULT_OPUS_MODEL = "claude-opus-5";
-      ANTHROPIC_DEFAULT_SONNET_MODEL = "claude-sonnet-5";
     };
 
     activation = {
