@@ -1,6 +1,11 @@
-# Codex: shared-instructions/skills symlinks, config.toml seeding/upsert,
-# playwright MCP registration, and a stale-backup sweep. The Langfuse tracing
-# plugin lives in ./langfuse.nix.
+# Codex: shared-instructions symlink, config.toml seeding/upsert, playwright
+# MCP registration, and a stale-backup sweep. The Langfuse tracing plugin lives
+# in ./langfuse.nix.
+#
+# No skills link here: Codex discovers ~/.agents/skills natively (the hub in
+# ../default.nix). ~/.codex/skills is left entirely to Codex - it writes its
+# bundled system skills into ~/.codex/skills/.system/ at runtime, and a
+# nix-placed symlink there once redirected those writes into the git checkout.
 {
   config,
   lib,
@@ -21,23 +26,6 @@ let
     command = "${pkgs.nodejs}/bin/npx";
     args = [ "@playwright/mcp@latest" ];
   };
-
-  # Codex writes its bundled system skills into ~/.codex/skills/.system/ at
-  # runtime. With the whole skills dir symlinked into the repo (as every other
-  # agent has it), those files landed in git. So Codex alone gets a real
-  # ~/.codex/skills/ directory with one out-of-store symlink per shared skill:
-  # editing a skill stays live, but adding a new skill dir needs `git add` +
-  # rebuild for Codex (the list is read at eval time from the flake source).
-  skillNames = builtins.attrNames (
-    lib.filterAttrs (n: t: t == "directory" && !lib.hasPrefix "." n) (
-      builtins.readDir ../../../../home/ai/skills
-    )
-  );
-  codexSkillLinks = lib.listToAttrs (
-    map (
-      n: lib.nameValuePair ".codex/skills/${n}" { source = mkOut "${aiDir}/skills/${n}"; }
-    ) skillNames
-  );
 in
 
 {
@@ -50,8 +38,7 @@ in
   home = {
     file = {
       ".codex/AGENTS.md".source = mkOut "${aiDir}/AGENTS.md";
-    }
-    // codexSkillLinks;
+    };
 
     activation = {
       # ~/.codex/config.toml cannot be a home.file symlink: Codex persists

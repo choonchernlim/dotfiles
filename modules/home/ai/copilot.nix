@@ -1,5 +1,8 @@
-# Copilot CLI: shared-instructions/skills/settings symlinks, MCP config, and
-# the reconcile sweep keeping its plugin store empty (nix declares none).
+# Copilot CLI: shared-instructions/settings symlinks, MCP config, and the
+# reconcile sweep keeping its plugin store empty (nix declares none).
+#
+# No skills link here: Copilot discovers ~/.agents/skills natively (the hub in
+# ./default.nix); a ~/.copilot/skills link on top would list every skill twice.
 {
   config,
   lib,
@@ -24,12 +27,6 @@ in
   home = {
     file = {
       ".copilot/copilot-instructions.md".source = mkOut "${aiDir}/AGENTS.md";
-      # force: pre-nix entries here were symlinks, which home-manager's
-      # backupFileExtension cannot move aside on its own.
-      ".copilot/skills" = {
-        source = mkOut "${aiDir}/skills";
-        force = true;
-      };
       ".copilot/settings.json".source = mkOut "${aiDir}/settings/copilot.json";
       ".copilot/mcp-config.json".text = builtins.toJSON {
         mcpServers.playwright = {

@@ -80,6 +80,17 @@ in
              "$HOME/.gemini/tmp" \
              "$HOME/.gemini/skills"
 
+      # ── Codex per-skill links (2026-09-13, lived one rebuild): the whole-dir
+      #    ~/.codex/skills symlink from before them is invisible to home-manager's
+      #    cleanup - the path became a directory in the next generation, so
+      #    cleanOldGen skipped it, and it is not in the previous generation any
+      #    more. While it exists, everything Codex writes under ~/.codex/skills/
+      #    lands inside the git checkout. -L guard: a real dir Codex created
+      #    itself is never touched ──────────────────────────────────────────────
+      if [ -L "$HOME/.codex/skills" ]; then
+        rm -f "$HOME/.codex/skills"
+      fi
+
       # ── First-takeover .hm-bak backups: created once when home-manager first
       #    claimed a path that already existed (pre-nix machines) ──────────────
       rm -f "$HOME/.config/starship.toml.hm-bak"

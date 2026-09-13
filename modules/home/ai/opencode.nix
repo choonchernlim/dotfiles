@@ -1,5 +1,9 @@
-# OpenCode: shared-instructions/skills symlinks and opencode.json (MCP).
-# No plugin store or runtime-rewritten config, so nothing to reconcile.
+# OpenCode: shared-instructions symlink and opencode.json (MCP). No plugin
+# store or runtime-rewritten config, so nothing to reconcile.
+#
+# No skills link here: OpenCode discovers ~/.agents/skills natively (the hub in
+# ./default.nix); a ~/.config/opencode/skills link on top would list every
+# skill twice.
 { config, pkgs, ... }:
 
 let
@@ -17,12 +21,6 @@ in
 {
   home.file = {
     ".config/opencode/AGENTS.md".source = mkOut "${aiDir}/AGENTS.md";
-    # force: pre-nix entries here were symlinks, which home-manager's
-    # backupFileExtension cannot move aside on its own.
-    ".config/opencode/skills" = {
-      source = mkOut "${aiDir}/skills";
-      force = true;
-    };
     # MCP servers live under the top-level "mcp" key, "command" as one array.
     ".config/opencode/opencode.json".text = builtins.toJSON {
       "$schema" = "https://opencode.ai/config.json";

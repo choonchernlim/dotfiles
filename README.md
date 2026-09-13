@@ -8,7 +8,7 @@ Personal Mac setup managed with nix-darwin and home-manager.
 - ☁️ gcloud shell wiring, config, and components kept in sync
 - 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
 - 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
-- 🤖 AI agents: Claude, Codex, Copilot, OpenCode, Antigravity share one `home/ai/AGENTS.md` and one `home/ai/skills/`; plugins and MCP servers are nix-declared and reconciled on every rebuild
+- 🤖 AI agents: Claude, Codex, Copilot, OpenCode, Antigravity share one `home/ai/AGENTS.md` and one `home/ai/skills/` (exposed as the `~/.agents/skills` hub); plugins and MCP servers are nix-declared and reconciled on every rebuild
 - 📊 Local Langfuse observability stack (work) via Docker Compose, with Claude and Codex tracing plugins kept in sync by `modules/home/ai/*/langfuse.nix`
 - ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
 - 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
@@ -73,7 +73,7 @@ rebuild work    # same, and errors out if this machine is recorded as a differen
 nix fmt         # format all .nix files (also fires automatically on Claude edits)
 ```
 
-Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place. One exception: a *new* directory under `home/ai/skills/` reaches Codex only after `git add` + `rebuild` (see [docs/gotchas.md](docs/gotchas.md)).
+Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place, including new skill directories under `home/ai/skills/`.
 
 `rebuild` refuses a profile that differs from the one in `/etc/dotfiles-profile` unless you pass `--force`, because Homebrew's zap cleanup would uninstall that machine's packages. It then runs `git pull --rebase --autostash` on `main` and clears stale `*.hm-bak` backups before applying.
 

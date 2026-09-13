@@ -35,10 +35,12 @@ modules/
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ai/             - feature (directory): AI agent config, one self-contained unit per agent
-      default.nix      - umbrella imports + the shared rationale (playwrightMcp, absolute paths)
+      default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
+                         rationale (playwrightMcp, absolute paths)
       claude/          - default.nix (symlinks, MCP, reconcile) + langfuse.nix (TEMPORARY plugin
                          install and CC_LANGFUSE_TAGS patch)
-      codex/           - default.nix (per-skill symlinks, config.toml upsert, MCP, backup sweep)
+      codex/           - default.nix (config.toml upsert, MCP, backup sweep; no skills link -
+                         Codex reads the hub natively and owns ~/.codex/skills)
                          + langfuse.nix (TEMPORARY tracing plugin install)
       antigravity.nix  - symlinks, playwright plugin, settings merge-reconcile, agy update,
                          sweep of both agy's plugin store and ~/.gemini/extensions
@@ -84,7 +86,7 @@ activation shell; anything marked TEMPORARY is a self-contained file meant to be
 | `~/.copilot/copilot-instructions.md`       | Copilot     |
 | `~/.gemini/antigravity-cli/ANTIGRAVITY.md` | Antigravity |
 
-`home/ai/skills/` is symlinked as one directory into every agent except Codex. Codex writes its own bundled system skills into `~/.codex/skills/.system/` at runtime, so it gets a real directory with one symlink per skill instead - which means a *new* skill directory needs `git add` + `rebuild` before Codex sees it. Per-agent settings live under `home/ai/settings/`.
+`home/ai/skills/` is exposed once, as the hub `~/.agents/skills` (`modules/home/ai/default.nix`). Codex, Copilot and OpenCode discover `~/.agents/skills` natively and get no link of their own; Claude Code and Antigravity do not read `~/.agents`, so `~/.claude/skills` and `~/.gemini/antigravity-cli/skills` are directory links at the hub. A new skill directory is live for every agent without a rebuild. `~/.codex/skills` is never touched by nix - Codex writes its bundled system skills there at runtime. Per-agent settings live under `home/ai/settings/`.
 
 ## Formatter and linters
 

@@ -45,10 +45,12 @@ in
   home = {
     file = {
       ".claude/CLAUDE.md".source = mkOut "${aiDir}/AGENTS.md";
-      # force: pre-nix entries here were symlinks, which home-manager's
-      # backupFileExtension cannot move aside on its own.
+      # Claude reads personal skills from ~/.claude/skills only (no native
+      # ~/.agents support), so this links at the hub (../default.nix), not at
+      # the repo. force: pre-nix entries here were symlinks, which
+      # home-manager's backupFileExtension cannot move aside on its own.
       ".claude/skills" = {
-        source = mkOut "${aiDir}/skills";
+        source = mkOut "${config.home.homeDirectory}/.agents/skills";
         force = true;
       };
       ".claude/settings.json".source = mkOut "${aiDir}/settings/claude.json";

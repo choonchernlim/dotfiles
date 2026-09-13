@@ -94,8 +94,11 @@ modules/
                          every copy. The */langfuse.nix files are TEMPORARY and deletable whole.
                          antigravity's settings.json is merge-reconciled, not symlinked, since
                          agy rewrites it at runtime - same rationale as home/docker.nix.
-                         Codex alone gets per-skill symlinks into a real ~/.codex/skills/ dir
-                         (it writes .system/ there at runtime).
+                         Skills: default.nix declares the one hub link ~/.agents/skills ->
+                         home/ai/skills; Codex, Copilot and OpenCode read it natively (no
+                         link of their own), claude/ and antigravity.nix link their skills
+                         dir at the hub. Nothing touches ~/.codex/skills (Codex writes
+                         .system/ there at runtime).
   home/colima.nix      - feature module (all 3 hosts): autostarts colima at login via a
                          home-manager launchd agent; no reconcile - hm owns the plist lifecycle
   home/docker.nix      - feature module (all 3 hosts): reconciles ~/.docker/config.json
@@ -128,7 +131,7 @@ docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, hi
 
 `flake.nix` derives the username from the environment at eval time (`$SUDO_USER` first, then `$USER`), so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass `--impure` to allow this environment read.
 
-`home/ai/AGENTS.md` is the shared agent policy file - it is symlinked to every agent's canonical location (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.gemini/antigravity-cli/ANTIGRAVITY.md`). `home/ai/skills/` is symlinked as a directory into every agent except Codex (per-skill links, see above). Per-agent settings live under `home/ai/settings/`.
+`home/ai/AGENTS.md` is the shared agent policy file - it is symlinked to every agent's canonical location (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.gemini/antigravity-cli/ANTIGRAVITY.md`). `home/ai/skills/` is exposed once, as `~/.agents/skills` (the hub, declared in `modules/home/ai/default.nix`); Codex, Copilot and OpenCode discover that path natively, while `~/.claude/skills` and `~/.gemini/antigravity-cli/skills` are directory links at the hub. Per-agent settings live under `home/ai/settings/`.
 
 ## Key Invariants (Do Not Silently Revert)
 
@@ -136,7 +139,7 @@ docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, hi
 - **All activation shell goes through `mkReconcile`** (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`. It gates every script with shellcheck at build time (a script calling a tool missing from the hermetic activation PATH fails the build instead of silently no-oping - this exact bug shipped once in `zscaler.nix`), declares tool deps via `path`, provides atomic `json_edit`, and respects `--dry-run`. Agent CLIs are called by absolute `/opt/homebrew/bin` path for the same reason.
 - **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes every undeclared formula/cask on each switch.
 - `homebrew.onActivation.cleanup = "zap"` is documented and intentional - the declared lists in `modules/darwin/homebrew/*.nix` are the single source of truth for Homebrew state. `common.nix` is the audited 3-way intersection; anything not universal is duplicated into the host bundle(s) that need it.
-- **Codex is the one agent that must not get the whole skills dir symlinked** - it writes `.system/` into it at runtime, which previously landed in git. Keep the per-skill links in `modules/home/ai/codex/default.nix`.
+- **`~/.agents/skills` is the single skills hub.** Codex, Copilot and OpenCode read it natively - never re-add a per-agent skills link for them (every skill would show twice), and never point an agent's skills link at the repo path instead of the hub. Never place per-file links *inside* an agent's skills dir either: home-manager does not remove a managed symlink whose path turns into a directory, so the new links get created through the stale link - into the git checkout (see `docs/gotchas.md`). `~/.codex/skills` belongs to Codex (it writes `.system/` there).
 - **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
 - When disabling a config block, leave the original as a comment (not deleted) so it can be revisited later.

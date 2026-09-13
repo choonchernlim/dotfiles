@@ -54,10 +54,12 @@ in
   home = {
     file = {
       ".gemini/antigravity-cli/ANTIGRAVITY.md".source = mkOut "${aiDir}/AGENTS.md";
-      # force: pre-nix entries here were symlinks, which home-manager's
-      # backupFileExtension cannot move aside on its own.
+      # agy reads global skills from ~/.gemini/antigravity-cli/skills only (no
+      # native ~/.agents support), so this links at the hub (./default.nix),
+      # not at the repo. force: pre-nix entries here were symlinks, which
+      # home-manager's backupFileExtension cannot move aside on its own.
       ".gemini/antigravity-cli/skills" = {
-        source = mkOut "${aiDir}/skills";
+        source = mkOut "${config.home.homeDirectory}/.agents/skills";
         force = true;
       };
       ".gemini/antigravity-cli/plugins/playwright" = {
