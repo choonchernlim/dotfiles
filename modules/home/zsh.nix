@@ -14,25 +14,22 @@ in
 
 {
   home = {
-    # Edit-in-place: the real file stays in my repo, ~/.config just points at it.
+    # Edit-in-place: the real file stays in the repo, ~/.config just points at it.
     file.".config/starship.toml".source =
       config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/starship.toml";
 
-    # Permanent per-rebuild setup. (Ansible-era ohmyzsh/nvm cleanup moved to
-    # legacy.nix; retired brews are removed by cleanup = "zap".)
     activation.zshSetup = mkReconcile {
       name = "zsh-setup";
       text = ''
-        # User/work-owned snippets (alias-custom.sh, ...) live here; the dir
-        # must exist for the zshrc sourcing loop on a fresh machine.
+        # User-owned snippets (alias-custom.sh, ...) live here; the dir must
+        # exist for the zshrc sourcing loop on a fresh machine.
         mkdir -p "$HOME/.zshrc_conf"
 
         # Resolve nix-homebrew's patched-brew completions dir once per rebuild
         # (globbing /nix/store costs ~200ms - too slow for every shell startup;
         # zshrc reads this cache file instead). Resolved via the live
-        # /opt/homebrew/Library/Homebrew symlink, which nix-homebrew points at
-        # the CURRENT patched-brew generation - a bare /nix/store glob could
-        # pick a stale generation that GC later deletes.
+        # /opt/homebrew/Library/Homebrew symlink, which always points at the
+        # CURRENT patched-brew generation, so GC can't leave it dangling.
         mkdir -p "$HOME/.cache/zsh"
         _hb_lib=$(readlink -f /opt/homebrew/Library/Homebrew 2>/dev/null) || _hb_lib=""
         _comp_dir="''${_hb_lib%/Library/Homebrew}/completions/zsh"
@@ -48,21 +45,26 @@ in
       enable = true;
       autosuggestion.enable = true;
       syntaxHighlighting.enable = true;
-      # Trust the completion dump unless it is older than a day: compinit's full
-      # compaudit costs hundreds of ms per shell; -C skips it.
+      # Trust the completion dump unless it is older than a day: a full compinit
+      # (with compaudit) costs hundreds of ms per shell; -C skips it. The (#q...)
+      # glob qualifier only works under extended_glob, hence the anonymous
+      # function with a local setopt - without it the test is always true and
+      # the fast path never runs.
       completionInit = ''
         autoload -U compinit
-        if [[ -n $HOME/.zcompdump(#qN.mh+24) ]]; then
-          compinit
-        else
-          compinit -C
-        fi
+        () {
+          setopt local_options extended_glob
+          if [[ -n $HOME/.zcompdump(#qN.mh+24) ]]; then
+            compinit
+          else
+            compinit -C
+          fi
+        }
       '';
       initContent = lib.mkMerge [
         (lib.mkOrder 550 ''
-          # Add brew completions (nix store path) before compinit. The path is
-          # resolved at rebuild time by zshSetup into a cache file - globbing
-          # /nix/store here would cost ~200ms on every shell.
+          # Add brew completions (nix store path) before compinit; the path is
+          # resolved at rebuild time by zshSetup into a cache file.
           if [[ -r ~/.cache/zsh/brew-zsh-completions ]]; then
             _d="$(<~/.cache/zsh/brew-zsh-completions)"
             [[ -d $_d ]] && fpath=("$_d" $fpath)
@@ -71,10 +73,9 @@ in
         '')
         ''
           bindkey '^f' autosuggest-accept
-          # Case-insensitive completion (behavior previously provided by oh-my-zsh).
+          # Case-insensitive completion.
           zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
-          # Source user/work-owned shell snippets (alias-custom, ...) - not
-          # managed by nix. All Ansible-written snippets have been ported.
+          # Source user-owned shell snippets (alias-custom, ...) - not managed by nix.
           for f in ~/.zshrc_conf/*.sh; do
             [ -r "$f" ] && source "$f"
           done
@@ -82,19 +83,18 @@ in
       ];
       shellAliases = {
         rebuild = "~/.dotfiles/rebuild.sh";
-        personal_claude = "ANTHROPIC_BASE_URL= ANTHROPIC_AUTH_TOKEN= claude"; # Bypass LiteLLM to use personal Claude account directly.
+        personal_claude = "ANTHROPIC_BASE_URL= ANTHROPIC_AUTH_TOKEN= claude"; # bypass LiteLLM, use the personal Claude account
       };
     };
 
-    # Prompt. Config deliberately not in `settings` - it lives in
-    # home/.config/starship.toml (live-symlinked) so look-and-feel tweaks
-    # take effect on the next prompt without a rebuild.
+    # Prompt. Config lives in home/.config/starship.toml (live-symlinked) so
+    # look-and-feel tweaks take effect on the next prompt without a rebuild.
     starship = {
       enable = true;
       enableZshIntegration = true;
     };
 
-    # Replaces the oh-my-zsh direnv plugin; nix-direnv adds nix-shell caching.
+    # nix-direnv adds nix-shell caching and a persistent GC root per repo.
     direnv = {
       enable = true;
       nix-direnv.enable = true;

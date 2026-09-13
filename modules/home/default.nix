@@ -1,6 +1,5 @@
-# Core home config shared by every host: packages, live-symlinked app configs,
-# fonts. Feature modules (zsh.nix, mise.nix, gcloud.nix, ai/) are selected
-# per-host in hosts/*.nix - same pattern as the homebrew bundles.
+# Core home config every host gets: packages, live-symlinked app configs,
+# fonts. Feature modules are selected per-host in hosts/*.nix.
 {
   config,
   pkgs,
@@ -13,8 +12,8 @@ let
 in
 
 {
-  # One-time migration sweeps, split out so the whole file can be deleted once
-  # every host has converged (see the header in legacy.nix).
+  # One-time migration sweeps; delete the file once every host has converged
+  # (see the header in legacy.nix).
   imports = [ ./legacy.nix ];
 
   home = {
@@ -30,7 +29,7 @@ in
       lazygit
       neovim
       # nix toolchain - formatter + linters (also needed by the Claude repo hook)
-      nixfmt # RFC-style formatter; nixpkgs 26.05 renamed nixfmt-rfc-style -> nixfmt (treefmt-nix exposes it as programs.nixfmt)
+      nixfmt # RFC-style formatter (nixpkgs 26.05 renamed nixfmt-rfc-style -> nixfmt)
       statix # nix anti-pattern lint
       deadnix # nix dead-code lint
       # the font everything renders in
@@ -38,11 +37,11 @@ in
     ];
     sessionVariables = {
       EDITOR = "nvim";
-      # Ported from the old user-owned ~/.zshrc_conf/env.sh - TERM alone (xterm-256color)
-      # doesn't promise 24-bit color, and not every terminal sets this itself.
+      # TERM alone (xterm-256color) doesn't promise 24-bit color, and not every
+      # terminal sets this itself.
       COLORTERM = "truecolor";
     };
-    # Edit-in-place: the real file stays in my repo, ~/.config just points at it.
+    # Edit-in-place: the real file stays in the repo, ~/.config just points at it.
     file = {
       ".config/wezterm".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/wezterm";
       ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";

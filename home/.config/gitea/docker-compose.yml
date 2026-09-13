@@ -17,7 +17,7 @@ services:
       - GITEA__server__ROOT_URL=http://localhost:3100/
       - GITEA__server__DISABLE_SSH=true
     ports:
-      - "3100:3000"
+      - "127.0.0.1:3100:3000"
     volumes:
       - gitea-data:/data
     networks:

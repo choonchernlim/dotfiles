@@ -17,7 +17,7 @@
       ../modules/home/ai
       ../modules/home/colima.nix
       ../modules/home/docker.nix
-      ../modules/home/cachepurge.nix
+      ../modules/home/cachepurge
     ];
   };
 }

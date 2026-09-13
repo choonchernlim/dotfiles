@@ -1,16 +1,9 @@
-# Homebrew packages for the personal profile (ported from Ansible role homebrew_personal).
-#
-# homebrew.onActivation.cleanup = "zap" (set in modules/darwin/default.nix) means
-# removing a package from these lists uninstalls it on the next rebuild.
+# Homebrew packages for the personal profile, beyond common.nix.
+# cleanup = "zap" (./default.nix): removing an entry uninstalls it on the next rebuild.
 {
   homebrew = {
-    # Homebrew 6.0 Tap-Trust requires third-party taps to be explicitly trusted or
-    # brew bundle aborts on a fresh bootstrap. Use the submodule form with trusted = true.
-    # redis-stack/redis-stack: kept on personal only - the work-profile zap audit
-    # dropped this tap and its casks; the personal audit (2026-07-12) chose to keep
-    # Redis Stack. oven-sh/bun and terraform-linters/tap were moved down from
-    # common.nix in the 2026-07-15 all-hosts audit (not declared on work-atdj, so not
-    # part of the 3-way intersection).
+    # Homebrew 6 Tap-Trust: third-party taps must be trusted or `brew bundle`
+    # aborts on a fresh bootstrap. redis-stack is personal-only by choice.
     taps = [
       {
         name = "oven-sh/bun";
@@ -25,8 +18,6 @@
         trusted = true;
       }
     ];
-    # azure-cli..pipx moved down from common.nix in the 2026-07-15 all-hosts audit (not
-    # declared on work-atdj, so not part of the 3-way intersection).
     brews = [
       "azure-cli"
       "black"
@@ -44,14 +35,11 @@
       "imagemagick"
       "k6"
       "kubectl"
-      "lazygit"
       "minikube"
       "ollama"
       "pipx"
       "yt-dlp"
     ];
-    # bruno..zed moved down from common.nix in the 2026-07-15 all-hosts audit (not
-    # declared on work-atdj, so not part of the 3-way intersection).
     casks = [
       "adobe-creative-cloud"
       "bruno"

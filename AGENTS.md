@@ -4,30 +4,32 @@ This file provides guidance to AI agents (Claude Code, Codex, Antigravity, etc) 
 
 ## What This Repo Does
 
-Personal Mac config managed with nix-darwin and home-manager. This repo is the single source of truth for the machine - the predecessor Ansible setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)) is fully retired (all roles disabled; the repo is kept only as historical reference and can be archived).
+Personal Mac config managed with nix-darwin and home-manager. This repo is the single source of truth for the machine - the predecessor Ansible setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)) is fully retired and kept only as historical reference.
 
 ## Commands
 
 ```bash
-# Apply changes after editing any .nix file or rebuild.sh-relevant config
-./rebuild.sh work       # or: rebuild work (alias works from anywhere)
-./rebuild.sh personal
-./rebuild.sh work-atdj
+# Apply changes after editing any .nix file. THE USER RUNS THIS, NEVER THE AGENT.
+rebuild                 # profile recorded in /etc/dotfiles-profile (alias for ./rebuild.sh)
+rebuild work            # explicit profile; aborts on a mismatch unless --force
 
 # Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude edits)
 nix fmt
 
-# Validate the config builds without touching the system
-# --impure is required: user is derived from $SUDO_USER/$USER at eval time
+# Validate without touching the system. --impure is required: user is derived from
+# $SUDO_USER/$USER at eval time. flake check evaluates every profile (host-* checks).
 nix flake check --impure --no-build
 nix build --impure .#darwinConfigurations.work.system --dry-run
+
+# Shellcheck every mkReconcile script for a host (they are only checked when built)
+nix build --impure --no-link .#darwinConfigurations.work.config.home-manager.users.$USER.home.activationPackage
 
 # Check formatting and lint in isolation
 nix build --impure .#checks.aarch64-darwin.formatting
 nix build --impure .#checks.aarch64-darwin.pre-commit
 
-# Verify rebuild is warning-free except the one documented upstream options.json warning
-# Expected output: empty (no new warnings)
+# Verify a profile is warning-free except the one documented upstream options.json warning
+# Expected output: empty
 nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"
 
 # Refresh .git/hooks/pre-commit by hand (normally auto-installed by direnv on cd; see .envrc)
@@ -37,177 +39,135 @@ direnv allow && direnv exec . true
 ./bootstrap.sh work     # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
 ```
 
-`home/` files (Neovim, WezTerm, herdr, AI configs) are live-symlinked - editing them takes effect immediately without running `rebuild.sh`. Only run rebuild when changing package lists, system defaults, or shell config in `.nix` files.
+New files must be `git add`ed before any nix command sees them - flake sources include tracked files only. For a read-only check of an untracked tree, use `path:.` as the flake ref.
+
+`home/` files (Neovim, WezTerm, herdr, AI configs) are live-symlinked - editing them takes effect immediately without a rebuild. Only rebuild when changing package lists, system defaults, shell config in `.nix` files, or adding a new skill directory (Codex needs it linked).
 
 ## Architecture
 
 ```
-flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); mkHost helper
-                         produces darwinConfigurations.work, .personal, and .work-atdj
+flake.nix              - entry point; derives `user` from $SUDO_USER/$USER (impure); one
+                         darwinConfiguration per hosts/*.nix (work, personal, work-atdj);
+                         checks.host-<name> evaluate every profile; packages.darwin-rebuild
+                         pins bootstrap's first switch to flake.lock
 hosts/
-  work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work);
-                         home imports the feature modules this host gets (zsh, mise, gcloud, ai,
-                         colima, docker, gitea, langfuse, zscaler, cachepurge)
+  work.nix             - { system, darwin, home }  darwin imports homebrew bundles (common + work)
+                         + quicklook; home imports the feature modules this host gets (zsh,
+                         mise, gcloud, ai, colima, docker, gitea, langfuse, zscaler, cachepurge)
   personal.nix         - same shape; homebrew common + personal; home imports zsh, mise, gcloud,
-                         ai, colima, docker, cachepurge (no gitea, no zscaler - personal is not
-                         behind Zscaler)
-  work-atdj.nix        - same shape; homebrew common + work-atdj (work-atdj.nix is an empty
-                         scaffold for host-specific extras - the 2026-07-15 all-hosts audit found
-                         nothing here wasn't already covered by common.nix) + quicklook; home
-                         imports zsh, gcloud, ai, colima, docker, gitea, zscaler, cachepurge
-                         (no mise)
+                         ai, colima, docker, cachepurge (no gitea, no zscaler)
+  work-atdj.nix        - same shape; homebrew common + work-atdj (empty scaffold for machine-
+                         specific extras) + quicklook; home imports zsh, gcloud, ai, colima,
+                         docker, gitea, zscaler, cachepurge (no mise, no langfuse)
 modules/
-  darwin/default.nix   - system-level: macOS defaults, Homebrew behavior, Rosetta, brew maintenance
-  darwin/homebrew/     - homebrew package bundles: common.nix (the audited 3-way intersection -
-                         only packages every host declares live here), personal.nix, work.nix,
-                         work-atdj.nix (host-specific extras beyond common.nix; work-atdj.nix is
-                         empty right now, extended by hand as machine-specific needs come up)
-                         (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge;
-                          all 3 hosts import common.nix)
+  darwin/default.nix   - imports system.nix + homebrew/
+  darwin/system.nix    - nix daemon handoff (Determinate), Touch ID for sudo, Rosetta,
+                         /etc/dotfiles-profile marker, zsh completion/prompt handoff to hm,
+                         system.defaults placeholder
+  darwin/homebrew/     - default.nix: homebrew behavior (cleanup = "zap", upgrade, --force,
+                         brewMaintenance + caskDequarantine activations)
+                         common.nix: the audited 3-way intersection - only packages every host
+                         declares; work.nix / personal.nix / work-atdj.nix: host extras
+                         (add/remove a bundle = one import line in hosts/*.nix; lists auto-merge)
   darwin/quicklook.nix - feature module: QuickLook preview plugins (casks + quarantine strip /
                          registry refresh)
   home/lib/reconcile.nix - mkReconcile: the single way activation shell is written - wraps each
                          script in writeShellApplication (shellcheck gates the build, strict
                          mode, tool deps declared via `path`, atomic json_edit helper, dry-run
                          aware via home-manager's `run`)
-  home/legacy.nix      - ALL one-time Ansible-migration sweeps, consolidated; DELETE this file
-                         once every host has run one rebuild containing it (see its header)
+  home/legacy.nix      - ALL one-time migration sweeps, consolidated; DELETE this file once
+                         every host has run one rebuild containing it (see its header)
   home/default.nix     - core home config every host gets: Nix packages, app-config symlinks,
                          fonts; imports legacy.nix
   home/zsh.nix         - feature module: zsh + starship + direnv, zshSetup (~/.zshrc_conf dir +
-                         brew-completions cache)
+                         brew-completions cache), 24h-cached compinit
   home/mise.nix        - feature module (work/personal): mise (Temurin Java 25, node,
-                         terraform versions), miseSetup (`mise install` provisioning)
+                         terraform), miseSetup (`mise install` provisioning)
   home/gcloud.nix      - feature module: gcloud shell wiring + gcloudSetup (config/components)
-  home/ai/             - feature module (directory): all AI agent config, split one
-                         deliberately self-contained file per agent - default.nix (umbrella
-                         imports; hosts import the directory), claude.nix, codex.nix,
-                         antigravity.nix, copilot.nix, opencode.nix. Each file holds that
-                         agent's symlinks, env vars, MCP, plugins, and reconcile sweep
-                         (claudeReconcile, codexReconcile, antigravityReconcile,
-                         copilotReconcile - together replacing the old aiReconcile); shared
-                         definitions like playwrightMcp are intentionally duplicated per
-                         file - change every copy, not just one. The gemini-extensions
-                         sweep lives in antigravity.nix (root import source for agy).
-                         antigravity's settings.json is merge-reconciled
-                         (antigravitySettings), not symlinked, since agy rewrites it at
-                         runtime - same rationale as home/docker.nix
-  home/colima.nix      - feature module (work, personal, work-atdj - all 3 hosts): autostarts
-                         colima (container runtime) at login via a home-manager launchd agent;
-                         generic, not gitea-specific or network-specific; no reconcile - home-manager
-                         owns the launchd plist lifecycle itself
-  home/docker.nix      - feature module (work, personal, work-atdj - all 3 hosts): reconciles
-                         ~/.docker/config.json (credsStore=osxkeychain + credHelpers for GCP
-                         Artifact Registry) via an idempotent atomic jq-merge activation - not a
-                         home.file symlink, since docker login/gcloud write into the same file at
-                         runtime
-  home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker Compose,
-                         manual gitea-up/-down/-status/-logs shell functions;
-                         runtime (colima/docker/docker-compose) declared in
-                         darwin/homebrew/common.nix; colima itself autostarts via home/colima.nix,
-                         so gitea-up is normally only needed once (compose services are restart:
-                         unless-stopped)
-  home/langfuse.nix    - feature module (work only): local Langfuse observability stack via Docker
-                         Compose, manual langfuse-up/-down/-status/-logs shell functions;
-                         colima autostarts via home/colima.nix, so
-                         langfuse-up is needed only once on a fresh host (compose services are
-                         restart: always); all published ports are localhost-only
-  home/zscaler.nix     - feature module (work, work-atdj): wiring for the corporate Zscaler MITM
-                         proxy - NODE_EXTRA_CA_CERTS, git http.sslcainfo, and trusting the cert
-                         inside the colima guest VM (hash-guarded, restarts dockerd only on cert
-                         rotation - its trust store is separate from the host's). The cert file
-                         itself (~/.ca_certs/zscalercert.pem) stays user-owned, not nix-managed
-                         (public repo; bootstrap needs OS-level trust before nix runs anyway)
-                         (permanent reconciles live with their feature module via mkReconcile;
-                          one-time migration sweeps live in home/legacy.nix; retired brews/casks
-                          are removed by homebrew cleanup = "zap", never by activation shell;
-                          hosts pick modules by import - same pattern as homebrew bundles)
-  home/cachepurge.nix  - feature module (work, personal, work-atdj - all 3 hosts): a `cache-purge`
-                         CLI (pkgs.writeShellApplication) that reclaims stale tool caches
-                         (JetBrains, playwright, Cypress, huggingface, whisper, etc.) and
-                         dev-tree build artifacts under ~/Documents/development, pruning at
-                         node_modules/.venv/venv/.git and guarding `.terraform` workspaces;
-                         bare `cache-purge` is a dry-run report, `--apply` reclaims now;
-                         home.activation.cachePurgeAuto (mkReconcile) runs `cache-purge --auto`
-                         on every rebuild, gated on free space < 100G and staleness >= 14 days
-                         (probed recursively via /usr/bin/find, not top-level dir mtime); set
-                         CACHE_PURGE=off to skip it (forwarded through rebuild.sh's
-                         `sudo --preserve-env=CACHE_PURGE`)
+  home/ai/             - feature module (directory): all AI agent config, one deliberately
+                         self-contained unit per agent - default.nix (umbrella imports + the
+                         shared rationale for playwrightMcp and absolute CLI paths),
+                         claude/ (default.nix + langfuse.nix), codex/ (default.nix +
+                         langfuse.nix), antigravity.nix, copilot.nix, opencode.nix. Each unit
+                         holds that agent's symlinks, env vars, MCP, plugins, and reconcile
+                         sweep; playwrightMcp is intentionally duplicated per agent - change
+                         every copy. The */langfuse.nix files are TEMPORARY and deletable whole.
+                         antigravity's settings.json is merge-reconciled, not symlinked, since
+                         agy rewrites it at runtime - same rationale as home/docker.nix.
+                         Codex alone gets per-skill symlinks into a real ~/.codex/skills/ dir
+                         (it writes .system/ there at runtime).
+  home/colima.nix      - feature module (all 3 hosts): autostarts colima at login via a
+                         home-manager launchd agent; no reconcile - hm owns the plist lifecycle
+  home/docker.nix      - feature module (all 3 hosts): reconciles ~/.docker/config.json
+                         (credsStore=osxkeychain + credHelpers for GCP Artifact Registry) via an
+                         idempotent atomic jq-merge activation - not a symlink, since docker
+                         login/gcloud write into the same file at runtime
+  home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker
+                         Compose (localhost-only), gitea-up/-down/-status/-logs shell functions
+  home/langfuse.nix    - feature module (work only): local Langfuse stack via Docker Compose,
+                         langfuse-up/-down/-status/-logs; all published ports are localhost-only
+  home/zscaler.nix     - feature module (work, work-atdj): Zscaler MITM proxy wiring -
+                         NODE_EXTRA_CA_CERTS, git http.sslcainfo, and trusting the cert inside
+                         the colima guest VM (hash-guarded, restarts dockerd only on cert
+                         rotation). The cert file (~/.ca_certs/zscalercert.pem) stays
+                         user-owned, not nix-managed (public repo)
+  home/cachepurge/     - feature module (all 3 hosts): default.nix wraps cache-purge.sh (plain
+                         bash, shellcheck-gated) as the `cache-purge` CLI; bare = dry-run,
+                         --apply reclaims now; cachePurgeAuto runs `cache-purge --auto` on every
+                         rebuild, gated on free space < 100G and staleness >= 14 days; set
+                         CACHE_PURGE=off to skip it (forwarded through rebuild.sh's sudo)
 home/                  - actual config files symlinked into ~/.config/, ~/.claude/, etc.
-  ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/ and mcp/
+  ai/                  - agent-agnostic AI config: shared AGENTS.md, skills/, per-agent settings/
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
-rebuild.sh             - re-applies the flake on every change; takes a profile arg, discovered
-                         dynamically from hosts/*.nix (work|personal|work-atdj)
-bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, runs first switch,
-                         installs .git/hooks/pre-commit via direnv (`.envrc` -> `use flake . --impure`)
-docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, Ansible coexistence
+rebuild.sh             - re-applies the flake; profile defaults to /etc/dotfiles-profile and a
+                         mismatch aborts without --force; git pull + hm-bak preflight first
+bootstrap.sh           - one-time setup: installs Determinate Nix, symlinks repo, first switch via
+                         the flake's pinned darwin-rebuild, installs .git/hooks/pre-commit via direnv
+docs/architecture.md   - repo layout, symlink mechanics, formatter toolchain, history
 ```
 
-`flake.nix` derives the username from the environment at eval time (`$SUDO_USER` first, then `$USER`),
-so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass `--impure` to
-`darwin-rebuild` / `nix` to allow this environment read.
+`flake.nix` derives the username from the environment at eval time (`$SUDO_USER` first, then `$USER`), so no login is hardcoded in the repo. Both `rebuild.sh` and `bootstrap.sh` pass `--impure` to allow this environment read.
 
-`home.nix` uses `mkOutOfStoreSymlink` to point config paths directly at this repo (via `~/.dotfiles`), so edits to files under `home/` are immediately live - no rebuild needed.
-
-`home/ai/AGENTS.md` is the shared agent policy file - it is symlinked to every agent's canonical location (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.gemini/antigravity-cli/ANTIGRAVITY.md`). `home/ai/skills/` is similarly symlinked into every agent. Per-agent settings and MCP configs live under `home/ai/settings/` and `home/ai/mcp/`.
-
-## Ansible: Retired
-
-All mac-dev-bootstrap roles are disabled (commented out in its `main.yml`, per the guardrails' comment-don't-delete rule). Every capability was either ported to nix or deliberately dropped in a modern rewrite:
-
-- **Ported**: homebrew bundles, AI configs (`ai.nix`), shell (`zsh.nix`: nixpkgs autosuggestion/syntaxHighlighting, starship, direnv), tool versions (`mise.nix`: Temurin Java 25 + node + terraform), gcloud wiring/config (`gcloud.nix`), QuickLook plugins pruned to the 4 maintained ones (`darwin/quicklook.nix`), Rosetta install (darwin `extraActivation`), brew cleanup/autoremove (`brewMaintenance` activation), Xcode CLT check (`bootstrap.sh` step 0).
-- **Dropped, swept once by `modules/home/legacy.nix`** (file-level residue; retired brews/casks are removed by `cleanup = "zap"` instead): oh-my-zsh/p10k/spaceship, nvm/sdkman/tfenv (mise replaces), maven, iTerm2 (WezTerm is the terminal), amix/vimrc (Neovim is the editor), legacy pip packages (requests, crcmod), 4 dead QuickLook plugins. Java was initially dropped with SDKMAN, then restored as Temurin Java 25 through mise for work/personal. ghostty was also removed (2026-07-27) - WezTerm is now the sole terminal; its config symlink, homebrew cask, and feature module (`ghostty.nix`) were dropped together. rtk was also removed (2026-08-07) - command rewriting is gone from every agent; its hook wiring, vendored files, and brew formula were dropped together, and `legacy.nix` sweeps any leftover hook files plus its state dir. gemini CLI was also retired (2026-08-30) - antigravity (agy) replaced it; it was never repo-installed (the `gemini-cli` formula sits in common.nix's historical absent list), and `legacy.nix` sweeps its CLI-owned state under `~/.gemini` (GEMINI.md, settings/oauth/account files, `history/`, `tmp/`, and `skills/` - which held only "forge", the predecessor of the repo's grill-me skill), leaving `antigravity-cli/`, `extensions/` (managed by `antigravityReconcile`), and the still-active `config/`, `users/`, `tasks/` dirs untouched. The `google-gemini` cask (work/personal) is the separate Gemini desktop app and stays.
-- `~/.zshrc_conf/` is purely user-owned now (alias-custom.sh, ...); nix only sources it.
-  `zscaler.sh` used to live here but is now nix-managed (`home/zscaler.nix`) and swept by its
-  own reconcile if it reappears.
-
-Remaining follow-up tasks unlocked by the retirement:
-1. ~~**zap flip**~~ - done: audited `brew list` vs declared lists on the work machine,
-   declared or dropped each stray (dropped the `redis-stack/redis-stack` tap along with
-   its casks; `oven-sh/bun` and `terraform-linters/tap` stay - still used by `bun`/`tflint`),
-   and set `homebrew.onActivation.cleanup = "zap"`. The personal-profile audit is also
-   done (2026-07-12, via a `brew bundle cleanup --zap` dry-run before the first bootstrap):
-   Redis Stack was kept (tap + casks declared in `homebrew/personal.nix`); ngrok and the
-   old Java remnants (sdkman, maven, openjdk) were confirmed as intentional drops. Java
-   later returned as a mise-managed Temurin JDK, without restoring those remnants.
-2. **system.defaults**: design macOS UI defaults deliberately (the block was never actually Ansible-owned; the old comment was stale).
+`home/ai/AGENTS.md` is the shared agent policy file - it is symlinked to every agent's canonical location (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`, `~/.copilot/copilot-instructions.md`, `~/.gemini/antigravity-cli/ANTIGRAVITY.md`). `home/ai/skills/` is symlinked as a directory into every agent except Codex (per-skill links, see above). Per-agent settings live under `home/ai/settings/`.
 
 ## Key Invariants (Do Not Silently Revert)
 
-- **Always confirm the target host with the user before running `rebuild.sh` / `darwin-rebuild`.** This repo is checked out on three different machines (work, personal, work-atdj) and nothing in the repo tells you which one you are on. Applying the wrong profile installs/uninstalls the wrong module set - and with `cleanup = "zap"`, actively removes that machine's packages. Never assume; ask.
-- **All activation shell goes through `mkReconcile`** (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`. It gates every script with shellcheck at build time (a script calling a tool missing from the hermetic activation PATH fails `rebuild` instead of silently no-oping - this exact bug shipped once, see the history note in `zscaler.nix`), declares tool deps via `path`, provides atomic `json_edit`, and respects `--dry-run`.
-- **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes every undeclared formula/cask on each switch; such loops are dead code by construction.
-- The `homebrew.onActivation.cleanup = "zap"` setting is documented and intentional - it enforces reproducibility by removing undeclared packages on every switch. The zap-flip audit (see "Ansible: Retired") is complete on the `work`/`personal` profiles; declared lists in `./homebrew/{common,work,personal}.nix` are the single source of truth. `common.nix` itself was audited 2026-07-15 against all 3 hosts (work/personal/work-atdj) to be the true 3-way intersection - only packages every host declares live there; anything not universal is duplicated into the specific host bundle(s) that need it. `work-atdj.nix` now imports `common.nix` like the other two profiles and is otherwise an empty scaffold - the user extends it by hand for whatever is unique to that machine.
+- **Never run `rebuild.sh` / `darwin-rebuild` yourself.** The user always applies the config. Stop at the static checks in "Commands" and hand over a checklist of what to verify after they rebuild. This repo is checked out on three machines and only the user knows which one they are on; `/etc/dotfiles-profile` plus `rebuild.sh`'s guard make a wrong-profile switch fail-safe, but that is a backstop, not permission.
+- **All activation shell goes through `mkReconcile`** (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`. It gates every script with shellcheck at build time (a script calling a tool missing from the hermetic activation PATH fails the build instead of silently no-oping - this exact bug shipped once in `zscaler.nix`), declares tool deps via `path`, provides atomic `json_edit`, and respects `--dry-run`. Agent CLIs are called by absolute `/opt/homebrew/bin` path for the same reason.
+- **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes every undeclared formula/cask on each switch.
+- `homebrew.onActivation.cleanup = "zap"` is documented and intentional - the declared lists in `modules/darwin/homebrew/*.nix` are the single source of truth for Homebrew state. `common.nix` is the audited 3-way intersection; anything not universal is duplicated into the host bundle(s) that need it.
+- **Codex is the one agent that must not get the whole skills dir symlinked** - it writes `.system/` into it at runtime, which previously landed in git. Keep the per-skill links in `modules/home/ai/codex/default.nix`.
+- **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key.
 - Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
-- When disabling a config block during migration, leave the original as a comment (not deleted) so it can be revisited later.
-- When making changes that affect the user-facing workflow (new commands, bootstrap steps, package list, or gotchas), update `README.md` to reflect them. Keep README.md short - link to `docs/` for details rather than expanding inline.
-- `rebuild work` must be warning-free except for the one documented upstream `options.json` warning (see "Known upstream warning" below). Any *new* warning that appears must be investigated and eliminated before committing - never let an unexplained warning slide.
-- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, skills, extensions, and MCP servers. The per-agent reconcile scripts in `modules/home/ai/` (`claudeReconcile`, `antigravityReconcile`, `copilotReconcile`, `codexReconcile`) enforce this by removing any undeclared content on every rebuild. To add a capability, declare it in nix. Installing it via an agent CLI (e.g. `claude plugin install`, `agy plugin import`) will be reverted on the next `rebuild work`.
+- When disabling a config block, leave the original as a comment (not deleted) so it can be revisited later.
+- When making changes that affect the user-facing workflow (new commands, bootstrap steps, package lists, gotchas), update `README.md` (keep it short - link to `docs/` for details), `docs/architecture.md`, and `docs/gotchas.md`.
+- Every profile must be warning-free except for the one documented upstream `options.json` warning. Any *new* warning must be investigated and eliminated before committing.
+- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, skills, extensions, and MCP servers. The per-agent reconciles in `modules/home/ai/` remove any undeclared content on every rebuild. Installing via an agent CLI (`claude plugin install`, `agy plugin import`) is reverted on the next rebuild.
+- Comments explain the non-obvious *why* (hermetic PATH, why a file is merge-reconciled instead of symlinked, why remove-then-add). Chronology and "confirmed via ..." notes belong in git history, not in modules.
 
 ## AI Agent Plugin Reconcile
 
-Each agent maintains its own plugin/extension store that nix does not own, so removed config silently persists. Per-agent reconcile activation scripts in `modules/home/ai/` sweep these stores on every rebuild:
+Each agent keeps its own plugin/extension store that nix does not own, so removed config would silently persist. Per-agent reconcile activations sweep these stores on every rebuild:
 
 | Agent (module)    | Mechanism                                                                                                            | Keep-set                                                      |
 |-------------------|----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| Claude (`ai/claude.nix`, `claudeReconcile`) | Keep-set prune of `installed_plugins.json` + `known_marketplaces.json` + `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP + `langfuse-observability` plugin (`claudeKeepInstalled`/`claudeKeepMarketplaces` in `modules/home/ai/claude.nix`) |
+| Claude (`ai/claude/default.nix`, `claudeReconcile`) | Keep-set prune of `installed_plugins.json` + `known_marketplaces.json` + `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP + whatever `home/ai/settings/claude.json` lists under `enabledPlugins` / `extraKnownMarketplaces` (read at eval time). Install of the langfuse plugin: `ai/claude/langfuse.nix` (TEMPORARY) |
+| Codex (`ai/codex/default.nix`, `codexReconcile`) | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add; langfuse tracing plugin installed by `ai/codex/langfuse.nix` (TEMPORARY) | (no plugin prune wired yet - codex has no list-and-prune) |
 | Gemini CLI (`ai/antigravity.nix`, `antigravityReconcile`) | Remove all dirs under `~/.gemini/extensions/`; reset `extension-enablement.json -> {}`                               | (none - gemini extensions are the root import source for agy) |
 | Antigravity (agy) (`ai/antigravity.nix`, `antigravityReconcile`) | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json`                                            | playwright (nix symlink declared in `home.file`)              |
 | Copilot (`ai/copilot.nix`, `copilotReconcile`) | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json`                                     | (none)                                                        |
 
-The gemini extension removal is the critical step: `superpowers` and `context7` are installed there and auto-imported into antigravity on `agy` startup. Removing only the antigravity copy without removing the gemini source lets them re-appear on the next `agy` launch.
+The gemini extension removal is the critical step: extensions installed there are auto-imported into antigravity on `agy` startup, so removing only the antigravity copy lets them re-appear.
 
-Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) are also cleaned up per agent dir by each agent's reconcile (codex's `codexReconcile` exists only for this). This alone isn't enough for `.gemini/antigravity-cli/settings.json.hm-bak`: home-manager's `checkLinkTargets` inspects (and can abort on) a stale `.hm-bak` *before* any activation script runs, so `antigravityReconcile`'s own sweep can never reach the file that blocks it. `rebuild.sh` runs a preflight sweep of `*.hm-bak` under all agent config dirs before invoking `darwin-rebuild` to close that gap (this is also why antigravity's settings.json moved to a merge-reconcile instead of a symlink - see `home/ai/` above).
-
-The rtk-era hook paths (`~/.copilot/hooks/` and `~/.config/opencode/plugins/`) and rtk's own state dir are swept by `legacy.nix` - see the "rtk" bullet above; the hook files themselves are no longer nix-declared, so nothing else removes them.
+Stale `.hm-bak` files and agent-created dated backups (`settings.json.YYYYMMDD`) are also cleaned per agent dir by each reconcile. That alone cannot unblock a stale `settings.json.hm-bak` that home-manager's `checkLinkTargets` trips over *before* any activation runs, so `rebuild.sh` runs a preflight `*.hm-bak` sweep under all agent config dirs (this is also why antigravity's settings.json is merge-reconciled instead of symlinked).
 
 ## Known Upstream Warning
 
-`rebuild work` emits this warning on every run:
+Every rebuild emits this warning:
 ```
 warning: Using 'builtins.derivation' to create a derivation named 'options.json'
 that references the store path '/nix/store/...-source' without a proper context.
 ```
-**This is harmless** - the build succeeds, nothing is broken. It is an upstream nixpkgs bug in `nixos/lib/make-options-doc` (`builtins.toFile` + `unsafeDiscardStringContext` strips store context), surfaced by home-manager's man-page generation. Tracking: [nixpkgs#485682](https://github.com/NixOS/nixpkgs/issues/485682), [home-manager#7935](https://github.com/nix-community/home-manager/issues/7935).
+**This is harmless** - the build succeeds. It is an upstream nixpkgs bug in `nixos/lib/make-options-doc`, surfaced by home-manager's man-page generation. Tracking: [nixpkgs#485682](https://github.com/NixOS/nixpkgs/issues/485682), [home-manager#7935](https://github.com/nix-community/home-manager/issues/7935).
 
 **Workaround (if you want zero warnings):** add `manual.manpages.enable = false;` to `modules/home/default.nix`. Currently left enabled intentionally - revisit once nixpkgs ships a fix.

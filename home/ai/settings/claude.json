@@ -9,7 +9,6 @@
       "Bash(uv *)",
       "Bash(lsof *)",
       "Bash(source *)",
-      "Bash(* --help)",
       "mcp__playwright__*",
       "mcp__ide__getDiagnostics"
     ],
@@ -22,7 +21,7 @@
       "Read(./secrets/**)"
     ]
   },
-  "model": "opusplan",
+  "model": "claude-fable-5-1[1m]",
   "disableAgentView": true,
   "disableWorkflows": true,
   "disableArtifact": true,

@@ -1,9 +1,7 @@
-# Langfuse feature module: local observability stack via Docker Compose,
-# started manually with langfuse-up/langfuse-down/langfuse-status/langfuse-logs.
-# Selected only by the work host. Colima's generic login agent starts the
-# container runtime, and the compose services' `restart: always` policies bring
-# previously created containers back after login. A fresh host needs one
-# explicit `langfuse-up`.
+# Langfuse feature module: local observability stack via Docker Compose, driven
+# by the langfuse-up/-down/-status/-logs shell functions. Selected by the work
+# host only. Colima autostarts at login (colima.nix) and the services are
+# `restart: always`, so langfuse-up is needed once on a fresh host.
 {
   config,
   lib,
@@ -15,9 +13,8 @@ let
 in
 
 {
-  # Link only the compose file so the directory remains available for a
-  # future user-owned .env without ever committing secrets to this public repo.
-  # (First-takeover .hm-bak cleanup lives in legacy.nix.)
+  # Link only the compose file so the directory stays free for a user-owned
+  # .env, never committed to this public repo.
   home.file.".config/langfuse/docker-compose.yml".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/langfuse/docker-compose.yml";
 

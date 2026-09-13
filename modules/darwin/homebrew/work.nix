@@ -1,11 +1,9 @@
-# Homebrew packages for the work profile (ported from Ansible role homebrew_work).
-#
-# homebrew.onActivation.cleanup = "zap" enforces this list automatically on every
-# rebuild - removing a package here uninstalls it on the next `rebuild`.
+# Homebrew packages for the work profile, beyond common.nix.
+# cleanup = "zap" (./default.nix): removing an entry uninstalls it on the next rebuild.
 {
   homebrew = {
-    # Homebrew 6.0 Tap-Trust requires third-party taps to be explicitly trusted or
-    # brew bundle aborts on a fresh bootstrap. Use the submodule form with trusted = true.
+    # Homebrew 6 Tap-Trust: third-party taps must be trusted or `brew bundle`
+    # aborts on a fresh bootstrap.
     taps = [
       {
         name = "oven-sh/bun";
@@ -17,15 +15,6 @@
       }
     ];
     brews = [
-      # node moved to mise (was shadowed by nvm's node on PATH anyway);
-      # cleanup="zap" removes the brew copy.
-      # "node"
-      # watchman was for the mobile/React Native toolchain; dropped along with
-      # android-studio, cocoapods, fastlane when mobile dev was retired.
-      # "watchman"
-
-      # Moved down from common.nix in the 2026-07-15 all-hosts audit - not
-      # declared on work-atdj, so not part of the 3-way intersection.
       "azure-cli"
       "black"
       "bun"
@@ -42,18 +31,12 @@
       "imagemagick"
       "k6"
       "kubectl"
-      "lazygit"
       "minikube"
       "ollama"
       "pipx"
     ];
-    # copilot-cli, tflint, zed were formulae in the Ansible list but are cask-only in
-    # Homebrew 6, so they live here (antigravity-cli is the same case but stayed in
-    # common.nix - see there). Moved down from common.nix in the 2026-07-15 audit - not
-    # declared on work-atdj, so not part of the 3-way intersection.
+    # copilot-cli, tflint, zed are cask-only in Homebrew 6.
     casks = [
-      # android-studio: mobile dev retired, no longer needed.
-      # "android-studio"
       "bruno"
       "calibrite-profiler"
       "chatgpt"
@@ -70,10 +53,5 @@
       "tflint"
       "zed"
     ];
-    # Ansible's work "absent" list - homebrew_work actively uninstalled the personal
-    # casks on the work profile. Already removed from this machine; kept as
-    # historical record. cleanup = "zap" now enforces absence automatically.
-    # casks absent:
-    #   garmin-basecamp, garmin-express, grammarly-desktop, nordvpn
   };
 }

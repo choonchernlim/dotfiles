@@ -1,21 +1,11 @@
-# Zscaler feature module: wiring for the corporate Zscaler MITM proxy that intercepts all
-# outbound TLS on the work network. Selected per-host via hosts/*.nix home imports (work,
-# work-atdj only - same {work, work-atdj} selection as gitea.nix; personal is not behind
-# Zscaler).
+# Zscaler feature module: trust the corporate Zscaler MITM root CA wherever TLS
+# is verified outside the macOS Keychain. Selected per-host via hosts/*.nix
+# (work, work-atdj; personal is not behind Zscaler).
 #
-# The cert file itself (~/.ca_certs/zscalercert.pem) is deliberately NOT nix-managed and
-# stays user/work-owned runtime state: it's a corporate root CA, this repo is a public fork,
-# and nix cannot provision it first anyway - bootstrap.sh's own curl and the Nix installer
-# need OS-level TLS trust before nix ever runs, which comes from the Zscaler client/MDM
-# installing the cert into the system keychain out-of-band. Every step below only *consumes*
-# the cert by reference and no-ops cleanly when it's absent.
-#
-# Supersedes the old user-owned ~/.zshrc_conf/zscaler.sh, which set the same two active
-# variables below (NODE_EXTRA_CA_CERTS, git http.sslcainfo - its other lines, SSL_CERT_FILE/
-# CURL_CA_BUNDLE/wget/pip/gcloud, were already commented out and are not migrated - the
-# on-demand brew CURL_CA_BUNDLE/SSL_CERT_FILE workflow documented in the
-# reference_zscaler_brew_cert memory is unaffected). legacy.nix removes that file so it can't
-# drift back out of sync with this module.
+# The cert file (~/.ca_certs/zscalercert.pem) is deliberately NOT nix-managed:
+# it is a corporate root CA in a public repo, and OS-level trust must already
+# exist (via the Zscaler client/MDM) before bootstrap.sh can even fetch nix.
+# Every step below only consumes the cert by reference and no-ops when absent.
 {
   config,
   pkgs,
@@ -28,19 +18,14 @@ let
 in
 {
   home = {
-    # NPM/Node: matches the old zscaler.sh export. Unconditional (cheap to declare; Node only
-    # warns, non-fatally, if the path doesn't exist), consistent with ai/claude.nix's sessionVariables.
+    # Node: unconditional; node only warns, non-fatally, if the path is missing.
     sessionVariables.NODE_EXTRA_CA_CERTS = certPath;
 
     activation = {
-      # git: matches the old zscaler.sh `git config --global http.sslcainfo`. Writes into the
-      # user-owned ~/.gitconfig via the git CLI rather than adopting programs.git wholesale -
-      # same non-invasive approach gcloudSetup uses for gcloud's own config (modules/home/gcloud.nix).
-      # Guarded on the cert existing: an absent cert must not overwrite a previously-good
-      # sslcainfo with a path that would then break every https git operation.
-      # Absolute path, not `command -v` - home-manager's activation PATH is hermetic (bash/
-      # coreutils/grep/sed/jq from the nix store only, no /usr/bin), so a PATH-based lookup here
-      # would silently no-op. /usr/bin/git is the Xcode CLT git; this machine has no brew git.
+      # git: written into the user-owned ~/.gitconfig via the git CLI rather
+      # than adopting programs.git wholesale. Guarded on the cert existing so an
+      # absent cert never replaces a good sslcainfo with a dead path. /usr/bin/git
+      # (Xcode CLT) by absolute path: the activation PATH is hermetic.
       zscalerGitCert = mkReconcile {
         name = "zscaler-git-cert";
         text = ''
@@ -52,30 +37,15 @@ in
         '';
       };
 
-      # Trust the Zscaler MITM root CA inside the colima guest VM. Without this, any
-      # `docker pull`/`docker-compose up` against a registry fails with "x509: certificate
-      # signed by unknown authority" (confirmed against cgr.dev while debugging langfuse's
-      # docker-compose). The VM's guest OS trust store is separate from the host's, so the
-      # NODE_EXTRA_CA_CERTS/git fixes above (host-side) do not cover it.
+      # Trust the CA inside the colima guest VM, whose trust store is separate
+      # from the host's; without it `docker pull` fails with "x509: certificate
+      # signed by unknown authority".
       #
-      # Hash-guarded so it is a no-op on every rebuild except when the cert actually changes:
-      # applying it requires `sudo systemctl restart docker` inside the VM, because dockerd
-      # caches the trust store at process start - `update-ca-certificates` alone is not enough
-      # (confirmed: curl trusted the new cert immediately, `docker pull` still failed until the
-      # daemon was restarted). That restart briefly restarts already-running containers
-      # (confirmed against gitea/gitea-db - both came back healthy under their `restart:
-      # unless-stopped` policy), so it must not fire on every rebuild, only on real cert
-      # rotation. Best-effort on VM readiness: if colima isn't up yet when this activation runs,
-      # it no-ops and self-heals on the next rebuild once colima has started - same accepted
-      # timing gap as colima.nix's own SIGTERM caveat.
-      #
-      # History: this block was a silent no-op from its introduction until 2026-08-08 - it piped
-      # sha256sum through bare `awk`, which the hermetic activation PATH does not carry, so the
-      # hash always came back empty and the guard skipped everything. Now `cut` (coreutils,
-      # always on the activation PATH) extracts the hash, and shellcheck via mkReconcile gates
-      # this class of bug at build time. /opt/homebrew/bin is prepended for the colima calls:
-      # colima shells out to limactl there (see colima.nix on the same launchd pitfall).
-      # (The old ~/.zshrc_conf/zscaler.sh removal moved to legacy.nix.)
+      # Hash-guarded: applying requires restarting dockerd in the VM (it caches
+      # the trust store at start), which briefly restarts running containers,
+      # so it only fires on real cert rotation. If colima is not up yet, this
+      # no-ops and self-heals on the next rebuild. /opt/homebrew/bin is
+      # prepended because colima shells out to limactl there.
       colimaZscalerCert = mkReconcile {
         name = "colima-zscaler-cert";
         text = ''

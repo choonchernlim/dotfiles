@@ -1,26 +1,30 @@
 # Implementation Guardrails
 
-Rules for porting Ansible roles into Nix. Follow these phases in order.
+Rules for changing this repo. Follow these phases in order.
 
 ## 1. Audit (before writing any Nix)
 
-- Read the full Ansible role: `tasks/`, `files/`, `templates/`, `defaults/main.yml`, and any `handlers/`.
-- Produce an explicit inventory: every file path written, every directory created, every package installed, every symlink made, every permission set, every service registered.
-- Check the coexistence rules in `CLAUDE.md` before touching any module. Know which files and packages Ansible still owns on this machine.
+- Read the module you are changing and every file it touches on disk: symlink targets, reconciled JSON/TOML files, launchd plists, brew bundles.
+- Produce an explicit inventory of what the change will write, create, remove, or symlink, and which host profiles it affects. Check `hosts/*.nix` - a module is only live on the hosts that import it.
+- If an agent CLI or another tool also writes into a file nix would own, that is a conflict to resolve explicitly (merge-reconcile, not a symlink - see `modules/home/docker.nix`).
 
 ## 2. Implement
 
-- The Nix solution must be functionally equivalent to the Ansible role - same files, same paths, same content, same behavior.
-- Never overwrite or delete a file that Ansible currently manages. If Nix and Ansible would both own the same path, that is a conflict that must be resolved explicitly before proceeding.
-- Use declarative Nix patterns instead of imperative steps. If a tool needs both installation and removal logic, express that as a unified Nix abstraction (e.g. a `home.file` entry or an activation script that handles both add and remove), not hardcoded imperative commands.
-- When a Nix structural pattern differs significantly from what Ansible did (e.g. Ansible used a cron job; Nix would use a launchd service), propose the approach and get approval before implementing.
-- When a `home.file` entry is removed, confirm no stale symlink remains at the target path. Do not leave behind empty directories or orphaned symlinks.
+- Declarative Nix patterns first (`home.file`, `programs.*`, `launchd.agents`). Activation shell only for state nix cannot express, and always through `mkReconcile` (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`.
+- Every activation script must be idempotent and safe on a machine that never had the artifact: guard with `[ -e ]`/`[ -d ]`, rewrite JSON with `json_edit`, opt out of strict mode per-command with `|| true` only for genuinely best-effort steps.
+- Permanent reconciles live with their feature module; one-time migration sweeps go in `modules/home/legacy.nix`; anything meant to be deleted later is its own file marked TEMPORARY.
+- Never add `brew uninstall` loops - `cleanup = "zap"` already removes undeclared packages.
+- When a `home.file` entry is removed, confirm no stale symlink or empty directory remains at the target path.
+- When a structural pattern changes significantly (e.g. a symlink becomes a merge-reconcile, a manual command becomes a launchd agent), propose the approach and get approval before implementing.
 
 ## 3. Verify
 
-- Run `rebuild work` and confirm no new warnings appear beyond the documented `options.json` upstream warning.
-- Diff every config file the role owns: capture the path and content before and after the rebuild. Any unintended change is a blocker.
+- `nix fmt`, then `nix flake check --impure --no-build` (evaluates every profile) and the warning grep from AGENTS.md "Commands" - no new warnings beyond the documented `options.json` one.
+- Build the home activation package for the affected host so every `mkReconcile` script is shellchecked, not just evaluated.
+- Diff every config file the change owns: capture path and content before and after the rebuild. Any unintended change is a blocker.
+- The user runs `rebuild` themselves; hand them a checklist of what to confirm afterwards.
 
 ## 4. Hand Off
 
-- Comment out the ported role in `../mac-dev-bootstrap/main.yml` (do not delete the line).
+- Update `README.md` (keep it short), `docs/architecture.md`, and `docs/gotchas.md` for any user-facing change: new commands, bootstrap steps, package lists, or gotchas.
+- Update `AGENTS.md` if the layout tree, invariants, or reconcile table changed.

@@ -2,9 +2,7 @@
   description = "dotfiles";
 
   inputs = {
-    # Use `github:NixOS/nixpkgs/nixpkgs-26.05-darwin` to use Nixpkgs 26.05.
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
-    # Use `github:nix-darwin/nix-darwin/nix-darwin-26.05` to use Nixpkgs 26.05.
     nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -32,26 +30,35 @@
       ...
     }:
     let
+      inherit (nixpkgs) lib;
+
       # Derive the login from the environment (impure) so no username is committed.
-      # Under `sudo darwin-rebuild`, USER is "root" but sudo always exports SUDO_USER
-      # as the real invoker; fall back to USER for non-sudo use (e.g. nix flake check).
+      # Under `sudo darwin-rebuild`, USER is "root" but sudo exports SUDO_USER as
+      # the real invoker; fall back to USER for non-sudo use (e.g. nix flake check).
       user =
         let
           s = builtins.getEnv "SUDO_USER";
         in
         if s != "" then s else builtins.getEnv "USER";
 
-      # Hardcoded to the host machine architecture. Multi-arch is YAGNI for a personal dotfiles repo.
+      # Architecture of every machine this repo targets (per-host override in hosts/*.nix).
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
       treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+
+      # One profile per hosts/<name>.nix - the same discovery rebuild.sh does.
+      hostNames = map (lib.removeSuffix ".nix") (
+        builtins.attrNames (
+          lib.filterAttrs (n: t: t == "regular" && lib.hasSuffix ".nix" n) (builtins.readDir ./hosts)
+        )
+      );
 
       mkHost =
         name:
         let
           host = import ./hosts/${name}.nix;
         in
-        assert nixpkgs.lib.assertMsg (user != "")
+        assert lib.assertMsg (user != "")
           "Could not determine username from $SUDO_USER or $USER - run via rebuild.sh, or set USER, and use --impure.";
         nix-darwin.lib.darwinSystem {
           specialArgs = {
@@ -61,7 +68,7 @@
           modules = [
             { nixpkgs.hostPlatform = host.system; }
             ./modules/darwin
-            host.darwin # profile-specific system config (homebrew bundle + quicklook)
+            host.darwin # homebrew bundles + darwin feature modules this host gets
             nix-homebrew.darwinModules.nix-homebrew
             home-manager.darwinModules.home-manager
             {
@@ -73,8 +80,7 @@
                   inherit user;
                   profile = name;
                 };
-                # Core home config + the feature modules this host selected
-                # (same per-host bundle pattern as homebrew).
+                # Core home config + the home feature modules this host gets.
                 users.${user}.imports = [
                   ./modules/home
                   (host.home or { })
@@ -85,11 +91,11 @@
         };
     in
     {
-      darwinConfigurations = {
-        work = mkHost "work";
-        personal = mkHost "personal";
-        work-atdj = mkHost "work-atdj";
-      };
+      darwinConfigurations = lib.genAttrs hostNames mkHost;
+
+      # bootstrap.sh runs the first switch through this so it uses the darwin-rebuild
+      # pinned in flake.lock, not whatever the release branch points at that day.
+      packages.${system}.darwin-rebuild = nix-darwin.packages.${system}.darwin-rebuild;
 
       # nix fmt - formats all .nix files via nixfmt
       formatter.${system} = treefmtEval.config.build.wrapper;
@@ -104,13 +110,17 @@
           hooks = {
             treefmt = {
               enable = true;
-              packageOverrides.treefmt = treefmtEval.config.build.wrapper; # use our treefmt config
+              packageOverrides.treefmt = treefmtEval.config.build.wrapper;
             };
             statix.enable = true; # check-only anti-pattern lint (no auto-rewrite)
             deadnix.enable = true; # check-only dead-code lint (no --edit)
           };
         };
-      };
+      }
+      # host-<name>: every profile's system closure, so `nix flake check --impure --no-build`
+      # evaluates all of them from any machine and a broken hosts/<name>.nix is caught
+      # before that machine rebuilds. (Without --no-build these build the full systems.)
+      // lib.mapAttrs' (name: cfg: lib.nameValuePair "host-${name}" cfg.system) self.darwinConfigurations;
 
       # `nix develop` enters this shell and installs .git/hooks/pre-commit via shellHook.
       devShells.${system}.default = pkgs.mkShell {

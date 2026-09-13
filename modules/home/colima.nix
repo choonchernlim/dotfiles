@@ -1,19 +1,11 @@
-# Colima feature module: autostarts the colima container runtime at login via
-# a home-manager launchd agent. Deliberately generic - not gitea-specific, so
-# any container workload (gitea, or others added later) finds colima already
-# running. Selected per-host via hosts/*.nix home imports (work, personal,
-# work-atdj - all 3 hosts). The colima/docker/docker-compose brews this agent
-# depends on live in modules/darwin/homebrew/common.nix (the all-hosts
-# intersection) - importing this module without that brew leaves the agent
-# unable to exec.
+# Colima feature module: autostarts the container runtime at login via a
+# home-manager launchd agent, so any container workload (gitea, langfuse, ...)
+# finds it running. Selected per-host via hosts/*.nix (all 3 hosts). The
+# colima/docker/docker-compose brews it needs live in homebrew/common.nix.
 #
-# No custom reconcile here, unlike the other feature modules: home-manager's
-# launchd.agents already owns the plist lifecycle (writes it to
-# ~/Library/LaunchAgents/, unloads it when this module stops being imported).
-# One gap that leaves: unloading does not stop an already-running colima VM
-# (colima ignores the SIGTERM launchd sends - abiosoft/colima#1346), so
-# removing this module leaves the VM up until a manual `colima stop` or the
-# next reboot.
+# No reconcile: home-manager owns the plist lifecycle (writes it, unloads it
+# when the module is dropped). Known gap: unloading does not stop a running VM
+# (colima ignores launchd's SIGTERM, abiosoft/colima#1346) - `colima stop` by hand.
 { config, ... }:
 {
   launchd.agents.colima = {
@@ -22,25 +14,17 @@
       ProgramArguments = [
         "/opt/homebrew/bin/colima"
         "start"
-        # 8GiB, up from colima's 2GiB default - langfuse's docker-compose stack
-        # (ClickHouse in particular) needs the headroom. Codifies a manual `colima
-        # start --memory 8` done while debugging that setup, so a `colima delete`
-        # or fresh-machine bootstrap doesn't silently regress to 2GiB. Only takes
-        # effect on first VM creation or after an explicit `colima stop` + next
-        # start - `colima start` is a no-op ("already running, ignoring") whenever
-        # the VM is already up, flags included, so this line has no effect on an
-        # already-running VM. Same category of declarative-but-not-force-reconciled
-        # gap as the SIGTERM caveat below.
+        # 8GiB, up from the 2GiB default - langfuse's ClickHouse needs the
+        # headroom. Only applies on first VM creation or after `colima stop`;
+        # `colima start` ignores flags when the VM is already running.
         "--memory"
         "8"
       ];
       RunAtLoad = true;
-      KeepAlive = false; # one-shot launcher; colima daemonizes its own VM after start
+      KeepAlive = false; # one-shot launcher; colima daemonizes its own VM
       EnvironmentVariables = {
-        # launchd agents don't inherit the shell's PATH. colima shells out to
-        # limactl and its VM backend, both under /opt/homebrew - omitting this
-        # is the #1 cause of "colima start works in a terminal but fails under
-        # launchd" (abiosoft/colima#490).
+        # launchd agents don't inherit the shell's PATH; colima shells out to
+        # limactl under /opt/homebrew (abiosoft/colima#490).
         PATH = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/bin:/bin:/usr/sbin:/sbin";
         HOME = config.home.homeDirectory;
       };

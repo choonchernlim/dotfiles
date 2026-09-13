@@ -1,6 +1,5 @@
 # gcloud feature module: shell wiring + declarative config/components for the
-# gcloud-cli brew cask (the cask itself is declared in the homebrew bundles).
-# Selected per-host via hosts/*.nix home imports.
+# gcloud-cli cask (declared in the homebrew bundles). Selected per-host via hosts/*.nix.
 { pkgs, lib, ... }:
 
 let
@@ -8,10 +7,9 @@ let
 in
 
 {
-  # gcloud is installed by the gcloud-cli cask; nix owns its configuration:
-  # usage reporting off (the Ansible task's *intent* - its code did the
-  # opposite), beta component present, drifted alpha component removed.
-  # (The old ~/.zshrc_conf/gcloud.sh removal moved to legacy.nix.)
+  # nix owns gcloud's configuration: usage reporting off, beta component
+  # present, alpha component removed. Writes through the gcloud CLI so the
+  # rest of its user-owned config is left alone.
   home.activation.gcloudSetup = mkReconcile {
     name = "gcloud-setup";
     text = ''
@@ -28,13 +26,12 @@ in
     '';
   };
 
-  # Ordered before the shell module's main block (1000) to keep gcloud on PATH
-  # ahead of the ~/.zshrc_conf snippet loop.
+  # Ordered before zsh.nix's main block (1000) so gcloud is on PATH ahead of
+  # the ~/.zshrc_conf snippet loop.
   programs.zsh.initContent = lib.mkOrder 900 ''
-    # gcloud PATH + completions from the gcloud-cli cask ("latest" is a
-    # stable symlink across upgrades). Replaces Ansible's gcloud.sh snippet.
-    # completion.zsh.inc costs ~1s, so it is lazy-loaded on the first
-    # tab-complete of gcloud/gsutil/bq instead of at every shell startup.
+    # gcloud PATH + completions from the gcloud-cli cask ("latest" is a stable
+    # symlink across upgrades). completion.zsh.inc costs ~1s, so it is lazy-
+    # loaded on the first tab-complete of gcloud/gsutil/bq.
     _gcloud_sdk="/opt/homebrew/Caskroom/gcloud-cli/latest/google-cloud-sdk"
     [ -r "$_gcloud_sdk/path.zsh.inc" ] && source "$_gcloud_sdk/path.zsh.inc"
     if [ -r "$_gcloud_sdk/completion.zsh.inc" ]; then

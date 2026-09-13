@@ -1,19 +1,62 @@
 #!/usr/bin/env bash
+# Re-applies the flake to this machine.
+#   rebuild.sh                  - reuse the profile recorded in /etc/dotfiles-profile
+#   rebuild.sh <profile>        - must match the recorded profile
+#   rebuild.sh <profile> --force - switch this machine to a different profile
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# Written by modules/darwin/system.nix on every switch; absent until the first
+# bootstrap. Guards against applying the wrong profile: with homebrew
+# cleanup = "zap", that actively uninstalls this machine's packages.
+MARKER=/etc/dotfiles-profile
 
 usage() {
   local hosts
-  hosts="$(cd "$DIR/hosts" && ls -- *.nix 2>/dev/null | sed 's/\.nix$//' | paste -sd '|' -)"
-  echo "usage: $(basename "$0") {${hosts:-work|personal}}" >&2
+  hosts="$(find "$DIR/hosts" -maxdepth 1 -name '*.nix' -exec basename {} .nix \; | sort | paste -sd '|' -)"
+  echo "usage: $(basename "$0") [${hosts:-work|personal}] [--force]" >&2
+  echo "  no profile:  reuse the one recorded in $MARKER" >&2
+  echo "  --force:     allow a profile different from the recorded one" >&2
 }
 
-profile="${1:-}"
-if [ -z "$profile" ] || [ ! -f "$DIR/hosts/$profile.nix" ]; then
+profile=""
+force=0
+for arg in "$@"; do
+  case "$arg" in
+    --force) force=1 ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    -*)
+      usage
+      exit 1
+      ;;
+    *) profile="$arg" ;;
+  esac
+done
+
+current="$(cat "$MARKER" 2>/dev/null || true)"
+if [ -z "$profile" ]; then
+  if [ -z "$current" ]; then
+    echo "error: no profile given and $MARKER is absent (never bootstrapped?) - pass one explicitly" >&2
+    usage
+    exit 1
+  fi
+  profile="$current"
+fi
+if [ ! -f "$DIR/hosts/$profile.nix" ]; then
+  echo "error: unknown profile '$profile'" >&2
   usage
   exit 1
 fi
+if [ -n "$current" ] && [ "$profile" != "$current" ] && [ "$force" -eq 0 ]; then
+  echo "error: this machine is recorded as '$current' but '$profile' was requested." >&2
+  echo "       applying the wrong profile uninstalls packages (homebrew cleanup = zap)." >&2
+  echo "       re-run with --force only if you really mean to switch this machine to '$profile'." >&2
+  exit 1
+fi
+echo ">> profile: $profile" >&2
 
 # Sync with the remote before applying so edits pushed from another machine
 # are picked up. Only on main; --rebase --autostash keeps the common
@@ -30,10 +73,9 @@ else
 fi
 
 # home-manager aborts activation ("would be clobbered by backing up") when a stale
-# *.hm-bak already occupies the backup path of a file an app has replaced. A .hm-bak is
-# displaced garbage by definition - legacy.nix and the per-agent reconciles in
-# modules/home/ai/ both already delete them - but those sweeps run after
-# checkLinkTargets, too late to unblock it.
+# *.hm-bak already occupies the backup path of a file an app has replaced. The
+# per-agent reconciles also delete these, but they run after checkLinkTargets -
+# too late to unblock it - so sweep here, before darwin-rebuild.
 echo ">> clearing stale *.hm-bak backups" >&2
 find "$HOME" -maxdepth 1 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
 for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/.gemini"; do
@@ -44,11 +86,9 @@ done
 ln -sfn "$DIR" ~/.dotfiles
 
 # Prompt for the sudo password once up front, then keep the credential cache
-# warm in the background for the duration of the rebuild. Without this, macOS's
-# default ~5min sudo timestamp expires during a long step (brew downloading a
-# cask, agy self-updating, etc.), and a later internal `sudo` call from
-# darwin-rebuild's activation scripts silently blocks on a TTY prompt that
-# never arrives if you've stepped away.
+# warm in the background: macOS's ~5min sudo timestamp otherwise expires during
+# a long step (cask download, agy update) and a later internal sudo call from
+# the activation blocks on a TTY prompt.
 sudo -v
 (
   while true; do
