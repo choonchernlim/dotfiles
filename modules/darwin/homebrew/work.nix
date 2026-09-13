@@ -58,7 +58,7 @@
       "calibrite-profiler"
       "chatgpt"
       "claude"
-      "claude-code"
+      "claude-code@latest"
       "codex"
       "copilot-cli"
       "cyberduck"

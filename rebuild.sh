@@ -42,4 +42,21 @@ for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/
 done
 
 ln -sfn "$DIR" ~/.dotfiles
-exec sudo --preserve-env=CACHE_PURGE darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"
+
+# Prompt for the sudo password once up front, then keep the credential cache
+# warm in the background for the duration of the rebuild. Without this, macOS's
+# default ~5min sudo timestamp expires during a long step (brew downloading a
+# cask, agy self-updating, etc.), and a later internal `sudo` call from
+# darwin-rebuild's activation scripts silently blocks on a TTY prompt that
+# never arrives if you've stepped away.
+sudo -v
+(
+  while true; do
+    sudo -n -v
+    sleep 50
+  done
+) &
+keepalive_pid=$!
+trap 'kill "$keepalive_pid" 2>/dev/null' EXIT
+
+sudo --preserve-env=CACHE_PURGE darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"
