@@ -21,10 +21,11 @@
       "yarn"
 
       # Container runtime: colima runs a headless Linux VM, autostarted at login
-      # by modules/home/colima.nix. docker-compose is the standalone (hyphenated)
-      # formula; the `docker compose` subcommand form is not wired up by it.
+      # by modules/home/colima.nix. Buildx and Compose install as Docker CLI
+      # plugins; modules/home/docker.nix exposes Homebrew's plugin directory.
       "colima"
       "docker"
+      "docker-buildx"
       "docker-compose"
       # Provides docker-credential-osxkeychain, which modules/home/docker.nix sets
       # as credsStore so registry logins land in the Keychain, not plaintext.

@@ -102,9 +102,9 @@ modules/
   home/colima.nix      - feature module (all 3 hosts): autostarts colima at login via a
                          home-manager launchd agent; no reconcile - hm owns the plist lifecycle
   home/docker.nix      - feature module (all 3 hosts): reconciles ~/.docker/config.json
-                         (credsStore=osxkeychain + credHelpers for GCP Artifact Registry) via an
-                         idempotent atomic jq-merge activation - not a symlink, since docker
-                         login/gcloud write into the same file at runtime
+                         (Keychain credentials, GCP helper, Homebrew CLI plugin discovery) via
+                         an idempotent atomic jq merge - not a symlink, since Docker and gcloud
+                         write into the same file at runtime
   home/gitea.nix       - feature module (work, work-atdj): local Gitea+Postgres via Docker
                          Compose (localhost-only), gitea-up/-down/-status/-logs shell functions
   home/langfuse.nix    - feature module (work only): local Langfuse stack via Docker Compose,

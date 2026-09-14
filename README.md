@@ -1,22 +1,37 @@
-# dotfiles
+<!--
+Purpose: Entry point for the managed Mac setup, its profiles, commands, and guides.
+Type: readme-project
+-->
 
-Personal Mac setup managed with nix-darwin and home-manager.
+# Dotfiles
 
-- 🍎 macOS settings, Homebrew (brews + casks), Touch ID for sudo, QuickLook preview plugins
-- 🐚 zsh with autosuggestions, syntax highlighting, and a starship prompt (config live-symlinked)
-- 📦 mise for tool versions (Temurin Java 25, node, terraform) - one fast manager instead of sdkman/nvm/tfenv
-- ☁️ gcloud shell wiring, config, and components kept in sync
-- 🛠️ CLI tools: ripgrep, fd, fzf, jq, lazygit, Neovim, Hack Nerd Font
-- 🔗 Neovim, WezTerm, herdr configs (live-symlinked - edits take effect immediately, no rebuild)
-- 🤖 AI agents: Claude, Codex, Copilot, OpenCode, Antigravity share one `home/ai/AGENTS.md` and one `home/ai/skills/` (exposed as the `~/.agents/skills` hub); plugins and MCP servers are nix-declared and reconciled on every rebuild
-- 📊 Local Langfuse observability stack (work) via Docker Compose, with Claude and Codex tracing plugins kept in sync by `modules/home/ai/*/langfuse.nix`
-- ✨ Nix formatter toolchain with pre-commit hooks (nixfmt, statix, deadnix)
-- 🐳 colima autostarts at login via a launchd agent (all 3 profiles) - no manual start needed for any container workload
-- 🍵 Local Gitea git server (work, work-atdj) via Docker Compose, localhost-only - `gitea-up` once, then the containers come back on their own; browse to http://localhost:3100
-- 🔭 Local Langfuse server (work) via Docker Compose - `langfuse-up` once on a fresh host; browse to http://localhost:3200
-- 🔐 `~/.docker/config.json` reconciled to Keychain-backed credentials (all 3 profiles), with GCP Artifact Registry routed through the gcloud helper
-- 🔒 Corporate Zscaler MITM cert trusted automatically - host-side (git, npm) and inside the colima guest VM for `docker pull` (work, work-atdj)
-- 🧹 `cache-purge` (all 3 profiles): reclaims stale tool caches and dev-tree build artifacts, auto-triggered by `rebuild` when free space drops below 100G; bare `cache-purge` is a dry-run report, `cache-purge --apply` reclaims now, `CACHE_PURGE=off rebuild` skips it
+Personal Mac configuration managed with nix-darwin and home-manager.
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Profiles](#profiles)
+- [Getting Started](#getting-started)
+- [Resources](#resources)
+
+## Introduction
+
+This repository is the source of truth for three Apple Silicon Mac profiles.
+It installs tools, reconciles mutable configuration, and links editable files.
+
+| Area | Managed Behavior |
+| --- | --- |
+| macOS | Settings, Touch ID for sudo, fonts, and QuickLook plugins |
+| Shell | zsh, Starship, completions, and syntax assistance |
+| Toolchains | mise with Java, Node.js, and Terraform |
+| Cloud | gcloud configuration and components |
+| Developer tools | Neovim, ripgrep, fd, fzf, jq, lazygit, and Git tooling |
+| AI agents | Shared policy, skills, plugins, MCP servers, and tracing |
+| Containers | Colima with Homebrew-managed Docker, Buildx, and Compose plugins |
+| Local services | Gitea and Langfuse through Docker Compose |
+| Credentials | Keychain registry storage and the GCP Artifact Registry helper |
+| Corporate network | Host and Colima trust for the Zscaler certificate |
+| Maintenance | Formatting, pre-commit checks, and automatic cache cleanup |
 
 ## Profiles
 
@@ -30,12 +45,14 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI ag
 
 See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - Apple Silicon Mac (Intel: set `system = "x86_64-darwin"` in `hosts/<profile>.nix`)
 - Nothing else - `bootstrap.sh` installs Nix
 
-## Fresh-machine setup
+### Installation
 
 ```sh
 git clone https://github.com/choonchernlim/dotfiles.git
@@ -49,7 +66,10 @@ cd dotfiles
 3. Runs the first `darwin-rebuild switch` using the nix-darwin revision pinned in `flake.lock`
 4. Installs the git pre-commit hooks via direnv (`.envrc` runs `use flake . --impure`)
 
-The switch records the profile in `/etc/dotfiles-profile`. After that, use `rebuild` for every subsequent change. In a new terminal, direnv prompts a one-time `direnv allow` on first `cd` into the repo - this also pins the hook's Nix store closure so garbage collection can't break it later.
+The switch records the profile in `/etc/dotfiles-profile`. Use `rebuild` for
+later changes. In a new terminal, direnv requests one `direnv allow` after
+the first `cd` into the repository. This protects the hook's Nix store
+closure from garbage collection.
 
 On a fresh work host, create the local service containers once:
 
@@ -58,14 +78,14 @@ gitea-up
 langfuse-up
 ```
 
-### Validate without applying
+### Verification
 
 ```sh
 nix flake check --impure --no-build   # evaluates every profile, not just this machine's
 nix build --impure .#darwinConfigurations.work.system --dry-run
 ```
 
-## Daily use
+### Daily Use
 
 ```sh
 rebuild         # apply changes to this machine's recorded profile (alias for ./rebuild.sh)
@@ -75,8 +95,13 @@ nix fmt         # format all .nix files (also fires automatically on Claude edit
 
 Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place, including new skill directories under `home/ai/skills/`.
 
-`rebuild` refuses a profile that differs from the one in `/etc/dotfiles-profile` unless you pass `--force`, because Homebrew's zap cleanup would uninstall that machine's packages. It then runs `git pull --rebase --autostash` on `main` and clears stale `*.hm-bak` backups before applying.
+The [rebuild safety rules](docs/gotchas.md) cover profile checks, repository
+synchronization, and stale agent backups.
 
-## Details
+## Resources
 
-See [docs/architecture.md](docs/architecture.md) for repo layout, how symlinks work, and the formatter toolchain. See [docs/gotchas.md](docs/gotchas.md) for known quirks and non-obvious behavior. See [docs/implementation_guardrails.md](docs/implementation_guardrails.md) for the guardrails AI agents follow when making changes here.
+| Resource | What It Answers |
+| --- | --- |
+| [Architecture](docs/architecture.md) | How profiles, modules, links, Docker plugins, and checks fit together |
+| [Gotchas](docs/gotchas.md) | Which runtime-written files and lifecycle behaviors need care |
+| [Implementation guardrails](docs/implementation_guardrails.md) | How to audit, implement, verify, and hand off a change |

@@ -1,8 +1,23 @@
+<!--
+Purpose: Explains how profiles, modules, mutable state, and checks fit together.
+Type: explanation
+-->
+
 # Architecture
 
-## Repo layout
+Audience: maintainers deciding where a dotfiles change belongs.
 
-```
+## Table of Contents
+
+- [Repository Layout](#repository-layout)
+- [How Symlinks Work](#how-symlinks-work)
+- [Docker Toolchain](#docker-toolchain)
+- [Formatter and Linters](#formatter-and-linters)
+- [History](#history)
+
+## Repository Layout
+
+```text
 flake.nix              - entry point; derives user from $SUDO_USER/$USER (impure); one
                          darwinConfiguration per hosts/*.nix; host-<name> checks evaluate
                          every profile; packages.darwin-rebuild pins bootstrap's first switch
@@ -47,8 +62,8 @@ modules/
       copilot.nix      - symlinks, MCP config, plugin-store reset
       opencode.nix     - symlinks, opencode.json (MCP)
   home/colima.nix      - feature (all 3 hosts): autostarts colima at login via a launchd agent
-  home/docker.nix      - feature (all 3 hosts): reconciles ~/.docker/config.json credentials
-                         via an idempotent atomic jq merge, not a symlink
+  home/docker.nix      - feature (all 3 hosts): reconciles Docker credentials and Homebrew
+                         CLI plugin discovery via an atomic jq merge, not a symlink
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          gitea-up/-down/-status/-logs shell functions
   home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
@@ -67,12 +82,14 @@ bootstrap.sh           - one-time setup: Nix, symlink, first switch (pinned darw
 docs/                  - extended documentation (you are here)
 ```
 
-Conventions: hosts pick feature modules by import, like homebrew bundles; permanent
-reconciles live with their feature module via `mkReconcile`; one-time migration sweeps live
-in `legacy.nix`; retired brews/casks are removed by homebrew `cleanup = "zap"`, never by
-activation shell; anything marked TEMPORARY is a self-contained file meant to be deleted whole.
+Hosts select feature modules through imports such as Homebrew bundles.
+Permanent reconciles live beside their feature through `mkReconcile`.
+One-time migration sweeps live in `legacy.nix`.
 
-## How symlinks work
+Homebrew `cleanup = "zap"` removes retired packages. Activation shell never
+uninstalls them. A `TEMPORARY` file is designed for whole-file removal.
+
+## How Symlinks Work
 
 `mkOutOfStoreSymlink` points config paths directly at this repo via `~/.dotfiles`, so edits to files under `home/` are immediately live - no rebuild needed. Only run `rebuild` when changing a `.nix` file.
 
@@ -86,9 +103,26 @@ activation shell; anything marked TEMPORARY is a self-contained file meant to be
 | `~/.copilot/copilot-instructions.md`       | Copilot     |
 | `~/.gemini/antigravity-cli/ANTIGRAVITY.md` | Antigravity |
 
-`home/ai/skills/` is exposed once, as the hub `~/.agents/skills` (`modules/home/ai/default.nix`). Codex, Copilot and OpenCode discover `~/.agents/skills` natively and get no link of their own; Claude Code and Antigravity do not read `~/.agents`, so `~/.claude/skills` and `~/.gemini/antigravity-cli/skills` are directory links at the hub. A new skill directory is live for every agent without a rebuild. `~/.codex/skills` is never touched by nix - Codex writes its bundled system skills there at runtime. Per-agent settings live under `home/ai/settings/`.
+`home/ai/skills/` is exposed once as `~/.agents/skills` by
+`modules/home/ai/default.nix`. Codex, Copilot, and OpenCode discover that
+hub natively. Claude Code and Antigravity receive their own directory links
+to the hub.
 
-## Formatter and linters
+A new skill directory becomes live without a rebuild. Nix never touches
+`~/.codex/skills`, where Codex writes bundled system skills. Per-agent
+settings live under `home/ai/settings/`.
+
+## Docker Toolchain
+
+Every profile installs Colima, the Docker CLI, Buildx, Compose, and the
+Keychain credential helper from the common Homebrew bundle. Colima supplies
+the Docker engine without requiring Docker Desktop.
+
+`modules/home/docker.nix` merges settings into Docker's writable
+`~/.docker/config.json`. It preserves runtime additions while declaring
+Keychain credentials, the GCP helper, and Homebrew's CLI plugin directory.
+
+## Formatter and Linters
 
 The repo uses treefmt-nix (nixfmt) for formatting and git-hooks.nix for pre-commit enforcement.
 
@@ -100,21 +134,27 @@ nix flake check --impure --no-build                   # + evaluates every host p
 direnv allow && direnv exec . true                    # install .git/hooks/pre-commit by hand
 ```
 
-The pre-commit hook (installed by `bootstrap.sh` step 4, and refreshed automatically by
-direnv on every `cd` into the repo via `.envrc` -> `use flake . --impure`) runs nixfmt,
-statix, and deadnix before every commit. Hook binaries are baked from Nix store paths - no
-PATH dependency, hermetic on a bare machine. Because `nix develop`/`nix print-dev-env` alone
-only creates a transient GC root, an unrooted hook closure could be reclaimed by Nix's
-periodic garbage collection, leaving the hook pointing at a deleted store path. nix-direnv
-(`programs.direnv.nix-direnv.enable` in `modules/home/zsh.nix`) fixes this by creating a
-persistent GC root under `.direnv/` the first time `direnv allow` is run in the repo.
+Direnv refreshes the pre-commit hook through `.envrc` whenever the repository
+is entered. The hook runs nixfmt, statix, and deadnix. Its binaries come from
+Nix store paths rather than the ambient `PATH`.
 
-Activation scripts get the same treatment: `mkReconcile` wraps each one in
-`writeShellApplication`, so shellcheck runs at build time and a script calling a tool that is
-missing from the hermetic activation PATH fails the build instead of silently no-oping.
+`nix develop` alone creates a transient garbage-collection root. Nix-direnv
+creates a persistent root under `.direnv/` after `direnv allow`, which
+keeps the hook closure available.
+
+Activation scripts receive the same treatment. `mkReconcile` wraps each one
+in `writeShellApplication`, so shellcheck rejects undeclared tool
+dependencies while building.
 
 The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on every Claude edit via a PostToolUse hook. It gracefully no-ops if nixfmt is not yet on PATH (pre-`rebuild`).
 
 ## History
 
-This repo replaced an Ansible setup ([mac-dev-bootstrap](../../mac-dev-bootstrap/), fully retired and kept only as reference). Every capability was ported to a nix feature module or deliberately dropped; `modules/home/legacy.nix` holds the one-time sweeps of the dropped artifacts and is deleted once every host has rebuilt with it. The only open follow-up from that migration is designing `system.defaults` (macOS UI defaults) deliberately - the block in `modules/darwin/system.nix` is a commented placeholder.
+This repository replaced the retired
+[Ansible setup](../../mac-dev-bootstrap/). Each capability moved to a Nix
+feature or was removed. `modules/home/legacy.nix` owns the remaining
+one-time sweeps.
+
+The remaining migration follow-up is the deliberate design of
+`system.defaults`. Its placeholder stays commented in
+`modules/darwin/system.nix`.
