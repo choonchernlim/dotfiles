@@ -13,15 +13,15 @@
       "mcp__ide__getDiagnostics"
     ],
     "deny": [
+      "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(curl *)",
       "Read(./.env)",
-      "Read(./.env.*)",
       "Read(./secrets/**)"
     ]
   },
-  "model": "claude-fable-5-1[1m]",
+  "model": "opusplan[1m]",
   "disableAgentView": true,
   "disableWorkflows": true,
   "disableArtifact": true,
