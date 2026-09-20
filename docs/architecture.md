@@ -13,6 +13,7 @@ Audience: maintainers deciding where a dotfiles change belongs.
 - [How Symlinks Work](#how-symlinks-work)
 - [Docker Toolchain](#docker-toolchain)
 - [Formatter and Linters](#formatter-and-linters)
+- [AI Agent Plugin Reconcile](#ai-agent-plugin-reconcile)
 - [History](#history)
 
 ## Repository Layout
@@ -147,6 +148,35 @@ in `writeShellApplication`, so shellcheck rejects undeclared tool
 dependencies while building.
 
 The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on every Claude edit via a PostToolUse hook. It gracefully no-ops if nixfmt is not yet on PATH (pre-`rebuild`).
+
+## AI Agent Plugin Reconcile
+
+Each agent keeps a plugin or extension store that nix does not own, so removed
+config would silently persist. A per-agent reconcile activation sweeps each
+store on every rebuild.
+
+| Agent | Module | Sweep | Keep-set |
+| --- | --- | --- | --- |
+| Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
+| Codex | `ai/codex/default.nix` | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add | none - Codex has no list-and-prune |
+| Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
+| Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
+| Copilot | `ai/copilot.nix` | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json` | none |
+
+Removing the Gemini CLI extensions is the critical step. Extensions installed
+there are auto-imported into Antigravity when `agy` starts, so removing only
+the Antigravity copy lets them re-appear.
+
+The langfuse plugin installs live in `ai/claude/langfuse.nix` and
+`ai/codex/langfuse.nix`. Both are `TEMPORARY` files, designed for whole-file
+removal.
+
+Each reconcile also cleans stale `.hm-bak` files and agent-written dated
+backups (`settings.json.YYYYMMDD`) in its agent dir. That cannot unblock a
+stale `settings.json.hm-bak`, which home-manager's `checkLinkTargets` trips
+over before any activation runs, so `rebuild.sh` sweeps `*.hm-bak` under every
+agent config dir first. That ordering is also why Antigravity's
+`settings.json` is merge-reconciled instead of symlinked.
 
 ## History
 

@@ -79,21 +79,31 @@ for Codex this section is the dependable layer.
 ## Install the Rules Block
 
 The block holds working habits that must apply in every session. It is
-managed text: never edit it by hand.
+managed text: never edit it by hand. Install it before trimming the file, so
+the trim is measured against the final layout.
 
 ```bash
 python3 scripts/audit_tokens.py <repo> --fix-rules-block
 ```
 
-The command writes this text above the orientation heading:
+The command writes the block above the orientation heading. The text is
+composed for the repository, so no session pays for a rule it cannot use:
+
+- The package-manager hints name only the detected stacks.
+- The Playwright line appears only when a Playwright config exists.
+- The browser MCP line appears when a suite or a browser MCP config exists.
+
+When the repository gains a stack or a suite, the audit reports
+`RULES-EDITED`; run the command again. The full text, with every optional
+line, is:
 
 ```text
-<!-- BEGIN:saving-private-tokens-rules v1 -->
+<!-- BEGIN:saving-private-tokens-rules v2 -->
 ## Token Discipline
 
 - Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
 - Read files in slices with offset and limit. Search first, then open the matching range.
-- Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`uv tree`, `bun pm ls`, `go list -m all`).
+- Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`uv tree`, `bun pm ls`, `go list -m all`, `cargo tree`, `nix flake metadata`, `terraform providers`).
 - Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.
 - Hand wide searches to a subagent and keep only its conclusion.
 - Script anything done twice. Measure durations and log sizes before optimizing a check.
@@ -110,7 +120,10 @@ nothing. Repair the markers by hand, then run it again.
 
 An instruction file is paid for in every session by both agents.
 
-- Keep each file under 8,000 bytes.
+- Keep each file under 8,000 bytes. The managed rules block is not counted,
+  because it is not yours to trim.
+- To trim, print the bytes under each heading and cut the largest sections
+  first: `python3 scripts/audit_tokens.py <repo> --sections`.
 - Keep the root-to-leaf `AGENTS.md` chain under 32,768 bytes, or Codex stops
   reading part way through.
 - State a rule once. A nested file adds facts; it does not repeat the root.

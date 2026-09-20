@@ -38,6 +38,44 @@ cost is paid. The second part says how large it is.
 Fix `high` severity first. Within a severity, fix `S` before `R` before `L`,
 because a session cost is paid even when nothing goes wrong.
 
+## Before and After Estimates
+
+The audit prices every finding in tokens per session, so unlike areas can be
+compared and summed. It prints `~before->~after` and a basis on each finding,
+then a per-area table with a TOTAL row.
+
+- `before` is what the finding costs today.
+- `after` is what it still costs once its playbook has been applied.
+- The basis is `measured` when the numbers come from real file sizes, and
+  `estimated` when they come from the impact class. An area with both is
+  `mixed`. Trust a measured number over an estimated one.
+
+An estimated finding costs `magnitude x cadence`. Magnitude is the low end of
+the size band above, so the number stays conservative. Cadence is how often
+the cost is paid in one session: `S` once, `R` three reads, `L` four
+edit-check cycles, `D` one wrong-path correction. Its `after` is 15% of
+`before`, because a fix is never free: agents still read the orientation
+section or the check summary.
+
+Measured findings use the repository instead:
+
+| Code | Before | After |
+| --- | --- | --- |
+| `INS-LONG` | file size | budget plus the managed rules block |
+| `SKILL-BUDGET` | description characters | the scope's cap |
+| `DENY-MISSING`, `DNR-MISSING`, `DNR-UNLISTED` | size of the unguarded files, three reads, halved | zero |
+
+A costly file has two guards: a Claude read deny and the Do Not Read section
+that Codex relies on. A session runs one agent, so each guard's finding
+carries half the file's cost. With both guards missing the two findings sum
+to the whole cost, never to double.
+
+`ORIENT-MISSING` is estimated but scaled: 1,500 tokens plus 12 per tracked
+file, capped at the `XL` band. A small repository is cheap to re-explore.
+
+These numbers rank areas against each other. They are not a bill. When the
+repository contradicts an estimate, say so in the report.
+
 ## The Rules
 
 1. **Determinism before intelligence.** If a script can decide it, the model

@@ -36,7 +36,7 @@ already has before adding new ones.
 
 | Requirement | Detail |
 | --- | --- |
-| One command | `scripts/check`, a `make check` target, or a package `check` script. |
+| One command | `scripts/check`, a `make check` target, a package `check` script, or `nix flake check` when `flake.nix` declares `checks`. |
 | Pinned tools | Versions come from one file, and a `doctor` mode verifies them. |
 | Scopes | `--impacted` for changed paths during work, `--full` before handoff. |
 | Exit codes | 0 pass, 1 findings in the code, 2 environment not ready. |

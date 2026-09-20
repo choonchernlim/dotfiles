@@ -6,7 +6,7 @@ judged the same way by Claude Code and Codex without spending model tokens.
 Invariants: standard library only; runs on Python 3.9 and later; one stable code per rule;
 never reads a large file in full; the only mutation is --fix-rules-block.
 Exit codes: 0 clean (notes allowed), 1 findings, 2 cannot run.
-Usage: audit_tokens.py [ROOT] [--format human|json] [--fix-rules-block]
+Usage: audit_tokens.py [ROOT] [--format human|json] [--fix-rules-block] [--sections [FILE]]
        [--print-rules-block] [--list-codes] [--limit KEY=N]... [--ignore CODE]...
        [--today YYYY-MM-DD] [--facts DIR]
 """
@@ -35,22 +35,35 @@ HEAD_BYTES = 65536
 STREAM_CAP = 1_048_576
 HUMAN_CAP_PER_CODE = 5
 
-RULES_VERSION = 1
+RULES_VERSION = 2
 RULES_NAME = "saving-private-tokens-rules"
 RULES_BEGIN = f"<!-- BEGIN:{RULES_NAME} v{RULES_VERSION} -->"
 RULES_END = f"<!-- END:{RULES_NAME} -->"
 RULES_BEGIN_RE = re.compile(rf"<!-- BEGIN:{RULES_NAME} v(\d+) -->")
-RULES_BODY = """## Token Discipline
-
-- Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
-- Read files in slices with offset and limit. Search first, then open the matching range.
-- Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`uv tree`, `bun pm ls`, `go list -m all`).
-- Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.
-- Hand wide searches to a subagent and keep only its conclusion.
-- Script anything done twice. Measure durations and log sizes before optimizing a check.
-- Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment.
-- Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test.
-- Managed by the saving-private-tokens skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block."""
+RULES_HEADING = "## Token Discipline"
+# The block is composed per repository, so a session never pays for a rule about a
+# stack or a browser suite the repository does not have. `{hint}` is filled from
+# STACK_HINTS; the browser lines appear only when their signal exists.
+RULES_HEAD = (
+    "- Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.",
+    "- Read files in slices with offset and limit. Search first, then open the matching range.",
+    "- Never open lockfiles, generated files, or anything under Do Not Read.{hint}",
+    "- Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.",
+    "- Hand wide searches to a subagent and keep only its conclusion.",
+    "- Script anything done twice. Measure durations and log sizes before optimizing a check.",
+)
+RULES_SUITE = "- Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment."
+RULES_MCP = "- Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test."
+RULES_TAIL = "- Managed by the saving-private-tokens skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block."
+STACK_HINTS = {
+    "python": "`uv tree`",
+    "node": "`bun pm ls`",
+    "go": "`go list -m all`",
+    "rust": "`cargo tree`",
+    "nix": "`nix flake metadata`",
+    "terraform": "`terraform providers`",
+}
+PLAYWRIGHT_CONFIG_RE = re.compile(r"(.*/)?playwright\.config\.[cm]?[jt]s")
 
 LIMITS = {
     "ins": 8000,  # bytes per instruction file
@@ -108,6 +121,46 @@ CODES = {
 FAILING = {"high", "med", "low"}
 SEVERITY_ORDER = {"high": 0, "med": 1, "low": 2, "note": 3}
 
+# Every finding is priced in tokens per session, so separate areas can be compared
+# and summed. `before` is what the finding costs today; `after` is what it still
+# costs once its playbook has been applied.
+#
+# The estimate is derived from the finding's impact string, CADENCE/MAGNITUDE.
+# CADENCE says how often the cost is paid, MAGNITUDE how much is read each time.
+# A check that can measure the real size passes exact numbers to `add()` instead.
+#
+# These are coarse on purpose. They rank areas; they do not predict a bill.
+CADENCE_PER_SESSION = {
+    "S": 1,  # session start: paid once per session, by both agents
+    "R": 3,  # per file read: assume a costly file is opened three times
+    "L": 4,  # per check loop: assume four edit-check cycles
+    "D": 1,  # drift: amortised as one wrong-path correction
+}
+# Tokens for one occurrence, taken from the low end of each band in the Impact
+# Classes table in references/principles.md. The low end keeps the estimate
+# conservative: a real repository rarely beats it.
+MAGNITUDE_TOKENS = {"S": 400, "M": 1500, "L": 6000, "XL": 22000, "D": 1500}
+DEFAULT_MAGNITUDE = "M"
+# A fixed area is not free: agents still read the section or the deny list.
+RESIDUAL_SHARE = 0.15
+# A costly file is guarded by two layers: a Claude read deny and the Do Not Read
+# section Codex relies on. A session runs one agent, so each layer's finding carries
+# half of the file's cost. Both missing sums to the whole cost, never to double.
+LAYER_SHARE = 0.5
+# Re-exploring an unmapped repository costs a fixed floor plus a little per file,
+# capped at the XL band.
+ORIENT_FLOOR = 1500
+ORIENT_PER_FILE = 12
+
+
+def estimate(impact: str) -> tuple[int, int]:
+    """Return (before, after) tokens per session for an impact string."""
+    head, _, tail = impact.replace("+", "/").partition("/")
+    cadence = CADENCE_PER_SESSION.get(head, 1)
+    magnitude = MAGNITUDE_TOKENS.get(tail or DEFAULT_MAGNITUDE, MAGNITUDE_TOKENS[DEFAULT_MAGNITUDE])
+    before = cadence * magnitude
+    return before, round(before * RESIDUAL_SHARE)
+
 PRUNE = {
     ".git", "node_modules", ".venv", "venv", "site-packages", ".terraform", "dist", "build",
     ".next", "__pycache__", "target", "vendor", ".mypy_cache", ".ruff_cache", ".pytest_cache",
@@ -142,6 +195,10 @@ SUMMARY_RE = re.compile(
 QUIET_RE = re.compile(r"\.log\b|stdout\s*=|--quiet|--silent|\s-q\b|>\s*/dev/null")
 ENTRY_NAMES = ("quality", "check", "ci", "verify", "validate")
 ENTRY_TARGETS = ("check", "verify", "ci", "quality")
+# Entry points whose tool already meets the summary-then-log contract. `nix flake check`
+# prints one line per check and keeps each build log in the store for `nix log`, so
+# there is no script text to inspect for a summary file or quiet flags.
+NATIVE_RUNNERS = {"flake.nix"}
 CI_GLOBS = [
     ".github/workflows/*.yml", ".github/workflows/*.yaml", "azure-pipelines*.yml",
     "*/azure-pipelines*.yml", "*/*/azure-pipelines*.yml", ".gitlab-ci.yml",
@@ -162,6 +219,9 @@ class Finding:
     line: int
     message: str
     playbook: str
+    before: int = 0
+    after: int = 0
+    measured: bool = False  # True when before/after come from real sizes, not the impact table
 
 
 class Repo:
@@ -178,6 +238,14 @@ class Repo:
             if not FIXTURE_FOLDERS.intersection(value.split("/")[:-1])
         ]
         self.fileset = set(self.files)
+        # A nested skill ships its own scripts and tests. They say nothing about the
+        # project's stack or checks, so stack and check-signal detection skips them.
+        # A SKILL.md at the root means the repository is the skill, and nothing is skipped.
+        skill_roots = tuple(
+            value[: -len("SKILL.md")] for value in self.files
+            if value.endswith("/SKILL.md")
+        )
+        self.project_files = [value for value in self.files if not value.startswith(skill_roots)] if skill_roots else self.files
 
     def _git(self, arguments: list[str]) -> str:
         try:
@@ -271,9 +339,25 @@ class Audit:
         self.candidates = self._costly_files()
         self.entry = self._find_entry()
 
-    def add(self, code: str, path: str, message: str, line: int = 0) -> None:
+    def add(
+        self, code: str, path: str, message: str, line: int = 0,
+        before: int | None = None, after: int | None = None, measured: bool | None = None,
+    ) -> None:
         severity, impact, playbook, _ = CODES[code]
-        self.findings.append(Finding(code, severity, impact, path, line, message, playbook))
+        default_before, default_after = estimate(impact)
+        if before is not None and after is None:
+            after = round(before * RESIDUAL_SHARE)
+        self.findings.append(Finding(
+            code, severity, impact, path, line, message, playbook,
+            default_before if before is None else before,
+            default_after if after is None else after,
+            (before is not None) if measured is None else measured,
+        ))
+
+    def _read_cost(self, paths: list[str]) -> int:
+        """Tokens per session that one guard layer saves on these files."""
+        per_read = sum(self.repo.size(path) // 4 for path in paths)
+        return round(per_read * CADENCE_PER_SESSION["R"] * LAYER_SHARE)
 
     # ---------------------------------------------------------------- instruction files
 
@@ -302,8 +386,15 @@ class Audit:
         for value in repo.files:
             if value.rsplit("/", 1)[-1] in ("AGENTS.md", "CLAUDE.md") and not os.path.islink(repo.abs(value)):
                 size = repo.size(value)
-                if size > self.limits["ins"]:
-                    self.add("INS-LONG", value, f"{size} bytes (~{size // 4} tokens every session); budget is {self.limits['ins']}")
+                managed = _managed_bytes(repo.head(value))
+                if size - managed > self.limits["ins"]:
+                    note = f", {managed} of them the managed rules block, which is not counted" if managed else ""
+                    self.add(
+                        "INS-LONG", value,
+                        f"{size} bytes (~{size // 4} tokens every session){note}; budget is {self.limits['ins']}; "
+                        "run --sections to see where the bytes are",
+                        before=size // 4, after=(self.limits["ins"] + managed) // 4,
+                    )
         self._check_chain()
         if "AGENTS.md" in repo.fileset:
             self._check_rules_block()
@@ -342,7 +433,7 @@ class Audit:
             self.add("RULES-OUTDATED", "AGENTS.md", f"block is v{version}, current is v{RULES_VERSION}; refresh with --fix-rules-block", line)
             return
         body = text[begins[0].end() : ends[0]].replace("\r\n", "\n").strip()
-        if version > RULES_VERSION or body != RULES_BODY.strip():
+        if version > RULES_VERSION or body != rules_body(self.repo).strip():
             self.add("RULES-EDITED", "AGENTS.md", "block text differs from the managed text; refresh with --fix-rules-block", line)
 
     def _section(self, pattern: re.Pattern[str]) -> str:
@@ -355,12 +446,21 @@ class Audit:
 
     def _check_sections(self) -> None:
         if not ORIENT_RE.search(self.root_agents):
-            self.add("ORIENT-MISSING", "AGENTS.md", "add a short 'Where Things Live' section so sessions stop re-exploring the layout")
+            explore = min(MAGNITUDE_TOKENS["XL"], ORIENT_FLOOR + ORIENT_PER_FILE * len(self.repo.files))
+            self.add(
+                "ORIENT-MISSING", "AGENTS.md",
+                "add a short 'Where Things Live' section so sessions stop re-exploring the layout",
+                before=explore, measured=False,
+            )
         section = self._section(DNR_RE)
         if not self.candidates:
             return
         if not section:
-            self.add("DNR-MISSING", "AGENTS.md", f"{len(self.candidates)} costly files exist and nothing tells Codex to skip them")
+            self.add(
+                "DNR-MISSING", "AGENTS.md",
+                f"{len(self.candidates)} costly files exist and nothing tells Codex to skip them",
+                before=self._read_cost([path for path, _reason in self.candidates]), after=0,
+            )
             return
         tokens = re.findall(r"`([^`\n]+)`", section)
         seen: set[str] = set()
@@ -371,7 +471,11 @@ class Audit:
             listed = base in section or any(_glob_match(token, path) for token in tokens)
             if not listed:
                 seen.add(base)
-                self.add("DNR-UNLISTED", path, "name it under Do Not Read; that section is the only layer Codex honours")
+                self.add(
+                    "DNR-UNLISTED", path,
+                    "name it under Do Not Read; that section is the only layer Codex honours",
+                    before=self._read_cost([path]), after=0,
+                )
 
     def _check_paths(self) -> None:
         repo = self.repo
@@ -459,7 +563,11 @@ class Audit:
             size = repo.size(path)
             rule = f"Read(/{path})" if reason == "large data file" else f"Read(**/{key})"
             count = f"{len(group)} files, largest " if len(group) > 1 else ""
-            self.add("DENY-MISSING", path, f"{reason}: {count}{size // 1024} KB (~{size // 4} tokens per read); add `{rule}`")
+            self.add(
+                "DENY-MISSING", path,
+                f"{reason}: {count}{size // 1024} KB (~{size // 4} tokens per read); add `{rule}`",
+                before=self._read_cost([item[0] for item in group]), after=0,
+            )
         for pattern in denies:
             if pattern.startswith(("//", "~/")):
                 continue
@@ -514,7 +622,12 @@ class Audit:
             cap = self.limits["rootchars"] if not scope else self.limits["scopechars"]
             too_many = not scope and len(names) > self.limits["rootskills"]
             if total > cap or too_many:
-                self.add("SKILL-BUDGET", f"{label}/.agents/skills", f"{len(names)} skills, {total} description characters (~{total // 4} tokens every session); scope them by directory or delete unused ones")
+                self.add(
+                    "SKILL-BUDGET", f"{label}/.agents/skills",
+                    f"{len(names)} skills, {total} description characters "
+                    f"(~{total // 4} tokens every session); scope them by directory or delete unused ones",
+                    before=total // 4, after=cap // 4,
+                )
 
     # ---------------------------------------------------------------- check runner
 
@@ -549,6 +662,8 @@ class Audit:
         for config, tool in (("noxfile.py", "nox"), ("tox.ini", "tox")):
             if config in repo.fileset:
                 return config, [tool]
+        if "flake.nix" in repo.fileset and re.search(r"\bchecks\b", repo.head("flake.nix")):
+            return "flake.nix", ["nix flake check"]
         return None
 
     def _entry_text(self) -> str:
@@ -566,7 +681,7 @@ class Audit:
         if self.entry is None:
             signals = _check_signals(repo)
             if signals:
-                self.add("RUN-ENTRY", ".", f"found {', '.join(signals)} but no scripts/check, make check, or package `check` script; agents re-derive the commands every session")
+                self.add("RUN-ENTRY", ".", f"found {', '.join(signals)} but no scripts/check, make check, package `check` script, or flake `checks`; agents re-derive the commands every session")
                 if len(signals) < 2:
                     self.findings[-1].severity = "med"
             return
@@ -574,11 +689,12 @@ class Audit:
         instructions = "\n".join(repo.head(value) for value in self.instruction_files)
         if not any(mention in instructions for mention in mentions):
             self.add("RUN-UNDOC", path, f"no AGENTS.md names `{mentions[0]}`, so agents will not find it")
-        text = self._entry_text()
-        if not SUMMARY_RE.search(text):
-            self.add("RUN-NOSUMMARY", path, "writes no summary or report file and takes no --format flag")
-        if not QUIET_RE.search(text):
-            self.add("RUN-NOISY", path, "tool output is not sent to log files, so every run floods the context")
+        if path not in NATIVE_RUNNERS:
+            text = self._entry_text()
+            if not SUMMARY_RE.search(text):
+                self.add("RUN-NOSUMMARY", path, "writes no summary or report file and takes no --format flag")
+            if not QUIET_RE.search(text):
+                self.add("RUN-NOISY", path, "tool output is not sent to log files, so every run floods the context")
         ci_files = [value for pattern in CI_GLOBS for value in repo.files if fnmatch.fnmatch(value, pattern)]
         ci_files += [value for value in repo.files if re.fullmatch(r"scripts/[^/]*ci[^/]*\.sh", value)]
         for value in sorted(set(ci_files)):
@@ -630,21 +746,12 @@ class Audit:
 
     def check_e2e(self) -> None:
         repo = self.repo
-        configs = [v for v in repo.files if re.fullmatch(r"(.*/)?playwright\.config\.[cm]?[jt]s", v)]
+        configs = [v for v in repo.files if PLAYWRIGHT_CONFIG_RE.fullmatch(v)]
         for config in configs:
             self._check_playwright(config)
         if not configs:
             return
-        servers: list[str] = []
-        mcp, _ = repo.load_json(".mcp.json")
-        if isinstance(mcp, dict) and isinstance(mcp.get("mcpServers"), dict):
-            servers += [f"{name} {json.dumps(value)}" for name, value in mcp["mcpServers"].items()]
-        hits = [".mcp.json"] if any(BROWSER_MCP_RE.search(value) for value in servers) else []
-        if ".codex/config.toml" in repo.fileset:
-            tables = re.findall(r"(?m)^\[mcp_servers\.[^\]]+\][^\[]*", repo.head(".codex/config.toml"))
-            if any(BROWSER_MCP_RE.search(table) for table in tables):
-                hits.append(".codex/config.toml")
-        for path in hits:
+        for path in _browser_mcp_files(repo):
             self.add("MCP-BROWSER", path, "a scripted suite exists; keep the browser MCP on an exploration subagent or remove it")
 
     def _check_playwright(self, config: str) -> None:
@@ -744,11 +851,13 @@ def _stacks(repo: Repo) -> list[str]:
         "node": ("package.json",),
         "go": ("go.mod",),
         "rust": ("Cargo.toml",),
+        "nix": ("flake.nix",),
     }
-    found = [name for name, files in markers.items() if any(repo.named(value) for value in files)]
-    if not found and any(value.endswith(".py") for value in repo.files):
+    names = {value.rsplit("/", 1)[-1] for value in repo.project_files}
+    found = [name for name, files in markers.items() if names.intersection(files)]
+    if not found and any(value.endswith(".py") for value in repo.project_files):
         found.append("python")
-    if any(value.endswith(".tf") for value in repo.files):
+    if any(value.endswith(".tf") for value in repo.project_files):
         found.append("terraform")
     return found
 
@@ -762,14 +871,14 @@ def _check_signals(repo: Repo) -> list[str]:
     """What the repository already has that a single entry point would run."""
     found = []
     tests = re.compile(r"(^|/)(tests?|__tests__|e2e)/|(^|/)test_[^/]+\.py$|_test\.(py|go)$|\.(test|spec)\.[cm]?[jt]sx?$")
-    if any(tests.search(value) for value in repo.files):
+    if any(tests.search(value) for value in repo.project_files):
         found.append("tests")
     linters = re.compile(r"(^|/)(\.pre-commit-config\.yaml|\.?ruff\.toml|mypy\.ini|\.eslintrc[^/]*|eslint\.config\.[^/]+|\.golangci\.ya?ml|tsconfig\.json)$")
-    configured = any(linters.search(value) for value in repo.files)
+    configured = any(linters.search(value) for value in repo.project_files)
     if not configured:
         configured = any(
             re.search(r"(?m)^\[tool\.(ruff|mypy|pytest|black|pylint)", repo.head(value))
-            for value in repo.named("pyproject.toml")
+            for value in repo.named("pyproject.toml") if value in repo.project_files
         )
     if configured:
         found.append("lint or type config")
@@ -874,12 +983,46 @@ def _first_line(path: str, needle: str) -> int:
     return 0
 
 
-def rules_block() -> str:
-    return f"{RULES_BEGIN}\n{RULES_BODY}\n{RULES_END}\n"
+def _browser_mcp_files(repo: Repo) -> list[str]:
+    """Repository config files that declare a browser MCP server."""
+    hits = []
+    mcp, _ = repo.load_json(".mcp.json")
+    if isinstance(mcp, dict) and isinstance(mcp.get("mcpServers"), dict):
+        servers = [f"{name} {json.dumps(value)}" for name, value in mcp["mcpServers"].items()]
+        if any(BROWSER_MCP_RE.search(value) for value in servers):
+            hits.append(".mcp.json")
+    if ".codex/config.toml" in repo.fileset:
+        tables = re.findall(r"(?m)^\[mcp_servers\.[^\]]+\][^\[]*", repo.head(".codex/config.toml"))
+        if any(BROWSER_MCP_RE.search(table) for table in tables):
+            hits.append(".codex/config.toml")
+    return hits
 
 
-def fix_rules_block(root: str) -> str:
-    path = os.path.join(root, "AGENTS.md")
+def rules_body(repo: Repo | None) -> str:
+    """The managed text for one repository; `None` gives the full text with every line."""
+    if repo is None:
+        stacks, suite, mcp = list(STACK_HINTS), True, True
+    else:
+        stacks = _stacks(repo)
+        suite = any(PLAYWRIGHT_CONFIG_RE.fullmatch(value) for value in repo.files)
+        mcp = suite or bool(_browser_mcp_files(repo))
+    hints = [STACK_HINTS[name] for name in STACK_HINTS if name in stacks]
+    hint = f" Ask the package manager instead ({', '.join(hints)})." if hints else ""
+    lines = [line.format(hint=hint) for line in RULES_HEAD]
+    if suite:
+        lines.append(RULES_SUITE)
+    if mcp:
+        lines.append(RULES_MCP)
+    lines.append(RULES_TAIL)
+    return RULES_HEADING + "\n\n" + "\n".join(lines)
+
+
+def rules_block(repo: Repo | None) -> str:
+    return f"{RULES_BEGIN}\n{rules_body(repo)}\n{RULES_END}\n"
+
+
+def fix_rules_block(repo: Repo) -> str:
+    path = os.path.join(repo.root, "AGENTS.md")
     if not os.path.isfile(path):
         raise CannotRun("no root AGENTS.md to hold the rules block; create it first")
     with open(path, encoding="utf-8", newline="") as source:
@@ -888,7 +1031,7 @@ def fix_rules_block(root: str) -> str:
     text = original.replace("\r\n", "\n")
     begins = list(RULES_BEGIN_RE.finditer(text))
     ends = [match for match in re.finditer(re.escape(RULES_END) + r"\n?", text)]
-    block = rules_block()
+    block = rules_block(repo)
     if not begins and not ends:
         heading = ORIENT_RE.search(text)
         if heading:
@@ -936,6 +1079,63 @@ def is_ignored(finding: Finding, ignores: dict[str, str]) -> bool:
     return False
 
 
+RULES_SPAN_RE = re.compile(
+    rf"<!-- BEGIN:{RULES_NAME} v\d+ -->.*?{re.escape(RULES_END)}\n?", re.S
+)
+HEADING_RE = re.compile(r"^#{1,3} ")
+
+
+def _managed_bytes(text: str) -> int:
+    match = RULES_SPAN_RE.search(text)
+    return len(match.group(0).encode("utf-8")) if match else 0
+
+
+def render_sections(repo: Repo, relative: str, budget: int) -> str:
+    """Bytes under each heading, so an over-budget file can be trimmed in one pass."""
+    if relative not in repo.fileset:
+        raise CannotRun(f"no such tracked file: {relative}")
+    with open(repo.abs(relative), encoding="utf-8") as source:
+        text = source.read()
+    managed = _managed_bytes(text)
+    rows: list[list] = [["(before the first heading)", 0]]
+    fenced = False
+    for line in RULES_SPAN_RE.sub("", text).splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and HEADING_RE.match(line):
+            rows.append([line.strip(), 0])
+        rows[-1][1] += len(line.encode("utf-8"))
+    counted = sum(size for _, size in rows)
+    free = budget - counted
+    lines = [
+        f"{relative}: {counted + managed} bytes, {counted} counted against a budget of {budget} "
+        f"({free} free)" if free >= 0 else
+        f"{relative}: {counted + managed} bytes, {counted} counted against a budget of {budget} "
+        f"(trim {-free})",
+        "  bytes  ~tokens  section",
+    ]
+    lines += [f"{size:>7}  {size // 4:>7}  {name}" for name, size in rows if size]
+    if managed:
+        lines.append(f"{managed:>7}  {managed // 4:>7}  (managed rules block, not counted)")
+    return "\n".join(lines)
+
+
+def rollup(findings: list[Finding]) -> list[tuple[str, int, int, str]]:
+    """Per-area (before, after, basis) token totals, biggest saving first."""
+    totals: dict[str, list] = {}
+    for finding in findings:
+        entry = totals.setdefault(finding.playbook, [0, 0, set()])
+        entry[0] += finding.before
+        entry[1] += finding.after
+        entry[2].add(finding.measured)
+    rows = [
+        (area, before, after, "mixed" if len(basis) > 1 else "measured" if True in basis else "estimated")
+        for area, (before, after, basis) in totals.items()
+    ]
+    rows.sort(key=lambda row: row[1] - row[2], reverse=True)
+    return rows
+
+
 def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: list[str]) -> str:
     lines = []
     shown: dict[str, int] = {}
@@ -945,11 +1145,25 @@ def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: li
             continue
         lines.append(
             f"{finding.code} {finding.severity} {finding.path}:{finding.line} "
-            f"{finding.message} ({finding.impact}) -> {finding.playbook}.md"
+            f"{finding.message} ({finding.impact}, ~{finding.before}->~{finding.after} tok/session "
+            f"{'measured' if finding.measured else 'estimated'})"
+            f" -> {finding.playbook}.md"
         )
     for code, count in shown.items():
         if count > HUMAN_CAP_PER_CODE:
             lines.append(f"{code} ... +{count - HUMAN_CAP_PER_CODE} more (use --format json for all)")
+    rows = rollup(findings)
+    if rows:
+        width = max(len(area) for area, *_ in rows + [("TOTAL", 0, 0, "")])
+        lines.append("tokens per session (before -> after, saved, basis):")
+        for area, before, after, basis in rows:
+            lines.append(f"  {area:<{width}}  {before:>7} -> {after:>7}   saves {before - after:>7}   {basis}")
+        total_before = sum(row[1] for row in rows)
+        total_after = sum(row[2] for row in rows)
+        lines.append(
+            f"  {'TOTAL':<{width}}  {total_before:>7} -> {total_after:>7}"
+            f"   saves {total_before - total_after:>7}"
+        )
     counts = {level: sum(1 for f in findings if f.severity == level) for level in SEVERITY_ORDER}
     fact = "none"
     if audit.oldest_fact:
@@ -979,7 +1193,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", dest="root_flag")
     parser.add_argument("--format", choices=("human", "json"), default="human")
     parser.add_argument("--fix-rules-block", action="store_true")
-    parser.add_argument("--print-rules-block", action="store_true")
+    parser.add_argument(
+        "--print-rules-block", nargs="?", const="repo", choices=("repo", "full"),
+        help="print the managed block composed for ROOT, or `full` for every optional line",
+    )
+    parser.add_argument(
+        "--sections", nargs="?", const="AGENTS.md", metavar="FILE",
+        help="print bytes per heading of an instruction file (default AGENTS.md) and exit",
+    )
     parser.add_argument("--list-codes", action="store_true")
     parser.add_argument("--limit", action="append", default=[])
     parser.add_argument("--ignore", action="append", default=[])
@@ -987,8 +1208,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--facts", default=DEFAULT_FACTS)
     args = parser.parse_args(argv)
 
-    if args.print_rules_block:
-        sys.stdout.write(rules_block())
+    if args.print_rules_block == "full":
+        sys.stdout.write(rules_block(None))
         return 0
     if args.list_codes:
         for code, (severity, impact, playbook, meaning) in CODES.items():
@@ -1001,9 +1222,15 @@ def main(argv: list[str] | None = None) -> int:
         unknown = [code for code in args.ignore if code.split(":", 1)[0] not in CODES]
         if unknown:
             raise CannotRun(f"unknown code(s) for --ignore: {', '.join(unknown)}")
-        if args.fix_rules_block:
-            print(f"rules block v{RULES_VERSION}: {fix_rules_block(os.path.abspath(root))}")
         repo = Repo(root)
+        if args.print_rules_block:
+            sys.stdout.write(rules_block(repo))
+            return 0
+        if args.sections:
+            print(render_sections(repo, args.sections, limits["ins"]))
+            return 0
+        if args.fix_rules_block:
+            print(f"rules block v{RULES_VERSION}: {fix_rules_block(repo)}")
         ignores = load_ignores(repo, args.ignore)
         audit = Audit(repo, limits, args.facts, today)
         audit.run()
@@ -1027,6 +1254,15 @@ def main(argv: list[str] | None = None) -> int:
             "counts": {level: sum(1 for f in kept if f.severity == level) for level in SEVERITY_ORDER},
             "ignored": ignored,
             "oldestFact": {"id": fact[0], "date": fact[1].isoformat()} if fact else None,
+            "estimates": {
+                "unit": "tokens per session",
+                "byArea": [
+                    {"area": area, "before": before, "after": after, "saved": before - after, "basis": basis}
+                    for area, before, after, basis in rollup(kept)
+                ],
+                "before": sum(finding.before for finding in kept),
+                "after": sum(finding.after for finding in kept),
+            },
             "findings": [asdict(finding) for finding in kept],
         }, separators=(",", ":")))
     else:

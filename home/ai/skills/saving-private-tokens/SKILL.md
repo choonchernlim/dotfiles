@@ -46,18 +46,25 @@ Otherwise audit and apply.
 python3 scripts/audit_tokens.py <repo>
 ```
 
-Each line reads `CODE severity path:line message (impact) -> playbook`. The
+Each line reads `CODE severity path:line message (impact, ~before->~after
+tok/session basis) -> playbook`. The findings are followed by a per-area
+table of tokens per session, before and after the fix, with a TOTAL row. The
+basis is `measured` (real file sizes) or `estimated` (the impact class). The
 summary line gives counts, detected stacks, and the oldest tool fact. Exit 0
 is clean, 1 means findings, 2 means the audit could not run. Add
-`--format json` for a machine-readable result.
+`--format json` for a machine-readable result, including an `estimates` block.
 
 Show the raw output in the handoff. Do not re-derive findings by reading
 the repository; the script already did that without spending tokens.
 
+The estimates rank areas against each other. They do not predict a bill.
+[references/principles.md](references/principles.md) gives the model.
+
 ## Step 3: Pick One Area
 
-Order by severity, then by when the cost is paid: every session (`S`), per
-file read (`R`), per check loop (`L`), drift (`D`). Load
+Order by severity, then by the saving in the audit's per-area table. The
+cadence letter in each impact string says when the cost is paid: every
+session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 [references/principles.md](references/principles.md) for the measured costs.
 
 | Codes | Area | Playbook |
@@ -81,10 +88,18 @@ before hooks, because the hooks call it.
 - Everything must behave the same in Claude Code and Codex. Shared rules go
   in `AGENTS.md`, shared logic under `scripts/`. A Claude-only setting is an
   extra layer on top, never the only layer.
-- Change the rules block only through the script:
+- Change the rules block only through the script. It composes the text
+  for the repository's stacks, so refresh it when the audit asks:
 
   ```bash
   python3 scripts/audit_tokens.py <repo> --fix-rules-block
+  ```
+
+- Trim an over-budget instruction file in one pass. Print the bytes under
+  each heading first:
+
+  ```bash
+  python3 scripts/audit_tokens.py <repo> --sections
   ```
 
 - A heuristic finding that does not apply is recorded, with a reason, in
@@ -99,7 +114,13 @@ before hooks, because the hooks call it.
 1. Run the verify steps at the end of the playbook.
 2. Run the project's own check entry point, if it has one.
 3. Audit again and confirm the code cleared and no new one appeared.
-4. Report: findings before and after, files touched, anything left and why.
+4. Report the result as a table: each action taken, the area it belongs to,
+   and its BEFORE and AFTER tokens per session, with a TOTAL row. Mark each
+   number measured or estimated, as the audit does. Take the numbers from
+   the two audit runs - the one in step 2 and the one above. Name any
+   finding whose estimate the repository contradicts.
+5. List files touched, findings deliberately ignored with the reason, and
+   anything left undone.
 
 ## Tool Facts
 

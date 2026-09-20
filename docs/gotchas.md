@@ -71,3 +71,13 @@ relinking. An existing `.hm-bak` makes that safety check abort.
 `rebuild.sh` removes stale agent backups before home-manager checks targets.
 Apply the merge-reconcile pattern when another tool must write a managed file.
 Do not use `force = true`, because it discards runtime-owned values.
+
+**Every rebuild emits one `options.json` warning.**
+`warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/...-source' without a proper context.`
+This is harmless and the build succeeds. It is an upstream nixpkgs bug in
+`nixos/lib/make-options-doc`, surfaced by home-manager's man-page generation
+([nixpkgs#485682](https://github.com/NixOS/nixpkgs/issues/485682),
+[home-manager#7935](https://github.com/nix-community/home-manager/issues/7935)).
+Adding `manual.manpages.enable = false;` to `modules/home/default.nix` silences
+it; that is intentionally not done, pending an upstream fix. Every *other*
+warning is a real regression - investigate it before committing.

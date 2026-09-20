@@ -72,6 +72,68 @@ def outside_block(text: str) -> str:
     return re.sub(r"<!-- BEGIN:saving-private-tokens-rules v\d+ -->.*?<!-- END:saving-private-tokens-rules -->\n?", "", text, flags=re.S)
 
 
+def write(root: str, relative: str, text: str) -> None:
+    path = os.path.join(root, relative)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as target:
+        target.write(text)
+
+
+def findings(root: str, *extra: str) -> dict[str, dict]:
+    _, out, _ = run(root, "--format", "json", "--today", TODAY, *extra)
+    return {finding["code"]: finding for finding in json.loads(out)["findings"]}
+
+
+def composed_cases() -> list[str]:
+    """Behaviour that depends on what a repository contains, built in scratch folders."""
+    failures: list[str] = []
+
+    # A nix repository that ships a skill: the skill's tests are not the project's
+    # tests, `nix flake check` is the entry point, and the block carries no browser rules.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "flake.nix", "{ outputs = _: { checks = { }; }; }\n")
+        write(scratch, "AGENTS.md", "# Project\n\nRun `nix flake check`.\n\n## Where Things Live\n\n`flake.nix`\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        write(scratch, "home/skills/demo/SKILL.md", "---\nname: demo\ndescription: demo\n---\n")
+        write(scratch, "home/skills/demo/scripts/test_demo.py", "def test(): pass\n")
+        run(scratch, "--fix-rules-block")
+        found = findings(scratch)
+        if found:
+            failures.append(f"nix repo: expected no findings, got {sorted(found)}")
+        _, block, _ = run(scratch, "--print-rules-block")
+        if "Playwright" in block or "browser MCP" in block or "uv tree" in block:
+            failures.append("nix repo: the rules block carries rules for stacks the repository lacks")
+        if "`nix flake metadata`" not in block:
+            failures.append("nix repo: the rules block lacks the nix package-manager hint")
+
+    # The managed block does not count against the budget, and --sections shows why.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\n" + "word " * 40 + "\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        size = os.path.getsize(os.path.join(scratch, "AGENTS.md"))
+        limit = ["--limit", f"ins={size + 10}"]
+        run(scratch, "--fix-rules-block")
+        if "INS-LONG" in findings(scratch, *limit):
+            failures.append("budget: installing the managed block pushed the file over budget")
+        _, sections, _ = run(scratch, "--sections", *limit)
+        if "managed rules block, not counted" not in sections or "## Where Things Live" not in sections:
+            failures.append("sections: expected a row per heading and one for the managed block")
+
+    # One costly file, both guard layers missing: the two findings sum to its cost, not double.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\n`uv.lock`\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        write(scratch, "uv.lock", "x" * 40000)
+        found = findings(scratch)
+        layers = [found.get("DENY-MISSING"), found.get("DNR-MISSING")]
+        if not all(layers):
+            failures.append(f"estimates: expected both guard findings, got {sorted(found)}")
+        elif sum(layer["before"] for layer in layers) != 40000 // 4 * 3 or not all(layer["measured"] for layer in layers):
+            failures.append(f"estimates: guard layers should be measured and sum to one file's cost, got {layers}")
+
+    return failures
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -103,11 +165,11 @@ def main() -> int:
     if declared != covered:
         failures.append(f"codes without a fixture, or fixtures for unknown codes: {sorted(declared ^ covered)}")
 
-    _, block, _ = run("--print-rules-block")
     for case in FIXABLE:
         with tempfile.TemporaryDirectory() as scratch:
             work = os.path.join(scratch, case)
             shutil.copytree(os.path.join(BAD, case), work, symlinks=True)
+            _, block, _ = run(work, "--print-rules-block")
             agents = os.path.join(work, "AGENTS.md")
             with open(agents, encoding="utf-8") as source:
                 before = source.read()
@@ -149,10 +211,13 @@ def main() -> int:
         if status != 2:
             failures.append("missing root: expected exit 2")
 
+    _, full, _ = run("--print-rules-block", "full")
     reference = os.path.join(REFERENCES, "instruction-files.md")
     with open(reference, encoding="utf-8") as source:
-        if block not in source.read():
-            failures.append("references/instruction-files.md does not show the managed block verbatim")
+        if full not in source.read():
+            failures.append("references/instruction-files.md does not show the full managed block verbatim")
+
+    failures += composed_cases()
 
     stamped = 0
     for name in sorted(os.listdir(REFERENCES)):
@@ -181,7 +246,7 @@ def main() -> int:
         return 1
     print(
         f"ok: good fixture is clean, {len(EXPECTED)} bad cases raise {len(covered)} codes, "
-        f"the rules-block fix is idempotent, {stamped} facts are stamped"
+        f"the rules-block fix is idempotent, composed cases hold, {stamped} facts are stamped"
     )
     return 0
 

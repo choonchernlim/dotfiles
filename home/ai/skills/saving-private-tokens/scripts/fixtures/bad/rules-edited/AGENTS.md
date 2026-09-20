@@ -1,6 +1,6 @@
 # Fixture
 
-<!-- BEGIN:saving-private-tokens-rules v1 -->
+<!-- BEGIN:saving-private-tokens-rules v2 -->
 ## Token Discipline
 
 - Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.

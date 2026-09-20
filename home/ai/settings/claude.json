@@ -21,7 +21,7 @@
       "Read(./secrets/**)"
     ]
   },
-  "model": "opusplan[1m]",
+  "model": "claude-fable-5-1[1m]",
   "disableAgentView": true,
   "disableWorkflows": true,
   "disableArtifact": true,
