@@ -6,7 +6,7 @@ Guidance for AI agents (Claude Code, Codex, Antigravity) in this repo.
 
 Personal Mac config managed with nix-darwin and home-manager. This repo is the single source of truth for the machine - the predecessor Ansible setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)) is fully retired and kept only as historical reference.
 
-<!-- BEGIN:saving-private-tokens-rules v2 -->
+<!-- BEGIN:tokenminator-rules v2 -->
 ## Token Discipline
 
 - Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
@@ -15,8 +15,8 @@ Personal Mac config managed with nix-darwin and home-manager. This repo is the s
 - Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.
 - Hand wide searches to a subagent and keep only its conclusion.
 - Script anything done twice. Measure durations and log sizes before optimizing a check.
-- Managed by the saving-private-tokens skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
-<!-- END:saving-private-tokens-rules -->
+- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
+<!-- END:tokenminator-rules -->
 
 ## Where Things Live
 

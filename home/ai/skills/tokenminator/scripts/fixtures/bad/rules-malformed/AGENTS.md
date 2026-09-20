@@ -1,6 +1,6 @@
 # Fixture
 
-<!-- BEGIN:saving-private-tokens-rules v2 -->
+<!-- BEGIN:tokenminator-rules v2 -->
 ## Token Discipline
 
 - The end marker was deleted.

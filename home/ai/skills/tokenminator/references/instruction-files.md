@@ -99,7 +99,7 @@ When the repository gains a stack or a suite, the audit reports
 line, is:
 
 ```text
-<!-- BEGIN:saving-private-tokens-rules v2 -->
+<!-- BEGIN:tokenminator-rules v2 -->
 ## Token Discipline
 
 - Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
@@ -110,8 +110,8 @@ line, is:
 - Script anything done twice. Measure durations and log sizes before optimizing a check.
 - Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment.
 - Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test.
-- Managed by the saving-private-tokens skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
-<!-- END:saving-private-tokens-rules -->
+- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
+<!-- END:tokenminator-rules -->
 ```
 
 If the markers are unpaired or duplicated the command exits 2 and changes

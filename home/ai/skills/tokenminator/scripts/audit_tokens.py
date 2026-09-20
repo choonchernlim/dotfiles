@@ -31,16 +31,24 @@ except ImportError:  # Python 3.10
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_FACTS = os.path.join(os.path.dirname(HERE), "references")
-IGNORE_FILE = ".agents/saving-private-tokens.json"
+IGNORE_FILE = ".agents/tokenminator.json"
 HEAD_BYTES = 65536
 STREAM_CAP = 1_048_576
 HUMAN_CAP_PER_CODE = 5
 
 RULES_VERSION = 2
-RULES_NAME = "saving-private-tokens-rules"
+RULES_NAME = "tokenminator-rules"
+# This skill used to be called saving-private-tokens, and repositories audited under that
+# name still carry its markers and ignore file. The matchers accept both so a run upgrades
+# the block in place instead of stacking a second one; only the current names are ever
+# written. Delete the LEGACY_* names once every audited repository has been refreshed.
+LEGACY_RULES_NAME = "saving-private-tokens-rules"
+LEGACY_IGNORE_FILE = ".agents/saving-private-tokens.json"
 RULES_BEGIN = f"<!-- BEGIN:{RULES_NAME} v{RULES_VERSION} -->"
 RULES_END = f"<!-- END:{RULES_NAME} -->"
-RULES_BEGIN_RE = re.compile(rf"<!-- BEGIN:{RULES_NAME} v(\d+) -->")
+_RULES_NAMES = f"(?:{RULES_NAME}|{LEGACY_RULES_NAME})"
+RULES_BEGIN_RE = re.compile(rf"<!-- BEGIN:{_RULES_NAMES} v(\d+) -->")
+RULES_END_RE = re.compile(rf"<!-- END:{_RULES_NAMES} -->")
 RULES_HEADING = "## Token Discipline"
 # The block is composed per repository, so a session never pays for a rule about a
 # stack or a browser suite the repository does not have. `{hint}` is filled from
@@ -55,7 +63,7 @@ RULES_HEAD = (
 )
 RULES_SUITE = "- Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment."
 RULES_MCP = "- Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test."
-RULES_TAIL = "- Managed by the saving-private-tokens skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block."
+RULES_TAIL = "- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block."
 STACK_HINTS = {
     "python": "`uv tree`",
     "node": "`bun pm ls`",
@@ -440,7 +448,7 @@ class Audit:
     def _check_rules_block(self) -> None:
         text = self.root_agents
         begins = list(RULES_BEGIN_RE.finditer(text))
-        ends = [match.start() for match in re.finditer(re.escape(RULES_END), text)]
+        ends = [match.start() for match in RULES_END_RE.finditer(text)]
         if not begins and not ends:
             self.add("RULES-MISSING", "AGENTS.md", "install it with --fix-rules-block")
             return
@@ -449,6 +457,9 @@ class Audit:
             self.add("RULES-EDITED", "AGENTS.md", "markers are unpaired or duplicated; repair them by hand, then refresh", line)
             return
         version = int(begins[0].group(1))
+        if LEGACY_RULES_NAME in begins[0].group(0):
+            self.add("RULES-OUTDATED", "AGENTS.md", "block carries the former skill name; refresh with --fix-rules-block", line)
+            return
         if version < RULES_VERSION:
             self.add("RULES-OUTDATED", "AGENTS.md", f"block is v{version}, current is v{RULES_VERSION}; refresh with --fix-rules-block", line)
             return
@@ -507,7 +518,7 @@ class Audit:
                     in_fence = not in_fence
                 if RULES_BEGIN_RE.search(line):
                     in_rules = True
-                if RULES_END in line:
+                if RULES_END_RE.search(line):
                     in_rules = False
                 if in_fence or in_rules:
                     continue
@@ -1190,7 +1201,7 @@ def fix_rules_block(repo: Repo) -> str:
     newline = "\r\n" if "\r\n" in original else "\n"
     text = original.replace("\r\n", "\n")
     begins = list(RULES_BEGIN_RE.finditer(text))
-    ends = [match for match in re.finditer(re.escape(RULES_END) + r"\n?", text)]
+    ends = [match for match in re.finditer(RULES_END_RE.pattern + r"\n?", text)]
     block = rules_block(repo)
     if not begins and not ends:
         heading = ORIENT_RE.search(text)
@@ -1214,19 +1225,25 @@ def fix_rules_block(repo: Repo) -> str:
 
 def load_ignores(repo: Repo, cli: list[str]) -> dict[str, str]:
     ignores = {code: "ignored on the command line" for code in cli}
-    path = repo.abs(IGNORE_FILE)
+    ignore_file = IGNORE_FILE
+    if not os.path.isfile(repo.abs(IGNORE_FILE)) and os.path.isfile(repo.abs(LEGACY_IGNORE_FILE)):
+        # Honour the old file so its ignores do not silently lapse, but never move it:
+        # the script's only write is the rules block.
+        ignore_file = LEGACY_IGNORE_FILE
+        print(f"audit_tokens: reading {LEGACY_IGNORE_FILE}; rename it to {IGNORE_FILE}", file=sys.stderr)
+    path = repo.abs(ignore_file)
     if not os.path.isfile(path):
         return ignores
     try:
         with open(path, encoding="utf-8") as source:
             entries = json.load(source).get("ignore", {})
     except (OSError, ValueError, AttributeError) as error:
-        raise CannotRun(f"{IGNORE_FILE} is not valid: {error}") from error
+        raise CannotRun(f"{ignore_file} is not valid: {error}") from error
     for key, reason in entries.items():
         if not isinstance(reason, str) or not reason.strip():
-            raise CannotRun(f"{IGNORE_FILE}: `{key}` needs a written reason")
+            raise CannotRun(f"{ignore_file}: `{key}` needs a written reason")
         if key.split(":", 1)[0] not in CODES:
-            raise CannotRun(f"{IGNORE_FILE}: `{key}` is not a known code")
+            raise CannotRun(f"{ignore_file}: `{key}` is not a known code")
         ignores[key] = reason
     return ignores
 
@@ -1240,7 +1257,7 @@ def is_ignored(finding: Finding, ignores: dict[str, str]) -> bool:
 
 
 RULES_SPAN_RE = re.compile(
-    rf"<!-- BEGIN:{RULES_NAME} v\d+ -->.*?{re.escape(RULES_END)}\n?", re.S
+    rf"<!-- BEGIN:{_RULES_NAMES} v\d+ -->.*?{RULES_END_RE.pattern}\n?", re.S
 )
 HEADING_RE = re.compile(r"^#{1,3} ")
 

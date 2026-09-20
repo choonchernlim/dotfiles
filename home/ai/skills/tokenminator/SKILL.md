@@ -1,5 +1,5 @@
 ---
-name: saving-private-tokens
+name: tokenminator
 description: >
   Cuts AI coding-agent token usage in any repository, the same way for
   Claude Code and Codex. Use when asked to reduce tokens, context, or agent
@@ -10,7 +10,7 @@ description: >
   repository for agent work.
 ---
 
-# Saving Private Tokens
+# Tokenminator
 
 Make a repository cheap for coding agents to work in. Most token waste is
 configuration, so a script finds it and a playbook fixes it.
@@ -103,7 +103,7 @@ to spend a run on it is the user's call.
   ```
 
 - When a finding does not apply, record it with a reason in
-  `.agents/saving-private-tokens.json`. The key is `CODE`, or `CODE:glob`
+  `.agents/tokenminator.json`. The key is `CODE`, or `CODE:glob`
   matched against the finding's path:
 
   ```json

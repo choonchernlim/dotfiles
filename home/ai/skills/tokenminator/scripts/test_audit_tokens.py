@@ -35,6 +35,7 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
         {"RULES-MISSING", "ORIENT-MISSING", "DNR-MISSING", "PATH-DEAD", "CLD-FORK", "INS-LONG"},
     ),
     "rules-outdated": ([], {"RULES-OUTDATED"}),
+    "rules-legacy": ([], {"RULES-OUTDATED"}),
     "rules-edited": ([], {"RULES-EDITED"}),
     "rules-malformed": ([], {"RULES-EDITED"}),
     "skills": (
@@ -52,7 +53,7 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
     ),
     "terraform": ([], {"TF-NOTEST", "TF-NOLINT"}),
 }
-FIXABLE = ("instructions", "rules-outdated", "rules-edited")
+FIXABLE = ("instructions", "rules-outdated", "rules-legacy", "rules-edited")
 STALE_CODE = "FACT-STALE"
 HOME = [""]  # the home folder `run` hands to the audit; set in main
 EM_DASH = chr(0x2014)  # built from its code point so this file stays free of it
@@ -90,7 +91,8 @@ def codes(root: str, *extra: str) -> tuple[int, set[str]]:
 
 
 def outside_block(text: str) -> str:
-    return re.sub(r"<!-- BEGIN:saving-private-tokens-rules v\d+ -->.*?<!-- END:saving-private-tokens-rules -->\n?", "", text, flags=re.S)
+    # Both names: a legacy block is outside the text the fix must preserve, same as a current one.
+    return re.sub(r"<!-- BEGIN:(?:tokenminator|saving-private-tokens)-rules v\d+ -->.*?<!-- END:(?:tokenminator|saving-private-tokens)-rules -->\n?", "", text, flags=re.S)
 
 
 def write(root: str, relative: str, text: str) -> None:
@@ -203,6 +205,22 @@ def composed_cases() -> list[str]:
         if "`nix flake metadata`" not in block:
             failures.append("nix repo: the rules block lacks the nix package-manager hint")
 
+    # An ignore file under the former skill name is still honoured, with a notice to rename
+    # it, so existing ignores do not silently lapse. The audit never moves the file itself.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\nNothing yet.\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        if "RULES-MISSING" not in findings(scratch):
+            failures.append("ignore file: the probe repository should raise RULES-MISSING")
+        write(scratch, ".agents/saving-private-tokens.json", '{"ignore": {"RULES-MISSING": "probe"}}\n')
+        _, _, notice = run(scratch, "--format", "json", "--today", TODAY)
+        if "RULES-MISSING" in findings(scratch) or ".agents/tokenminator.json" not in notice:
+            failures.append("ignore file: the former name should still be honoured, with a rename notice")
+        os.rename(os.path.join(scratch, ".agents/saving-private-tokens.json"), os.path.join(scratch, ".agents/tokenminator.json"))
+        _, _, notice = run(scratch, "--format", "json", "--today", TODAY)
+        if "RULES-MISSING" in findings(scratch) or notice:
+            failures.append("ignore file: the current name should be honoured without a notice")
+
     # The managed block does not count against the budget, and --sections shows why.
     with tempfile.TemporaryDirectory() as scratch:
         write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\n" + "word " * 40 + "\n")
@@ -313,6 +331,8 @@ def check() -> int:
                 failures.append(f"{case}: a RULES code survived the fix: {sorted(remaining)}")
             if block not in after:
                 failures.append(f"{case}: the fixed file does not contain the managed block verbatim")
+            if after.count("<!-- BEGIN:") != 1 or "saving-private-tokens" in after:
+                failures.append(f"{case}: the fixed file must hold exactly one block, under the current name")
             if after != again:
                 failures.append(f"{case}: a second fix changed the file; the fix is not idempotent")
             if outside_block(before).split() != outside_block(after).split():

@@ -108,6 +108,8 @@ always drift.
   breaks without warning. Vendor the file into the repository.
 - **Flags that differ from CI.** They produce "green here, red there". Keep
   them in config so both invocations are identical.
+- **Exclusions only the local runner knows.** A shared CI template will not
+  honor them. Record exceptions in a file both sides read, such as a baseline.
 
 ## Verify
 
