@@ -7,6 +7,7 @@ Invariants: standard library only; runs on Python 3.9 and later; one stable code
 never reads a large file in full; the only mutation is --fix-rules-block.
 Exit codes: 0 clean (notes allowed), 1 findings, 2 cannot run.
 Usage: audit_tokens.py [ROOT] [--format human|json] [--fix-rules-block] [--sections [FILE]]
+       audit_tokens.py [ROOT] --user | --no-user
        [--print-rules-block] [--list-codes] [--limit KEY=N]... [--ignore CODE]...
        [--today YYYY-MM-DD] [--facts DIR]
 """
@@ -73,6 +74,8 @@ LIMITS = {
     "rootchars": 3000,  # description characters at the root scope
     "scopechars": 6000,  # description characters at a nested scope
     "desc": 1024,  # characters in one skill description
+    "userskills": 12,  # skills at the user scope, paid for in every repository
+    "userchars": 4000,  # description characters at the user scope
     "large": 40000,  # bytes before a data file needs a read deny
     "small": 2000,  # lockfiles and generated files below this cost too little to flag
     "factdays": 90,  # age before a stamped tool fact is stale
@@ -117,6 +120,9 @@ CODES = {
     "TF-NOTEST": ("low", "L", "infrastructure", "Terraform has no offline tests"),
     "TF-NOLINT": ("low", "L", "infrastructure", "Terraform has no tflint"),
     "FACT-STALE": ("note", "D", "claude-code", "stamped tool facts are old"),
+    "USR-INS": ("med", "S", "user-scope", "user-level instruction file is over budget"),
+    "USR-SKILL-BUDGET": ("med", "S/M", "user-scope", "too much skill listing at the user scope"),
+    "USR-SKILL-DESC": ("low", "S", "user-scope", "user-level skill description is too long"),
 }
 FAILING = {"high", "med", "low"}
 SEVERITY_ORDER = {"high": 0, "med": 1, "low": 2, "note": 3}
@@ -193,6 +199,13 @@ SUMMARY_RE = re.compile(
     r"summary\.json|results?\.json|report\.json|junit[\w-]*\.xml|\.sarif|--format"
 )
 QUIET_RE = re.compile(r"\.log\b|stdout\s*=|--quiet|--silent|\s-q\b|>\s*/dev/null")
+# User scope: files every session loads, in every repository. The audit only reads them.
+USER_INSTRUCTIONS = (".claude/CLAUDE.md", ".codex/AGENTS.md")
+USER_SKILL_DIRS = (".claude/skills", ".agents/skills")
+USER_SKILL_DEPTH = 4  # cloud-synced skills sit at skills/synced/<bucket>/<name>/SKILL.md
+USER_MCP_JSON = ".claude.json"
+USER_MCP_TOML = ".codex/config.toml"
+CLOUD_SYNC = "Claude Code cloud sync"
 ENTRY_NAMES = ("quality", "check", "ci", "verify", "validate")
 ENTRY_TARGETS = ("check", "verify", "ci", "quality")
 # Entry points whose tool already meets the summary-then-log contract. `nix flake check`
@@ -222,6 +235,9 @@ class Finding:
     before: int = 0
     after: int = 0
     measured: bool = False  # True when before/after come from real sizes, not the impact table
+    scope: str = "repo"  # "user" for files under the home folder that every repository pays for
+    owner: str = ""  # user scope: the repository or service that really holds the file
+    fixable: bool = True  # user scope: False when the fix belongs outside the audited repository
 
 
 class Repo:
@@ -238,6 +254,7 @@ class Repo:
             if not FIXTURE_FOLDERS.intersection(value.split("/")[:-1])
         ]
         self.fileset = set(self.files)
+        self.all_fileset = set(self.all_files)
         # A nested skill ships its own scripts and tests. They say nothing about the
         # project's stack or checks, so stack and check-signal detection skips them.
         # A SKILL.md at the root means the repository is the skill, and nothing is skipped.
@@ -332,6 +349,7 @@ class Audit:
         self.today = today
         self.findings: list[Finding] = []
         self.oldest_fact: tuple[str, datetime.date] | None = None
+        self.baseline: list[dict] = []  # user scope: what every session costs before any finding
         self.instruction_files = [
             value for value in repo.files if value.rsplit("/", 1)[-1] == "AGENTS.md"
         ]
@@ -342,6 +360,7 @@ class Audit:
     def add(
         self, code: str, path: str, message: str, line: int = 0,
         before: int | None = None, after: int | None = None, measured: bool | None = None,
+        owner: str | None = None, fixable: bool = True,
     ) -> None:
         severity, impact, playbook, _ = CODES[code]
         default_before, default_after = estimate(impact)
@@ -352,6 +371,7 @@ class Audit:
             default_before if before is None else before,
             default_after if after is None else after,
             (before is not None) if measured is None else measured,
+            "repo" if owner is None else "user", owner or "", fixable,
         ))
 
     def _read_cost(self, paths: list[str]) -> int:
@@ -832,17 +852,151 @@ class Audit:
         if age > self.limits["factdays"]:
             self.add("FACT-STALE", "references", f"oldest fact {fact} is {age} days old; re-verify it before relying on tool-specific advice")
 
-    def run(self) -> None:
-        self.check_instructions()
-        self.check_context()
-        self.check_runner()
-        self.check_hooks()
-        self.check_e2e()
-        self.check_infrastructure()
-        self.check_facts()
+    # ---------------------------------------------------------------- user scope
+
+    def _ownership(self, path: str, synced: bool = False) -> tuple[str, bool]:
+        """Who holds a user-level file, and whether the audited repository may fix it."""
+        if synced:
+            return CLOUD_SYNC, False
+        real = os.path.realpath(path)
+        root = os.path.realpath(self.repo.root)
+        if real == root or real.startswith(root + os.sep):
+            relative = os.path.relpath(real, root).replace(os.sep, "/")
+            tracked = relative in self.repo.all_fileset or any(
+                value.startswith(relative + "/") for value in self.repo.all_files
+            )
+            return "this repository", tracked
+        folder = real if os.path.isdir(real) else os.path.dirname(real)
+        while folder != os.path.dirname(folder):
+            if os.path.lexists(os.path.join(folder, ".git")):
+                return _tilde(folder), False
+            folder = os.path.dirname(folder)
+        return "no repository", False
+
+    def _user_skills(self, home: str) -> list[dict]:
+        """Every skill an agent lists at session start, one entry per real SKILL.md."""
+        found: dict[str, dict] = {}
+        for relative in USER_SKILL_DIRS:
+            top = os.path.join(home, relative)
+            for base, directories, names in os.walk(top, followlinks=True):
+                depth = os.path.relpath(base, top).count(os.sep) + 1 if base != top else 0
+                directories[:] = [] if depth >= USER_SKILL_DEPTH else [
+                    name for name in directories if not name.startswith(".")
+                ]
+                if "SKILL.md" not in names or base == top:
+                    continue
+                directories[:] = []
+                real = os.path.realpath(os.path.join(base, "SKILL.md"))
+                if real in found:
+                    continue
+                manifest = os.path.join(os.path.dirname(base), "manifest.json")
+                found[real] = {
+                    "shown": f"~/{relative}/{os.path.relpath(base, top).replace(os.sep, '/')}",
+                    "file": os.path.join(base, "SKILL.md"),
+                    "chars": len(_description(real)),
+                    "synced": os.path.isfile(manifest),
+                }
+        return sorted(found.values(), key=lambda skill: skill["shown"])
+
+    def check_user(self, home: str) -> None:
+        # Both agents often link to one shared file. A session runs one agent, so a
+        # shared file is priced once.
+        instructions: dict[str, list[str]] = {}
+        for relative in USER_INSTRUCTIONS:
+            path = os.path.join(home, relative)
+            if os.path.isfile(path):
+                instructions.setdefault(os.path.realpath(path), []).append(relative)
+        for path, relatives in instructions.items():
+            relative = relatives[0]
+            size = os.path.getsize(path)
+            owner, fixable = self._ownership(path)
+            self.baseline.append({
+                "what": ", ".join(f"~/{value}" for value in relatives), "owner": owner,
+                "tokens": size // 4, "basis": "measured",
+            })
+            if size > self.limits["ins"]:
+                self.add(
+                    "USR-INS", f"~/{relative}",
+                    f"{size} bytes (~{size // 4} tokens in every session, in every repository); budget is {self.limits['ins']}",
+                    before=size // 4, after=self.limits["ins"] // 4, owner=owner, fixable=fixable,
+                )
+        skills = self._user_skills(home)
+        groups: dict[str, list[dict]] = {}
+        for skill in skills:
+            skill["owner"], skill["fixable"] = self._ownership(skill["file"], skill["synced"])
+            groups.setdefault(skill["owner"], []).append(skill)
+            if skill["chars"] > self.limits["desc"]:
+                self.add(
+                    "USR-SKILL-DESC", skill["shown"],
+                    f"description is {skill['chars']} characters; keep it under {self.limits['desc']}",
+                    before=skill["chars"] // 4, after=self.limits["desc"] // 4,
+                    owner=skill["owner"], fixable=skill["fixable"],
+                )
+        for owner, group in groups.items():
+            chars = sum(skill["chars"] for skill in group)
+            self.baseline.append({
+                "what": f"{len(group)} skill description(s)", "owner": owner,
+                "tokens": chars // 4, "basis": "measured",
+            })
+        total = sum(skill["chars"] for skill in skills)
+        if total > self.limits["userchars"] or len(skills) > self.limits["userskills"]:
+            split = ", ".join(f"{len(group)} from {owner}" for owner, group in groups.items())
+            self.add(
+                "USR-SKILL-BUDGET", "~/" + USER_SKILL_DIRS[0],
+                f"{len(skills)} skills, {total} description characters (~{total // 4} tokens in every session, "
+                f"in every repository): {split}; remove or disable the ones you do not use",
+                before=total // 4, after=self.limits["userchars"] // 4,
+                owner="; ".join(groups),
+                # Fixable here only when the skills this repository holds break the budget
+                # on their own. Otherwise the overage lives elsewhere and this is a proposal.
+                fixable=(
+                    sum(skill["chars"] for skill in skills if skill["fixable"]) > self.limits["userchars"]
+                    or sum(1 for skill in skills if skill["fixable"]) > self.limits["userskills"]
+                ),
+            )
+        servers = _user_mcp_servers(home)
+        if servers:
+            self.baseline.append({
+                "what": f"{len(servers)} MCP server(s): {', '.join(servers)}", "owner": "",
+                "tokens": len(servers) * MAGNITUDE_TOKENS["S"], "basis": "estimated",
+            })
+
+    def run(self, scopes: tuple[str, ...] = ("repo",), home: str = "") -> None:
+        if "repo" in scopes:
+            self.check_instructions()
+            self.check_context()
+            self.check_runner()
+            self.check_hooks()
+            self.check_e2e()
+            self.check_infrastructure()
+            self.check_facts()
+        if "user" in scopes:
+            self.check_user(home)
 
 
 # -------------------------------------------------------------------- helpers
+
+
+def _tilde(path: str) -> str:
+    home = os.path.expanduser("~")
+    return "~" + path[len(home):] if path == home or path.startswith(home + os.sep) else path
+
+
+def _user_mcp_servers(home: str) -> list[str]:
+    """Names of MCP servers configured for every repository. Names only; values may hold secrets."""
+    names: list[str] = []
+    try:
+        with open(os.path.join(home, USER_MCP_JSON), encoding="utf-8") as source:
+            servers = json.load(source).get("mcpServers", {})
+        names += sorted(servers) if isinstance(servers, dict) else []
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        with open(os.path.join(home, USER_MCP_TOML), encoding="utf-8") as source:
+            names += re.findall(r"(?m)^\[mcp_servers\.([^\].]+)\]", source.read())
+    except OSError:
+        pass
+    return sorted(set(names))
 
 
 def _stacks(repo: Repo) -> list[str]:
@@ -1025,6 +1179,12 @@ def fix_rules_block(repo: Repo) -> str:
     path = os.path.join(repo.root, "AGENTS.md")
     if not os.path.isfile(path):
         raise CannotRun("no root AGENTS.md to hold the rules block; create it first")
+    # This is the script's only write. Follow a link so the link survives, and refuse
+    # a target outside the audited repository: that file belongs to someone else.
+    path = os.path.realpath(path)
+    root = os.path.realpath(repo.root)
+    if not path.startswith(root + os.sep):
+        raise CannotRun(f"AGENTS.md resolves outside the repository ({_tilde(path)}); nothing was written")
     with open(path, encoding="utf-8", newline="") as source:
         original = source.read()
     newline = "\r\n" if "\r\n" in original else "\n"
@@ -1136,22 +1296,40 @@ def rollup(findings: list[Finding]) -> list[tuple[str, int, int, str]]:
     return rows
 
 
-def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: list[str]) -> str:
+def _finding_lines(findings: list[Finding]) -> list[str]:
     lines = []
     shown: dict[str, int] = {}
     for finding in findings:
         shown[finding.code] = shown.get(finding.code, 0) + 1
         if shown[finding.code] > HUMAN_CAP_PER_CODE:
             continue
+        where = f"{finding.path}:{finding.line}" if finding.scope == "repo" else finding.path
+        verdict = ""
+        if finding.scope == "user":
+            verdict = f" [owner: {finding.owner}; {'fixable here' if finding.fixable else 'proposal only'}]"
         lines.append(
-            f"{finding.code} {finding.severity} {finding.path}:{finding.line} "
+            f"{finding.code} {finding.severity} {where} "
             f"{finding.message} ({finding.impact}, ~{finding.before}->~{finding.after} tok/session "
             f"{'measured' if finding.measured else 'estimated'})"
-            f" -> {finding.playbook}.md"
+            f" -> {finding.playbook}.md{verdict}"
         )
     for code, count in shown.items():
         if count > HUMAN_CAP_PER_CODE:
             lines.append(f"{code} ... +{count - HUMAN_CAP_PER_CODE} more (use --format json for all)")
+    return lines
+
+
+def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: list[str]) -> str:
+    lines = _finding_lines([finding for finding in findings if finding.scope == "repo"])
+    personal = [finding for finding in findings if finding.scope == "user"]
+    if personal or audit.baseline:
+        lines.append("user scope (read only; paid in every session, in every repository):")
+        lines += ["  " + line for line in _finding_lines(personal)]
+        for row in audit.baseline:
+            owner = f"  [{row['owner']}]" if row["owner"] else ""
+            lines.append(f"  baseline {row['tokens']:>7} tok/session {row['basis']:<9} {row['what']}{owner}")
+        total = sum(row["tokens"] for row in audit.baseline)
+        lines.append(f"  baseline {total:>7} tok/session total")
     rows = rollup(findings)
     if rows:
         width = max(len(area) for area, *_ in rows + [("TOTAL", 0, 0, "")])
@@ -1171,7 +1349,8 @@ def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: li
         fact = f"{name} {stamp.isoformat()} ({(audit.today - stamp).days}d)"
     lines.append(
         f"summary: {len(findings)} finding(s): {counts['high']} high, {counts['med']} med, "
-        f"{counts['low']} low, {counts['note']} note, {ignored} ignored | "
+        f"{counts['low']} low, {counts['note']} note, {ignored} ignored, "
+        f"{sum(1 for f in findings if f.scope == 'user' and not f.fixable)} proposal only | "
         f"stacks: {','.join(stacks) or 'none'} | rules v{RULES_VERSION} | oldest fact: {fact}"
     )
     return "\n".join(lines)
@@ -1202,6 +1381,8 @@ def main(argv: list[str] | None = None) -> int:
         help="print bytes per heading of an instruction file (default AGENTS.md) and exit",
     )
     parser.add_argument("--list-codes", action="store_true")
+    parser.add_argument("--user", action="store_true", help="audit only the user scope (read only)")
+    parser.add_argument("--no-user", action="store_true", help="skip the user scope")
     parser.add_argument("--limit", action="append", default=[])
     parser.add_argument("--ignore", action="append", default=[])
     parser.add_argument("--today")
@@ -1222,6 +1403,8 @@ def main(argv: list[str] | None = None) -> int:
         unknown = [code for code in args.ignore if code.split(":", 1)[0] not in CODES]
         if unknown:
             raise CannotRun(f"unknown code(s) for --ignore: {', '.join(unknown)}")
+        if args.user and (args.fix_rules_block or args.no_user):
+            raise CannotRun("--user only reads; it cannot be combined with --fix-rules-block or --no-user")
         repo = Repo(root)
         if args.print_rules_block:
             sys.stdout.write(rules_block(repo))
@@ -1233,7 +1416,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"rules block v{RULES_VERSION}: {fix_rules_block(repo)}")
         ignores = load_ignores(repo, args.ignore)
         audit = Audit(repo, limits, args.facts, today)
-        audit.run()
+        scopes = ("user",) if args.user else ("repo",) if args.no_user else ("repo", "user")
+        audit.run(scopes, os.path.expanduser("~"))
     except (CannotRun, ValueError) as error:
         print(f"audit_tokens: {error}", file=sys.stderr)
         return 2
@@ -1241,7 +1425,9 @@ def main(argv: list[str] | None = None) -> int:
     kept = [finding for finding in audit.findings if not is_ignored(finding, ignores)]
     ignored = len(audit.findings) - len(kept)
     kept.sort(key=lambda f: (SEVERITY_ORDER[f.severity], f.code, f.path, f.line))
-    failing = any(finding.severity in FAILING for finding in kept)
+    # A user-level finding this repository cannot fix is a proposal. It never fails the audit,
+    # or no project could reach a clean exit.
+    failing = any(finding.severity in FAILING and finding.fixable for finding in kept)
     stacks = _stacks(repo)
     if args.format == "json":
         fact = audit.oldest_fact
@@ -1254,6 +1440,11 @@ def main(argv: list[str] | None = None) -> int:
             "counts": {level: sum(1 for f in kept if f.severity == level) for level in SEVERITY_ORDER},
             "ignored": ignored,
             "oldestFact": {"id": fact[0], "date": fact[1].isoformat()} if fact else None,
+            "userScope": {
+                "home": _tilde(os.path.expanduser("~")),
+                "baseline": audit.baseline,
+                "baselineTokens": sum(row["tokens"] for row in audit.baseline),
+            },
             "estimates": {
                 "unit": "tokens per session",
                 "byArea": [

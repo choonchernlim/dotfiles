@@ -63,6 +63,7 @@ Measured findings use the repository instead:
 | --- | --- | --- |
 | `INS-LONG` | file size | budget plus the managed rules block |
 | `SKILL-BUDGET` | description characters | the scope's cap |
+| `USR-INS`, `USR-SKILL-BUDGET`, `USR-SKILL-DESC` | the user-level file or description size | its budget |
 | `DENY-MISSING`, `DNR-MISSING`, `DNR-UNLISTED` | size of the unguarded files, three reads, halved | zero |
 
 A costly file has two guards: a Claude read deny and the Do Not Read section

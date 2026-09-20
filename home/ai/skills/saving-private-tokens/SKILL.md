@@ -36,6 +36,9 @@ Audit only, and change nothing, when any of these hold:
 - The repository is not the user's: the remote belongs to someone else, or
   the user has no commits in it. Ask when unsure.
 - The finding sits in a vendored folder, a submodule, or generated files.
+- The finding's file resolves outside the audited repository. Resolve links
+  first: a path under the repository can point elsewhere, and a path under
+  the home folder can point back in. The audit marks these `proposal only`.
 - The user asked for a review or a report.
 
 Otherwise audit and apply.
@@ -57,6 +60,11 @@ is clean, 1 means findings, 2 means the audit could not run. Add
 Show the raw output in the handoff. Do not re-derive findings by reading
 the repository; the script already did that without spending tokens.
 
+Every run ends with a read-only `user scope` section: what the config under
+the home folder costs in every session, in every repository. Each finding
+there names its real owner and is marked `fixable here` or `proposal only`.
+`--user` prints that section alone; `--no-user` leaves it out.
+
 The estimates rank areas against each other. They do not predict a bill.
 [references/principles.md](references/principles.md) gives the model.
 
@@ -75,6 +83,7 @@ session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 | `HOOK-` | Shared hooks | [references/hooks.md](references/hooks.md) |
 | `PW-`, `MCP-` | Scripted browser tests | [references/e2e.md](references/e2e.md) |
 | `TF-` | Infrastructure checks | [references/infrastructure.md](references/infrastructure.md) |
+| `USR-` | User scope | [references/user-scope.md](references/user-scope.md) |
 | `FACT-` | Tool facts | [references/claude-code.md](references/claude-code.md), [references/codex.md](references/codex.md) |
 
 Fix instruction files first in a new repository. The check runner comes
@@ -120,7 +129,9 @@ before hooks, because the hooks call it.
    the two audit runs - the one in step 2 and the one above. Name any
    finding whose estimate the repository contradicts.
 5. List files touched, findings deliberately ignored with the reason, and
-   anything left undone.
+   anything left undone. Give each `proposal only` finding as a proposal.
+6. End with `Touched outside the repository: none`, checked against
+   `git status --short`. If it is not true, say what was touched and why.
 
 ## Tool Facts
 
@@ -132,7 +143,10 @@ date. Never re-read all the documentation up front.
 
 ## Hard Limits
 
-- The script's only mutation is the marked block in the root `AGENTS.md`.
+- The script's only mutation is the marked block in the root `AGENTS.md`,
+  and it refuses a target that resolves outside the repository.
+- Never write outside the audited repository, by any tool, shell included.
+  A `proposal only` finding is shown to the user and applied by the user.
 - Never edit the rules block by hand, and never weaken an existing check,
   hook, or permission rule to save tokens.
 - This skill ships no check runner. It states the contract; build the runner
@@ -153,6 +167,7 @@ date. Never re-read all the documentation up front.
 | [references/hooks.md](references/hooks.md) | One pair of hooks for both agents |
 | [references/e2e.md](references/e2e.md) | Scripted Playwright and the browser MCP policy |
 | [references/infrastructure.md](references/infrastructure.md) | Offline Terraform tests and tflint |
+| [references/user-scope.md](references/user-scope.md) | The user-scope section, ownership, and proposals |
 | [references/claude-code.md](references/claude-code.md) | Dated Claude Code facts |
 | [references/codex.md](references/codex.md) | Dated Codex facts |
 | [scripts/audit_tokens.py](scripts/audit_tokens.py) | The audit; run it, do not read it |

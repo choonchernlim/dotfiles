@@ -8,6 +8,7 @@ Usage: python3 scripts/test_audit_tokens.py
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -53,12 +54,32 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
 }
 FIXABLE = ("instructions", "rules-outdated", "rules-edited")
 STALE_CODE = "FACT-STALE"
+HOME = [""]  # the home folder `run` hands to the audit; set in main
 EM_DASH = chr(0x2014)  # built from its code point so this file stays free of it
 
 
 def run(*arguments: str) -> tuple[int, str, str]:
-    done = subprocess.run([sys.executable, AUDIT, *arguments], capture_output=True, text=True)
+    # Every run gets an empty home folder unless a case supplies one, so the
+    # result never depends on the machine's real user-level config.
+    done = subprocess.run(
+        [sys.executable, AUDIT, *arguments], capture_output=True, text=True,
+        env={**os.environ, "HOME": HOME[0]},
+    )
     return done.returncode, done.stdout, done.stderr
+
+
+def snapshot(root: str) -> dict[str, tuple]:
+    """Path -> (link target or content hash) for everything under a folder."""
+    state = {}
+    for base, directories, names in os.walk(root):
+        for name in directories + names:
+            path = os.path.join(base, name)
+            if os.path.islink(path):
+                state[path] = ("link", os.readlink(path))
+            elif os.path.isfile(path):
+                with open(path, "rb") as source:
+                    state[path] = ("file", hashlib.sha256(source.read()).hexdigest())
+    return state
 
 
 def codes(root: str, *extra: str) -> tuple[int, set[str]]:
@@ -84,9 +105,85 @@ def findings(root: str, *extra: str) -> dict[str, dict]:
     return {finding["code"]: finding for finding in json.loads(out)["findings"]}
 
 
+def user_cases() -> tuple[list[str], set[str]]:
+    """The user scope reads a home folder, names the real owner, and never writes."""
+    failures: list[str] = []
+    raised: set[str] = set()
+    empty = HOME[0]
+    with tempfile.TemporaryDirectory() as scratch:
+        home, owner, other = (os.path.join(scratch, name) for name in ("home", "owner", "other"))
+        # `owner` is a dotfiles-style repository: the home folder links into it.
+        write(owner, ".git/HEAD", "ref: refs/heads/main\n")
+        write(owner, "AGENTS.md", "# Owner\n\n## Where Things Live\n\n`policy.md`\n")
+        write(owner, "CLAUDE.md", "@AGENTS.md\n")
+        write(owner, "policy.md", "rule\n" * 40)
+        write(owner, "skills/long/SKILL.md", "---\nname: long\ndescription: " + "word " * 30 + "\n---\n")
+        write(other, "AGENTS.md", "# Other\n\n## Where Things Live\n\n`AGENTS.md`\n")
+        write(other, "CLAUDE.md", "@AGENTS.md\n")
+        os.makedirs(os.path.join(home, ".claude"))
+        os.makedirs(os.path.join(home, ".codex"))
+        os.symlink(os.path.join(owner, "policy.md"), os.path.join(home, ".claude", "CLAUDE.md"))
+        os.symlink(os.path.join(owner, "policy.md"), os.path.join(home, ".codex", "AGENTS.md"))
+        os.symlink(os.path.join(owner, "skills"), os.path.join(home, ".claude", "skills"))
+        write(home, ".claude.json", '{"mcpServers": {"demo": {"env": {"TOKEN": "secret"}}}}')
+        for root in (owner, other):
+            run(root, "--fix-rules-block")
+        limits = ["--limit", "ins=100", "--limit", "userchars=50", "--limit", "desc=40"]
+        HOME[0] = home
+        try:
+            before = snapshot(scratch)
+            inside = findings(owner, *limits)
+            status_inside, out, _ = run(owner, "--format", "json", *limits)
+            outside = findings(other, *limits)
+            status_outside, _, _ = run(other, *limits)
+            _, human, _ = run(other, "--user", *limits)
+            status_mixed, _, _ = run(other, "--user", "--fix-rules-block")
+            after = snapshot(scratch)
+        finally:
+            HOME[0] = empty
+        expected = {"USR-INS", "USR-SKILL-BUDGET", "USR-SKILL-DESC"}
+        raised = set(inside) & expected
+        if raised != expected:
+            failures.append(f"user scope: expected {sorted(expected)}, got {sorted(inside)}")
+        elif not all(inside[code]["fixable"] and inside[code]["owner"] == "this repository" for code in expected):
+            failures.append("user scope: findings that resolve into the audited repository should be fixable there")
+        if status_inside != 1:
+            failures.append(f"user scope: a fixable user finding should fail the audit, got exit {status_inside}")
+        if any(outside[code]["fixable"] or not outside[code]["owner"].endswith("owner") for code in expected & set(outside)):
+            failures.append("user scope: from another repository the findings should be proposals that name the owner")
+        if status_outside != 0:
+            failures.append(f"user scope: proposals must not fail another repository's audit, got exit {status_outside}")
+        if json.loads(out)["userScope"]["baseline"][0]["what"].count("~/") != 2:
+            failures.append("user scope: one shared instruction file should be priced once for both agents")
+        if "secret" in human or "demo" not in human:
+            failures.append("user scope: MCP servers should be listed by name only")
+        if status_mixed != 2:
+            failures.append("user scope: --user with --fix-rules-block should exit 2")
+        if before != after:
+            failures.append("user scope: the audit changed files; it must only read")
+    return failures, raised
+
+
 def composed_cases() -> list[str]:
     """Behaviour that depends on what a repository contains, built in scratch folders."""
     failures: list[str] = []
+
+    # The one write follows a link inside the repository and refuses one that leaves it.
+    with tempfile.TemporaryDirectory() as scratch:
+        work, elsewhere = os.path.join(scratch, "work"), os.path.join(scratch, "elsewhere.md")
+        write(work, "docs/agents.md", "# Project\n")
+        write(scratch, "elsewhere.md", "# Someone else's file\n")
+        os.symlink("docs/agents.md", os.path.join(work, "AGENTS.md"))
+        status, _, _ = run(work, "--fix-rules-block", "--no-user")
+        with open(os.path.join(work, "docs", "agents.md"), encoding="utf-8") as source:
+            if status == 2 or not os.path.islink(os.path.join(work, "AGENTS.md")) or "Token Discipline" not in source.read():
+                failures.append("guarded write: a link inside the repository should survive and its target be updated")
+        os.remove(os.path.join(work, "AGENTS.md"))
+        os.symlink(elsewhere, os.path.join(work, "AGENTS.md"))
+        status, _, _ = run(work, "--fix-rules-block", "--no-user")
+        with open(elsewhere, encoding="utf-8") as source:
+            if status != 2 or "Token Discipline" in source.read():
+                failures.append("guarded write: a target outside the repository must be refused and left untouched")
 
     # A nix repository that ships a skill: the skill's tests are not the project's
     # tests, `nix flake check` is the entry point, and the block carries no browser rules.
@@ -135,6 +232,12 @@ def composed_cases() -> list[str]:
 
 
 def main() -> int:
+    with tempfile.TemporaryDirectory() as empty_home:
+        HOME[0] = empty_home
+        return check()
+
+
+def check() -> int:
     failures: list[str] = []
 
     status, found = codes(GOOD)
@@ -159,6 +262,10 @@ def main() -> int:
     if stale != {STALE_CODE} or status != 0:
         failures.append(f"stale facts: expected only {STALE_CODE} as a note with exit 0, got exit {status} {sorted(stale)}")
     covered.add(STALE_CODE)
+
+    user_failures, user_codes = user_cases()
+    failures += user_failures
+    covered |= user_codes
 
     _, listing, _ = run("--list-codes")
     declared = {line.split()[0] for line in listing.splitlines() if line.strip()}
@@ -246,7 +353,7 @@ def main() -> int:
         return 1
     print(
         f"ok: good fixture is clean, {len(EXPECTED)} bad cases raise {len(covered)} codes, "
-        f"the rules-block fix is idempotent, composed cases hold, {stamped} facts are stamped"
+        f"the rules-block fix is idempotent, composed and user-scope cases hold, {stamped} facts are stamped"
     )
     return 0
 

@@ -1,4 +1,9 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(**/flake.lock)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
