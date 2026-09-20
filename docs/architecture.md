@@ -26,7 +26,8 @@ hosts/
   work.nix             - { system, darwin, home } - darwin imports homebrew bundles + quicklook;
                          home imports the feature modules this host gets
   personal.nix         - same shape
-  work-atdj.nix        - same shape; common homebrew bundle + an empty work-atdj extras bundle;
+  work-atdj.nix        - same shape; common homebrew bundle + the work-atdj extras bundle
+                         (Claude desktop app and Claude Code CLI);
                          home modules zsh/gcloud/ai/colima/docker/gitea/zscaler/cachepurge
                          (no mise, no langfuse)
 modules/
@@ -75,11 +76,14 @@ modules/
   home/cachepurge/     - feature (all 3 hosts): default.nix wraps cache-purge.sh (plain bash,
                          shellcheck-gated) as the `cache-purge` command + the auto activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
-  ai/                  - shared AGENTS.md, skills/, per-agent settings/
+  ai/                  - shared AGENTS.md, per-agent settings/ (skills live in the skills repo)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - re-applies the flake; profile defaults to /etc/dotfiles-profile and a
                          mismatch aborts without --force
-bootstrap.sh           - one-time setup: Nix, symlink, first switch (pinned darwin-rebuild), git hooks
+bootstrap.sh           - one-time setup: Nix, symlink, skills checkout, first switch (pinned
+                         darwin-rebuild), git hooks
+sync-skills.sh         - clones or pulls the skills repo beside this checkout and links it to
+                         ~/.dotfiles-skills; run by rebuild.sh and bootstrap.sh before the switch
 docs/                  - extended documentation (you are here)
 ```
 
@@ -104,13 +108,23 @@ uninstalls them. A `TEMPORARY` file is designed for whole-file removal.
 | `~/.copilot/copilot-instructions.md`       | Copilot     |
 | `~/.gemini/antigravity-cli/ANTIGRAVITY.md` | Antigravity |
 
-`home/ai/skills/` is exposed once as `~/.agents/skills` by
-`modules/home/ai/default.nix`. Codex, Copilot, and OpenCode discover that
-hub natively. Claude Code and Antigravity receive their own directory links
-to the hub.
+Skills live in the separate [skills repo](https://github.com/choonchernlim/skills),
+checked out beside this one. `sync-skills.sh` clones it when missing, pulls it
+when it is on `main`, and points `~/.dotfiles-skills` at it. `rebuild.sh` and
+`bootstrap.sh` run it before every switch.
 
-A new skill directory becomes live without a rebuild. Nix never touches
-`~/.codex/skills`, where Codex writes bundled system skills. Per-agent
+`modules/home/ai/default.nix` exposes `~/.dotfiles-skills/skills` once as
+`~/.agents/skills`. Codex, Copilot, and OpenCode discover that hub natively.
+Claude Code and Antigravity receive their own directory links to the hub.
+
+| Choice | Reason |
+| --- | --- |
+| Live checkout, not a flake input | Agents write `.trash/` and `synced/` through the hub, and a store path is read-only. Skill edits also stay live. |
+| Sync in the scripts, not in activation | The hermetic activation PATH has no ssh, and the clone reuses the auth that fetched this repo. |
+| Clone URL derived from this repo's origin | The protocol that fetched the dotfiles fetches the skills. `SKILLS_REPO` overrides it. |
+
+A skill edit or a new skill directory is live without a rebuild. Nix never
+touches `~/.codex/skills`, where Codex writes bundled system skills. Per-agent
 settings live under `home/ai/settings/`.
 
 ## Docker Toolchain

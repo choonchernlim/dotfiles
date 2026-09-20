@@ -72,6 +72,9 @@ else
   echo ">> on branch '${branch:-unknown}' (not main) - skipping git pull" >&2
 fi
 
+# Skills live in their own repo; this is what makes `rebuild` pick up the latest.
+"$DIR/sync-skills.sh"
+
 # home-manager aborts activation ("would be clobbered by backing up") when a stale
 # *.hm-bak already occupies the backup path of a file an app has replaced. The
 # per-agent reconciles also delete these, but they run after checkLinkTargets -

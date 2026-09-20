@@ -20,11 +20,3 @@ result-*
 
 # nix-direnv per-repo devShell cache + GC root (machine-local; pins the pre-commit closure)
 .direnv/
-# Codex regenerates its bundled system skills under ~/.codex/skills/.system; that dir is
-# a real directory now (per-skill symlinks), but keep the guard so it can never be committed
-home/ai/skills/.system/
-
-# Claude Code writes cloud-synced skills into ~/.claude/skills/synced, which resolves
-# through the ~/.agents/skills hub into this checkout. Server-owned state, re-downloaded
-# on launch - nix never declares it, so it must never be committed
-home/ai/skills/synced/

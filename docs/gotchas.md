@@ -33,7 +33,19 @@ The [architecture guide](architecture.md#how-symlinks-work) owns the link
 layout. Never add another Codex, Copilot, or OpenCode skills link because it
 would list each skill twice.
 
-New skill directories become live without rebuilding. Codex owns
+Skills are authored in the separate skills repo, which `sync-skills.sh` checks
+out beside this one. The hub links into that checkout, so skill edits and new
+skill directories are live without rebuilding. `rebuild` pulls the checkout only
+when it is on `main`, so a skill developed on a branch is left alone.
+
+**An empty `~/.agents/skills` means the skills checkout is missing.**
+home-manager links the hub without checking its target. A switch that bypassed
+`sync-skills.sh` leaves every agent without skills, and the `skillsHubCheck`
+activation prints a warning. Run `rebuild` again. This happens once on each
+machine whose `rebuild` pulled the skills-repo change, because that run was
+still executing the previous `rebuild.sh`.
+
+Codex owns
 `~/.codex/skills/.system/`; Nix leaves that directory alone. If Copilot stops
 following the hub, its fallback belongs in `modules/home/ai/copilot.nix`.
 

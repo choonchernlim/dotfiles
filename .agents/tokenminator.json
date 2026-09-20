@@ -1,6 +1,5 @@
 {
   "ignore": {
-    "CLD-IMPORT:home/ai/CLAUDE.md": "home/ai/AGENTS.md IS ~/.claude/CLAUDE.md - nix symlinks it there (modules/home/ai/claude/default.nix). A CLAUDE.md bridge beside it would load the global policy twice in every session in this repo: once as the global file, once as a nested project file.",
-    "DENY-MISSING:home/ai/skills/synced/**": "Claude Code's cloud-synced skill cache - server-owned, gitignored, re-downloaded on launch. Vendored third-party content, and the bucket path is machine-specific. Covered by the Do Not Read section in AGENTS.md instead."
+    "CLD-IMPORT:home/ai/CLAUDE.md": "home/ai/AGENTS.md IS ~/.claude/CLAUDE.md - nix symlinks it there (modules/home/ai/claude/default.nix). A CLAUDE.md bridge beside it would load the global policy twice in every session in this repo: once as the global file, once as a nested project file."
   }
 }

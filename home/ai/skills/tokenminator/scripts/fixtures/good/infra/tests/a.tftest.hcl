@@ -1,3 +1,0 @@
-run "plans" {
-  command = plan
-}

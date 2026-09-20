@@ -66,7 +66,7 @@ in
       #    antigravityReconcile in ai/antigravity.nix), or config/, users/,
       #    tasks/ (still actively written, by agy or the desktop app, as of the
       #    retirement date). skills/ held only "forge", the predecessor of the
-      #    repo's grill-me skill in home/ai/skills/ ──────────────────────────
+      #    grill-me skill, which now lives in the skills repo ───────────────
       rm -f "$HOME/.gemini/GEMINI.md" \
             "$HOME/.gemini/settings.json" \
             "$HOME/.gemini/settings.json.sample" \

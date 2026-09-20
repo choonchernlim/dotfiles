@@ -43,7 +43,12 @@ echo "==> Step 2: symlink this repo to ~/.dotfiles"
 # so this has to exist before the first switch.
 ln -sfn "$DIR" ~/.dotfiles
 
-echo "==> Step 3: first darwin-rebuild switch (pinned by flake.lock)"
+echo "==> Step 3: clone the skills repo and symlink it to ~/.dotfiles-skills"
+# The ~/.agents/skills hub resolves through ~/.dotfiles-skills, so the checkout has
+# to exist before the first switch or every agent starts with no skills.
+"$DIR/sync-skills.sh"
+
+echo "==> Step 4: first darwin-rebuild switch (pinned by flake.lock)"
 # darwin-rebuild doesn't exist yet on a fresh machine, so run it straight from
 # this flake's `packages.darwin-rebuild` output - the nix-darwin revision in
 # flake.lock, not the floating release branch. After this, rebuild.sh works
@@ -56,7 +61,7 @@ sudo "$NIX_BIN" run ~/.dotfiles#darwin-rebuild -- \
 # If this still fails with "nix: command not found", open a new terminal
 # (Determinate adds nix to new shells' PATH) and re-run ./bootstrap.sh.
 
-echo "==> Step 4: install git pre-commit hooks (via direnv)"
+echo "==> Step 5: install git pre-commit hooks (via direnv)"
 # The repo .envrc (`use flake . --impure`) makes nix-direnv (a) run the git-hooks.nix
 # shellHook that writes .git/hooks/pre-commit with hermetic Nix store paths and
 # (b) create a persistent GC root under .direnv/ so periodic GC can't reclaim the

@@ -60,11 +60,12 @@ cd dotfiles
 ./bootstrap.sh work       # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
 ```
 
-`bootstrap.sh` does four things in order:
+`bootstrap.sh` does five things in order:
 1. Installs Determinate Nix (skips if already installed)
 2. Symlinks this repo to `~/.dotfiles` (required before the first build)
-3. Runs the first `darwin-rebuild switch` using the nix-darwin revision pinned in `flake.lock`
-4. Installs the git pre-commit hooks via direnv (`.envrc` runs `use flake . --impure`)
+3. Clones the [skills repo](https://github.com/choonchernlim/skills) beside this one and symlinks it to `~/.dotfiles-skills`
+4. Runs the first `darwin-rebuild switch` using the nix-darwin revision pinned in `flake.lock`
+5. Installs the git pre-commit hooks via direnv (`.envrc` runs `use flake . --impure`)
 
 The switch records the profile in `/etc/dotfiles-profile`. Use `rebuild` for
 later changes. In a new terminal, direnv requests one `direnv allow` after
@@ -93,7 +94,9 @@ rebuild work    # same, and errors out if this machine is recorded as a differen
 nix fmt         # format all .nix files (also fires automatically on Claude edits)
 ```
 
-Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place, including new skill directories under `home/ai/skills/`.
+Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place.
+
+Agent skills live in the separate [skills repo](https://github.com/choonchernlim/skills). `rebuild` clones it beside this checkout, or pulls its latest commit, and serves it live as `~/.agents/skills`. Edit and commit skills there.
 
 The [rebuild safety rules](docs/gotchas.md) cover profile checks, repository
 synchronization, and stale agent backups.
