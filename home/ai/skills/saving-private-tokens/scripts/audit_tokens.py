@@ -1296,6 +1296,36 @@ def rollup(findings: list[Finding]) -> list[tuple[str, int, int, str]]:
     return rows
 
 
+def next_area(findings: list[Finding]) -> dict | None:
+    """The one area to fix next, so neither the agent nor the user has to choose.
+
+    Only what this repository can fix counts. Areas rank by worst severity, then
+    instruction files first (everything else reads them), then by saving. The check
+    runner goes before hooks, because the hooks call it.
+    """
+    areas: dict[str, dict] = {}
+    for finding in findings:
+        if finding.severity not in FAILING or not finding.fixable:
+            continue
+        area = areas.setdefault(finding.playbook, {"rank": 9, "saved": 0, "codes": [], "basis": set()})
+        area["rank"] = min(area["rank"], SEVERITY_ORDER[finding.severity])
+        area["saved"] += finding.before - finding.after
+        area["basis"].add(finding.measured)
+        if finding.code not in area["codes"]:
+            area["codes"].append(finding.code)
+    if not areas:
+        return None
+    name = min(areas, key=lambda key: (areas[key]["rank"], key != "instruction-files", -areas[key]["saved"]))
+    if name == "hooks" and "check-runner" in areas:
+        name = "check-runner"
+    basis = areas[name]["basis"]
+    return {
+        "area": name, "playbook": f"references/{name}.md", "codes": areas[name]["codes"],
+        "saved": areas[name]["saved"],
+        "basis": "mixed" if len(basis) > 1 else "measured" if True in basis else "estimated",
+    }
+
+
 def _finding_lines(findings: list[Finding]) -> list[str]:
     lines = []
     shown: dict[str, int] = {}
@@ -1347,6 +1377,18 @@ def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: li
     if audit.oldest_fact:
         name, stamp = audit.oldest_fact
         fact = f"{name} {stamp.isoformat()} ({(audit.today - stamp).days}d)"
+    proposals = sum(1 for f in findings if f.severity in FAILING and not f.fixable)
+    step = next_area(findings)
+    if step:
+        lines.append(
+            f"next: {step['area']} ({', '.join(step['codes'])}; saves ~{step['saved']} tok/session "
+            f"{step['basis']}) -> {step['playbook']}"
+        )
+    else:
+        lines.append(
+            "next: none; nothing left that this repository can fix"
+            + (f" ({proposals} proposal(s) for the user)" if proposals else "")
+        )
     lines.append(
         f"summary: {len(findings)} finding(s): {counts['high']} high, {counts['med']} med, "
         f"{counts['low']} low, {counts['note']} note, {ignored} ignored, "
@@ -1445,6 +1487,7 @@ def main(argv: list[str] | None = None) -> int:
                 "baseline": audit.baseline,
                 "baselineTokens": sum(row["tokens"] for row in audit.baseline),
             },
+            "next": next_area(kept),
             "estimates": {
                 "unit": "tokens per session",
                 "byArea": [

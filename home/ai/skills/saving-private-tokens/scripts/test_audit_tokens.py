@@ -228,6 +228,25 @@ def composed_cases() -> list[str]:
         elif sum(layer["before"] for layer in layers) != 40000 // 4 * 3 or not all(layer["measured"] for layer in layers):
             failures.append(f"estimates: guard layers should be measured and sum to one file's cost, got {layers}")
 
+    # `next` names one area: worst severity first, the check runner before hooks,
+    # and nothing at all once only proposals remain.
+    def following(root: str, *extra: str) -> object:
+        _, out, _ = run(root, "--format", "json", "--today", TODAY, *extra)
+        return json.loads(out)["next"]
+
+    step = following(os.path.join(BAD, "bare"), *SMALL)
+    if not step or step["area"] != "instruction-files":
+        failures.append(f"next: a repository with no AGENTS.md should start with instruction files, got {step}")
+    with tempfile.TemporaryDirectory() as scratch:
+        shutil.copytree(os.path.join(BAD, "hooks-one"), os.path.join(scratch, "work"), symlinks=True)
+        write(os.path.join(scratch, "work"), "tests/test_demo.py", "def test(): pass\n")
+        write(os.path.join(scratch, "work"), "ruff.toml", "line-length = 100\n")
+        step = following(os.path.join(scratch, "work"))
+        if not step or step["area"] != "check-runner":
+            failures.append(f"next: the check runner should come before hooks, got {step}")
+    if following(GOOD) is not None:
+        failures.append("next: a clean repository should have no next area")
+
     return failures
 
 

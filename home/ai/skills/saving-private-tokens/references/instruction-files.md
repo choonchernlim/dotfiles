@@ -19,6 +19,7 @@ This playbook gives one source of truth and keeps it from drifting.
 - [Install the Rules Block](#install-the-rules-block)
 - [Keep It Short](#keep-it-short)
 - [Verify](#verify)
+- [Hand to the User](#hand-to-the-user)
 
 ## Codes This Fixes
 
@@ -132,9 +133,7 @@ An instruction file is paid for in every session by both agents.
 ## Verify
 
 1. Re-run the audit and confirm the code cleared.
-2. Start a fresh Claude Code session at the root and confirm the project
-   rules are in context.
-3. Add a repository test that fails when a backticked path in the
+2. Add a repository test that fails when a backticked path in the
    orientation section does not exist.
    - Cut the rules block out between its two markers. It sits above the
      orientation heading, so dropping everything after the begin marker
@@ -142,3 +141,12 @@ An instruction file is paid for in every session by both agents.
    - Skip the paths git ignores, with `git check-ignore -q`. A runtime
      folder belongs in the table and is absent from a fresh clone.
    - Assert that the test checked at least one path.
+
+## Hand to the User
+
+Put this under "Your next steps" in the report. A running session keeps the
+instructions it started with, so only a new one proves the change.
+
+1. Start a fresh Claude Code session at the repository root.
+2. Ask it "what are this project's rules?" and confirm it answers from the
+   new `AGENTS.md` without opening the file.

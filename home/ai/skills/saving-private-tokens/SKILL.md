@@ -7,41 +7,34 @@ description: >
   reads lockfiles, generated files, or giant logs; when setting up or
   reviewing AGENTS.md, CLAUDE.md, skill layout, agent hooks, a quiet check
   runner, read-deny rules, or Playwright e2e for agents; or when preparing a
-  repository for agent work. Runs a deterministic audit script, then fixes
-  one area at a time from a playbook and re-audits.
+  repository for agent work.
 ---
 
 # Saving Private Tokens
 
 Make a repository cheap for coding agents to work in. Most token waste is
-configuration, so a script finds it and a playbook fixes it. This file is the
-index: audit, pick one area, apply its playbook, verify, audit again.
+configuration, so a script finds it and a playbook fixes it.
+
+One run fixes one area: audit, apply the playbook the audit names, verify,
+report. The user runs the skill again for the next area, until the audit
+says `next: none`.
 
 Paths below are relative to this skill's folder.
 
-## Workflow
+## Step 1: Decide Whether to Change Anything
 
-1. **Classify** the repository: apply changes, or audit only.
-2. **Audit** with the script and show its output.
-3. **Pick one area**, the most expensive finding first.
-4. **Apply** that area's playbook and nothing else.
-5. **Verify** with the playbook's checks, then audit again.
-
-One area per change. Each change leaves the project's own checks passing.
-
-## Step 1: Classify
-
-Audit only, and change nothing, when any of these hold:
+Audit and report only, changing nothing, when any of these hold:
 
 - The repository is not the user's: the remote belongs to someone else, or
   the user has no commits in it. Ask when unsure.
-- The finding sits in a vendored folder, a submodule, or generated files.
-- The finding's file resolves outside the audited repository. Resolve links
-  first: a path under the repository can point elsewhere, and a path under
-  the home folder can point back in. The audit marks these `proposal only`.
 - The user asked for a review or a report.
 
-Otherwise audit and apply.
+Within a run, never change a finding's file when:
+
+- It sits in a vendored folder, a submodule, or generated files.
+- It resolves outside the audited repository. Resolve links first: a path in
+  the repository can point elsewhere, and a path under the home folder can
+  point back in. The audit marks these `proposal only`.
 
 ## Step 2: Audit
 
@@ -49,37 +42,33 @@ Otherwise audit and apply.
 python3 scripts/audit_tokens.py <repo>
 ```
 
-Each line reads `CODE severity path:line message (impact, ~before->~after
-tok/session basis) -> playbook`. The findings are followed by a per-area
-table of tokens per session, before and after the fix, with a TOTAL row. The
-basis is `measured` (real file sizes) or `estimated` (the impact class). The
-summary line gives counts, detected stacks, and the oldest tool fact. Exit 0
-is clean, 1 means findings, 2 means the audit could not run. Add
-`--format json` for a machine-readable result, including an `estimates` block.
+Exit 0 is clean, 1 means findings, 2 means the audit could not run. Do not
+re-derive findings by reading the repository; the script already did that
+without spending tokens. Read the output in this order:
 
-Show the raw output in the handoff. Do not re-derive findings by reading
-the repository; the script already did that without spending tokens.
+| Line | Meaning |
+| --- | --- |
+| `next:` | The one area to fix in this run, and its playbook. `next: none` means this repository is done. |
+| `CODE severity path ...` | One finding, with `~before->~after tok/session` and its basis: `measured` from real file sizes, or `estimated` from the impact class. |
+| `user scope` | Read only. What the config under the home folder costs in every session, in every repository. Each finding names its real owner and is `fixable here` or `proposal only`. |
+| `tokens per session` | Before and after per area, with a TOTAL row. |
+| `summary:` | Counts, detected stacks, the oldest tool fact. |
 
-Every run ends with a read-only `user scope` section: what the config under
-the home folder costs in every session, in every repository. Each finding
-there names its real owner and is marked `fixable here` or `proposal only`.
-`--user` prints that section alone; `--no-user` leaves it out.
+Flags: `--format json` for a machine-readable result, `--user` for the user
+scope alone, `--no-user` to leave it out.
 
-The estimates rank areas against each other. They do not predict a bill.
+The numbers rank areas against each other. They do not predict a bill.
 [references/principles.md](references/principles.md) gives the model.
 
-## Step 3: Pick One Area
+## Step 3: Take the Area the Audit Names
 
-Apply these rules in order:
+Load the playbook on the `next:` line, and only that one. Do not pick a
+different area: the script has already ranked by severity, put instruction
+files first, and put the check runner before the hooks that call it.
 
-1. Instruction files first when the audit reports `AGT-MISSING`, whatever
-   the savings say. Every later area records its paths and commands there.
-2. Otherwise by severity, then by the saving in the audit's per-area table.
-3. The check runner before hooks, because the hooks call it.
-
-The cadence letter in each impact string says when the cost is paid: every
-session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
-[references/principles.md](references/principles.md) for the measured costs.
+When the saving on the `next:` line is `estimated`, tell the user before
+applying. An estimated area can be worth less than its number, and whether
+to spend a run on it is the user's call.
 
 | Codes | Area | Playbook |
 | --- | --- | --- |
@@ -94,14 +83,13 @@ session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 
 ## Step 4: Apply
 
-- Load only the playbook for the chosen area.
 - Reuse what the project has. Wrap its existing tools and entry point
   before adding new ones.
 - Everything must behave the same in Claude Code and Codex. Shared rules go
   in `AGENTS.md`, shared logic under `scripts/`. A Claude-only setting is an
   extra layer on top, never the only layer.
-- Change the rules block only through the script. It composes the text
-  for the repository's stacks, so refresh it when the audit asks:
+- Change the rules block only through the script. It composes the text for
+  the repository's stacks, so refresh it whenever the audit asks:
 
   ```bash
   python3 scripts/audit_tokens.py <repo> --fix-rules-block
@@ -114,8 +102,9 @@ session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
   python3 scripts/audit_tokens.py <repo> --sections
   ```
 
-- A heuristic finding that does not apply is recorded, with a reason, in
-  `.agents/saving-private-tokens.json`:
+- When a finding does not apply, record it with a reason in
+  `.agents/saving-private-tokens.json`. The key is `CODE`, or `CODE:glob`
+  matched against the finding's path:
 
   ```json
   { "ignore": { "CI-DUP:deploy/*.yml": "deploy pipeline, runs no checks" } }
@@ -123,37 +112,53 @@ session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 
 ## Step 5: Verify
 
-1. Run the verify steps at the end of the playbook.
+1. Run the playbook's verify steps. A step only the user can do, such as
+   starting a fresh session, goes into the report, not into this run.
 2. Run the project's own check entry point, if it has one.
-3. Audit again and confirm the code cleared and no new one appeared.
-4. Report the result as a table: each action taken, the area it belongs to,
-   and its BEFORE and AFTER tokens per session, with a TOTAL row.
-   - Take both numbers from the step 2 audit. Its after column is the
-     projection for a fixed area.
-   - A cleared area drops out of the later audit. Its absence confirms the
-     fix and supplies no number.
-   - For an area the later audit still lists, report what that audit shows.
-   - Mark each number measured or estimated, as the audit does.
-   - Name any finding whose estimate the repository contradicts.
-5. List files touched, findings deliberately ignored with the reason, and
-   anything left undone. Give each `proposal only` finding as a proposal.
-6. End with `Touched outside the repository: none`, checked against
-   `git status --short`. If it is not true, say what was touched and why.
+3. Audit again. The codes cleared and no new one appeared.
+4. Run `git status --short`. Every changed file is inside the repository
+   and is one you meant to change.
+
+## Step 6: Report
+
+The report is what the user acts on. Use these headings, in this order, and
+leave one out only when it would be empty.
+
+1. **Result.** One sentence: the area fixed and the tokens saved per
+   session, marked measured or estimated.
+2. **What changed.** A table of `Action | Before | After | Basis`, one row
+   per action taken in this run, then a TOTAL row. Numbers come from the two
+   audit runs. Open findings do not go in this table.
+3. **Your next steps.** A numbered list of what only the user can do, each
+   one a command or a click:
+   - the playbook's user-only checks, such as a fresh session
+   - `git add` for each new file, then review and commit
+   - each `proposal only` finding: its cost, its real owner, and the exact
+     change to make there
+4. **Not done, and why.** Findings ignored with their reason, playbook steps
+   skipped, and any estimate the repository contradicts.
+5. **Next run.** The `next:` line in plain words, with its basis. When it
+   says `none`, write "This repository is done."
+6. `Touched outside the repository: none`. If that is not true, say what
+   was touched and why.
 
 ## Tool Facts
 
 Playbooks depend on how each agent behaves, and that changes. Dated facts
-live in the two facts references and in the table that ends the browser
-playbook. Trust a row until it fails in practice or the audit reports
-`FACT-STALE`. Then re-verify that single row with `ctx7` and update its
-date. Never re-read all the documentation up front.
+live in [references/claude-code.md](references/claude-code.md),
+[references/codex.md](references/codex.md), and the table that ends the
+browser playbook. Trust a row until it fails in practice or the audit
+reports `FACT-STALE`. Then re-verify that single row with `ctx7` and update
+its date. Never re-read all the documentation up front.
 
 ## Hard Limits
 
-- The script's only mutation is the marked block in the root `AGENTS.md`,
-  and it refuses a target that resolves outside the repository.
 - Never write outside the audited repository, by any tool, shell included.
   A `proposal only` finding is shown to the user and applied by the user.
+- The script's only write is the marked block in the root `AGENTS.md`, and
+  it refuses a target that resolves outside the repository. Run the script;
+  do not read it. [scripts/test_audit_tokens.py](scripts/test_audit_tokens.py)
+  is its self-test.
 - Never edit the rules block by hand, and never weaken an existing check,
   hook, or permission rule to save tokens.
 - This skill ships no check runner. It states the contract; build the runner
@@ -162,20 +167,3 @@ date. Never re-read all the documentation up front.
   after asking.
 - Never copy this skill into a project. Porting it is the user's decision.
 - Never commit unless asked, and add no co-author line.
-
-## Files in This Skill
-
-| File | Purpose |
-| --- | --- |
-| [references/principles.md](references/principles.md) | The rules and the measured costs behind them |
-| [references/instruction-files.md](references/instruction-files.md) | `AGENTS.md`, the `CLAUDE.md` bridge, the rules block |
-| [references/context-diet.md](references/context-diet.md) | Skill scoping, one skill copy, read denies, MCP placement |
-| [references/check-runner.md](references/check-runner.md) | The check entry point contract |
-| [references/hooks.md](references/hooks.md) | One pair of hooks for both agents |
-| [references/e2e.md](references/e2e.md) | Scripted Playwright and the browser MCP policy |
-| [references/infrastructure.md](references/infrastructure.md) | Offline Terraform tests and tflint |
-| [references/user-scope.md](references/user-scope.md) | The user-scope section, ownership, and proposals |
-| [references/claude-code.md](references/claude-code.md) | Dated Claude Code facts |
-| [references/codex.md](references/codex.md) | Dated Codex facts |
-| [scripts/audit_tokens.py](scripts/audit_tokens.py) | The audit; run it, do not read it |
-| [scripts/test_audit_tokens.py](scripts/test_audit_tokens.py) | Fixture self-test for the audit |

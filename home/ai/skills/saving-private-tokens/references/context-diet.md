@@ -18,6 +18,7 @@ by one careless read. This playbook removes both.
 - [Block Costly Reads](#block-costly-reads)
 - [Place MCP Servers](#place-mcp-servers)
 - [Verify](#verify)
+- [Hand to the User](#hand-to-the-user)
 
 ## Codes This Fixes
 
@@ -109,7 +110,14 @@ cost is in the results: a browser snapshot can be thousands of tokens.
 ## Verify
 
 1. Re-run the audit and confirm the code cleared.
-2. In Claude Code, run `/context` in a fresh session and compare the skill
-   and memory lines with the earlier values.
-3. Ask Claude Code to read a denied file and confirm it is refused.
-4. Run the project check entry point; moved skills must not break linters.
+2. Run the project check entry point; moved skills must not break linters.
+
+## Hand to the User
+
+Put this under "Your next steps" in the report. Deny rules and skill lists
+load at session start, so only a new session shows the change.
+
+1. Start a fresh Claude Code session at the repository root.
+2. Run `/context` and compare the skill and memory lines with the earlier
+   values.
+3. Ask it to read one denied file, by name, and confirm it is refused.

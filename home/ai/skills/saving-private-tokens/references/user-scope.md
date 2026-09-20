@@ -69,5 +69,4 @@ is overwritten. The only real fix is in the account's skill settings.
 1. Audit again. A `fixable here` code has cleared; a proposal is unchanged.
 2. In the audited repository, `git status --short` lists only files inside it
    that you meant to change.
-3. End the report with the line `Touched outside the repository: none`. If
-   that is not true, say exactly what was touched and why.
+3. Put each proposal under "Your next steps" in the report.
