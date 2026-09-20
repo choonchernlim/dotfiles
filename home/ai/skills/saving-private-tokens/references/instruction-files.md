@@ -136,3 +136,9 @@ An instruction file is paid for in every session by both agents.
    rules are in context.
 3. Add a repository test that fails when a backticked path in the
    orientation section does not exist.
+   - Cut the rules block out between its two markers. It sits above the
+     orientation heading, so dropping everything after the begin marker
+     leaves a test that passes on nothing.
+   - Skip the paths git ignores, with `git check-ignore -q`. A runtime
+     folder belongs in the table and is absent from a fresh clone.
+   - Assert that the test checked at least one path.

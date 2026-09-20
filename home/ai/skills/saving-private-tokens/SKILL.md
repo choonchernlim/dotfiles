@@ -70,8 +70,14 @@ The estimates rank areas against each other. They do not predict a bill.
 
 ## Step 3: Pick One Area
 
-Order by severity, then by the saving in the audit's per-area table. The
-cadence letter in each impact string says when the cost is paid: every
+Apply these rules in order:
+
+1. Instruction files first when the audit reports `AGT-MISSING`, whatever
+   the savings say. Every later area records its paths and commands there.
+2. Otherwise by severity, then by the saving in the audit's per-area table.
+3. The check runner before hooks, because the hooks call it.
+
+The cadence letter in each impact string says when the cost is paid: every
 session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 [references/principles.md](references/principles.md) for the measured costs.
 
@@ -85,9 +91,6 @@ session (`S`), per file read (`R`), per check loop (`L`), drift (`D`). Load
 | `TF-` | Infrastructure checks | [references/infrastructure.md](references/infrastructure.md) |
 | `USR-` | User scope | [references/user-scope.md](references/user-scope.md) |
 | `FACT-` | Tool facts | [references/claude-code.md](references/claude-code.md), [references/codex.md](references/codex.md) |
-
-Fix instruction files first in a new repository. The check runner comes
-before hooks, because the hooks call it.
 
 ## Step 4: Apply
 
@@ -124,10 +127,14 @@ before hooks, because the hooks call it.
 2. Run the project's own check entry point, if it has one.
 3. Audit again and confirm the code cleared and no new one appeared.
 4. Report the result as a table: each action taken, the area it belongs to,
-   and its BEFORE and AFTER tokens per session, with a TOTAL row. Mark each
-   number measured or estimated, as the audit does. Take the numbers from
-   the two audit runs - the one in step 2 and the one above. Name any
-   finding whose estimate the repository contradicts.
+   and its BEFORE and AFTER tokens per session, with a TOTAL row.
+   - Take both numbers from the step 2 audit. Its after column is the
+     projection for a fixed area.
+   - A cleared area drops out of the later audit. Its absence confirms the
+     fix and supplies no number.
+   - For an area the later audit still lists, report what that audit shows.
+   - Mark each number measured or estimated, as the audit does.
+   - Name any finding whose estimate the repository contradicts.
 5. List files touched, findings deliberately ignored with the reason, and
    anything left undone. Give each `proposal only` finding as a proposal.
 6. End with `Touched outside the repository: none`, checked against

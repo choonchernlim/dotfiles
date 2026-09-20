@@ -62,16 +62,24 @@ format into findings, and print the first few under the `[FAIL]` line.
 | --- | --- | --- |
 | ruff | `--output-format=concise` | `path:line:col: CODE message` |
 | mypy | default | `path:line: error: message [code]` |
-| pytest | `-q -rf` | `FAILED path::test - message` |
+| pytest | `-q -rf`, with `COLUMNS=200` set | `FAILED path::test - message` |
 | eslint | `--format json --output-file <file>` | the JSON report |
 | vitest | `--reporter=json --outputFile.json=<file>` | the JSON report |
 | terraform validate | `-json` | `diagnostics` |
 | terraform test | `-json` | diagnostic and failed run events |
 | tflint | `--format=compact` | `path:line:col: message` |
 
-Fall back to a `path:line: message` pattern, then to the log tail. Cap the
-list at 20 and record the total. Record each log's size in bytes, so the
-saving is measured and not guessed.
+pytest cuts each summary line to the terminal width. Captured output has
+no terminal, so the width is 80 columns and a long test name loses its
+` - message`. Set `COLUMNS` for the check. Fill a missing line number or
+message from the traceback's `path:line: message` line for the same file.
+
+Report one finding per failure. Apply the `path:line: message` pattern
+alone only when the tool's own format matched nothing, and the log tail
+after that. Both patterns on one log count each failure twice.
+
+Cap the list at 20 and record the total. Record each log's size in bytes,
+so the saving is measured and not guessed.
 
 ## Define Each Check Once
 
