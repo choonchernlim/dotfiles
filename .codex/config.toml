@@ -1,0 +1,4 @@
+# Project-scoped Codex config; loaded only after the project is trusted.
+# Caps one stored tool output, in tokens - the same budget as bashOutputMaxChars
+# in .claude/settings.json. Must stay above any [table].
+tool_output_token_limit = 2500

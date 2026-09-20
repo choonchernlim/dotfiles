@@ -161,7 +161,17 @@ Activation scripts receive the same treatment. `mkReconcile` wraps each one
 in `writeShellApplication`, so shellcheck rejects undeclared tool
 dependencies while building.
 
-The Claude repo hook (`.claude/settings.json`) auto-formats `*.nix` files on every Claude edit via a PostToolUse hook. It gracefully no-ops if nixfmt is not yet on PATH (pre-`rebuild`).
+Claude Code (`.claude/settings.json`) and Codex (`.codex/hooks.json`) declare the
+same PostToolUse hook. It runs `scripts/format-hook.sh`, which auto-formats the
+`*.nix` files an edit touched: it reads Claude's `file_path` and the file headers
+of a Codex `apply_patch`. It gracefully no-ops if nixfmt is not yet on PATH
+(pre-`rebuild`). The `agent-hooks` flake check fails evaluation when the two hook
+blocks drift apart. Codex runs project hooks only after the project is trusted.
+
+Both agents also cap the size of one tool output: `bashOutputMaxChars` in
+`.claude/settings.json` and `tool_output_token_limit` in `.codex/config.toml`.
+The root `.ignore` keeps `flake.lock` out of ripgrep-based agent search, which
+the Read deny alone does not; `rg -u` overrides it.
 
 ## AI Agent Plugin Reconcile
 

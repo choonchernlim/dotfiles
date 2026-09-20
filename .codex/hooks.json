@@ -1,10 +1,4 @@
 {
-  "bashOutputMaxChars": 10000,
-  "permissions": {
-    "deny": [
-      "Read(**/flake.lock)"
-    ]
-  },
   "hooks": {
     "PostToolUse": [
       {

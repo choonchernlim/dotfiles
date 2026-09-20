@@ -91,7 +91,7 @@ nix build --impure .#darwinConfigurations.work.system --dry-run
 ```sh
 rebuild         # apply changes to this machine's recorded profile (alias for ./rebuild.sh)
 rebuild work    # same, and errors out if this machine is recorded as a different profile
-nix fmt         # format all .nix files (also fires automatically on Claude edits)
+nix fmt         # format all .nix files (also fires automatically on Claude and Codex edits)
 ```
 
 Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place.

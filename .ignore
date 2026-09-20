@@ -1,0 +1,3 @@
+# Hidden from agent search (ripgrep honors this file); `rg -u` overrides.
+# Keep in step with the Read deny in .claude/settings.json and Do Not Read in AGENTS.md.
+flake.lock

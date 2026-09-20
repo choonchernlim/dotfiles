@@ -116,6 +116,13 @@
             deadnix.enable = true; # check-only dead-code lint (no --edit)
           };
         };
+        # Claude Code and Codex must run the same hooks (both call scripts/format-hook.sh);
+        # drift between the two blocks fails evaluation, so --no-build catches it too.
+        agent-hooks =
+          assert lib.assertMsg (
+            (lib.importJSON ./.claude/settings.json).hooks == (lib.importJSON ./.codex/hooks.json).hooks
+          ) ".claude/settings.json and .codex/hooks.json must declare identical hooks";
+          pkgs.emptyFile;
       }
       # host-<name>: every profile's system closure, so `nix flake check --impure --no-build`
       # evaluates all of them from any machine and a broken hosts/<name>.nix is caught

@@ -49,7 +49,7 @@ New files must be `git add`ed before any nix command sees them - flake sources i
 rebuild                 # profile recorded in /etc/dotfiles-profile (alias for ./rebuild.sh)
 rebuild work            # explicit profile; aborts on a mismatch unless --force
 
-# Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude edits)
+# Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude and Codex edits)
 nix fmt
 
 # Validate without touching the system; flake check evaluates every profile.
