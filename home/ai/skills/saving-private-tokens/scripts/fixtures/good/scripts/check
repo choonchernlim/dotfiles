@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# One entry point: each tool writes to its own log, stdout stays one line per check.
+set -euo pipefail
+mkdir -p .check/logs
+status=passed
+npx eslint . > .check/logs/eslint.log 2>&1 || status=failed
+echo "[$status] eslint"
+printf '{"status":"%s"}\n' "$status" > .check/summary.json
+[ "$status" = passed ]

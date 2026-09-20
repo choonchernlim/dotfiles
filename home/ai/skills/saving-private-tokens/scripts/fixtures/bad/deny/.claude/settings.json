@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/go.sum)",
+      "Read(/nothing/here/**)"
+    ]
+  }
+}

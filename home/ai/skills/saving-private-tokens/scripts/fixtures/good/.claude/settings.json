@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/package-lock.json)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/hook.py session-start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/hook.py stop"
+          }
+        ]
+      }
+    ]
+  }
+}
