@@ -174,7 +174,10 @@ as `sudo --preserve-env=PATH ... env brew bundle` from a script started under
 therefore live in `homebrew.onActivation.extraEnv`
 (`modules/darwin/homebrew/default.nix`), and `environment.variables` only covers
 interactive `brew`. `cache-purge --auto` is quiet by design for the same reason;
-its dry run keeps the full listing.
+its dry run keeps the full listing. Its figure is measured, not assumed: each
+tool cache is sized before and after that tool's own GC, so `uv cache prune`
+(which keeps everything still referenced) honestly reports 0, and a GC command
+that exits non-zero is named instead of silently counted as freed.
 
 ## Formatter and Linters
 

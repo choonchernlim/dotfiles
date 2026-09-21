@@ -24,6 +24,11 @@ copying path '/nix/store/cccccccccccccccccccccccccccccccc-baz' from 'https://cac
 setting up /Applications/Nix Apps...
 setting up /etc...
 Homebrew bundle...
+==> Homebrew's analytics have entirely moved to our InfluxDB instance in the EU.
+We gather less data than before and have destroyed all Google Analytics data:
+  https://docs.brew.sh/Analytics
+Please reconsider re-enabling analytics to help our volunteer maintainers with:
+  brew analytics on
 ==> Homebrew collects anonymous analytics.
 Read the analytics documentation (and how to opt-out) here:
   https://docs.brew.sh/Analytics
@@ -44,9 +49,10 @@ Activating home-manager configuration for tester
 Starting Home Manager activation
 Activating checkLinkTargets
 Activating cachePurgeAuto
-cache-purge: GC ran: uv
   STALE   1.2G  /Users/tester/Library/Caches/JetBrains/IntelliJIdea2025.3
-cache-purge: reclaimed 1.4G (12 active dirs kept)
+cache-purge: could not remove /Users/tester/Documents/development/proj/.next
+cache-purge: freed 1.4G (bun 200M, 1 stale dir 1.2G)
+cache-purge: GC failed: npm
 Activating claudePlaywrightMcp
 Added stdio MCP server playwright with command: /nix/store/1zm1xb652wk1kscxbcvbryq8y45b0gy5-nodejs-24.16.0/bin/npx @playwright/mcp@latest to user config
 Activating skillsHubCheck

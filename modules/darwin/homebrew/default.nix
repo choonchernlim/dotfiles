@@ -24,6 +24,11 @@
     onActivation = {
       extraEnv = {
         HOMEBREW_NO_ANALYTICS = "1"; # analytics + donation blurb
+        # `brew update`'s "analytics moved to InfluxDB" notice. It prints when analytics
+        # are off and brew has not recorded showing it. An internal knob (the installer
+        # sets it; not in `man brew`) - if a brew upgrade drops it, the rebuild-format
+        # rules still collapse the notice.
+        HOMEBREW_NO_ANALYTICS_MESSAGE_OUTPUT = "1";
         HOMEBREW_NO_ENV_HINTS = "1"; # auto-update / `man brew` hint block
         HOMEBREW_NO_UPDATE_REPORT_NEW = "1"; # "==> New Casks" listing
       };

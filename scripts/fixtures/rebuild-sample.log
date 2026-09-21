@@ -126,8 +126,7 @@ Activating antigravityReconcile
 Activating antigravitySettings
 Activating brewMaintenance
 Activating cachePurgeAuto
-cache-purge: GC ran: uv, pip3, npm, yarn, bun, go
-cache-purge: reclaimed 7.6G (110 active dirs kept)
+cache-purge: nothing to free
 Activating caskDequarantine
 Activating checkFilesChanged
 Activating claudePlaywrightMcp

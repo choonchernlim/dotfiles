@@ -25,7 +25,9 @@
 
 🏠 home
    🗑 stale     1.2G  ~/Library/Caches/JetBrains/IntelliJIdea2025.3
-   🧹 cache     reclaimed 1.4G (12 active dirs kept)
+   ⚠ cache     could not remove ~/Documents/development/proj/.next
+   🧹 cache     freed 1.4G (bun 200M, 1 stale dir 1.2G)
+   ⚠ cache     GC failed: npm
    🔌 claude    playwright MCP registered
    ❗ warning: ~/.agents/skills is empty - the skills checkout is missing.
       ↑ unknown warning - investigate before committing

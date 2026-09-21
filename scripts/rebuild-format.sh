@@ -344,6 +344,10 @@ while IFS= read -r line || [ -n "$line" ]; do
     "==> Auto-updating Homebrew..."* | "==> Auto-updated Homebrew!"* | "==> Downloading https://formulae.brew.sh/"* | "Updated "*" tap"*)
       drop
       ;;
+    "==> Homebrew's analytics have entirely moved"* | "We gather less data than before"* | \
+      "Please reconsider re-enabling analytics"* | "  brew analytics on"*)
+      drop
+      ;;
     "Adjust how often this is run"* | "==> Homebrew collects anonymous analytics."* | "Read the analytics documentation"* | \
       "  https://docs.brew.sh/Analytics"* | "No analytics have been recorded"* | "==> Homebrew is run entirely by unpaid"* | \
       "  https://github.com/Homebrew/brew#-donations"*)
@@ -441,19 +445,20 @@ while IFS= read -r line || [ -n "$line" ]; do
       mcp_done=1
       drop
       ;;
-    "cache-purge: GC ran: "*)
-      drop
-      ;;
     "  STALE   "*)
       rest="${line#  STALE   }"
       row "🗑" stale "${rest%% *}  $(tilde "${rest#*  }")"
       drop
       ;;
-    "cache-purge: reclaimed "*)
-      row "🧹" cache "${line#cache-purge: }"
+    "cache-purge: GC failed: "*)
+      row "⚠" cache "GC failed: ${line#cache-purge: GC failed: }"
       drop
       ;;
-    "cache-purge: skipped "*)
+    "cache-purge: could not remove "*)
+      row "⚠" cache "could not remove $(tilde "${line#cache-purge: could not remove }")"
+      drop
+      ;;
+    "cache-purge: freed "* | "cache-purge: nothing to free"* | "cache-purge: skipped "*)
       row "🧹" cache "${line#cache-purge: }"
       drop
       ;;
