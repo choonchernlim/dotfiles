@@ -112,6 +112,15 @@
               enable = true;
               packageOverrides.treefmt = treefmtEval.config.build.wrapper;
             };
+            # Fails when a backticked path in AGENTS.md no longer exists. It shells out to
+            # `git check-ignore`, so it needs a working tree and cannot be a runCommand check.
+            agents-md-paths = {
+              enable = true;
+              name = "agents-md-paths";
+              entry = "${pkgs.python3}/bin/python3 scripts/test_agents_md.py";
+              files = "^AGENTS\\.md$";
+              pass_filenames = false;
+            };
             statix.enable = true; # check-only anti-pattern lint (no auto-rewrite)
             deadnix.enable = true; # check-only dead-code lint (no --edit)
             shellcheck = {

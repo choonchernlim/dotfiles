@@ -26,7 +26,7 @@ host-specific packages. The first `bootstrap.sh` call therefore requires a
 profile argument.
 
 **AI-agent plugins and extensions are nix-managed.**
-Anything installed outside this repo (via `claude plugin install`, `codex plugin add`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild`. To keep a plugin, declare it in nix - for Claude that means `enabledPlugins`/`extraKnownMarketplaces` in `home/ai/settings/claude.json`, which the reconcile reads as its keep-set. See AGENTS.md "AI Agent Plugin Reconcile" for details.
+Anything installed outside this repo (via `claude plugin install`, `codex plugin add`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild`. To keep a plugin, declare it in nix - for Claude that means `enabledPlugins`/`extraKnownMarketplaces` in `home/ai/settings/claude.json`, which the reconcile reads as its keep-set. See [AI Agent Plugin Reconcile](architecture.md#ai-agent-plugin-reconcile) for details.
 
 **Skills live in one hub: `~/.agents/skills`.**
 The [architecture guide](architecture.md#how-symlinks-work) owns the link

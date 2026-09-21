@@ -38,6 +38,9 @@ Rules for changing this repository. Follow these phases in order.
   is shellchecked rather than only evaluated.
 - Diff every config file the change owns: capture path and content before and after the rebuild. Any unintended change is a blocker.
 - The user runs `rebuild` themselves; hand them a checklist of what to confirm afterwards.
+  - Never run `rebuild.sh` or `darwin-rebuild` as an agent. The repo is checked out on three
+    machines and only the user knows which one they are on. The `/etc/dotfiles-profile` guard
+    is a backstop, not permission.
 
 ## Hand Off
 

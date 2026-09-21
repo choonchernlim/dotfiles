@@ -1,80 +1,53 @@
 # AGENTS.md
 
-Guidance for AI agents (Claude Code, Codex, Antigravity) in this repo.
-
 ## What This Repo Does
 
-Personal Mac config managed with nix-darwin and home-manager. This repo is the single source of truth for the machine - the predecessor Ansible setup ([mac-dev-bootstrap](../mac-dev-bootstrap/)) is fully retired and kept only as historical reference.
+Personal Mac config (nix-darwin + home-manager); the single source of truth for the machine.
 
-<!-- BEGIN:tokenminator-rules v2 -->
+<!-- BEGIN:tokenminator-rules v3 | managed by the tokenminator skill; never edit by hand; refresh with its audit script and --fix-rules-block -->
 ## Token Discipline
 
-- Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
+- Run checks with `nix flake check`. Read its summary first, then only the failing check's log.
 - Read files in slices with offset and limit. Search first, then open the matching range.
 - Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`nix flake metadata`).
 - Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.
 - Hand wide searches to a subagent and keep only its conclusion.
-- Script anything done twice. Measure durations and log sizes before optimizing a check.
-- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
+- Ask git for the short form first: `git status --short`, `git diff --stat`, `git log --oneline`.
 <!-- END:tokenminator-rules -->
 
 ## Where Things Live
 
 | What | Where | Notes |
 | --- | --- | --- |
-| Flake entry point | `flake.nix` | derives `user` from `$SUDO_USER`/`$USER` at eval time, so every nix command needs `--impure`; one `darwinConfiguration` per host |
-| Host profiles | `hosts/work.nix`, `hosts/personal.nix`, `hosts/work-atdj.nix` | each is `{ system, darwin, home }` and picks its feature modules by import |
-| System modules | `modules/darwin/` | `system.nix`, `homebrew/` bundles, `quicklook.nix` |
-| Home modules | `modules/home/` | one feature module per file; `lib/reconcile.nix` defines `mkReconcile` |
-| AI agent config | `modules/home/ai/` | one self-contained unit per agent |
+| Flake entry point | `flake.nix` | impure (derives `user` from `$SUDO_USER`/`$USER`): every nix command needs `--impure` |
+| Host profiles | `hosts/` | `work`, `personal`, `work-atdj`; each is `{ system, darwin, home }` and picks feature modules by import |
+| Modules | `modules/darwin/`, `modules/home/`, `modules/home/ai/` | one feature per file; one self-contained unit per agent; `modules/home/lib/reconcile.nix` defines `mkReconcile` |
 | Live-symlinked config | `home/` | Neovim, WezTerm, herdr, AI config; edits apply immediately, no rebuild |
-| Shared agent policy | `home/ai/AGENTS.md` | symlinked to `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, and every other agent's canonical path |
-| Skills hub | `~/.dotfiles-skills/skills` | the separate [skills repo](https://github.com/choonchernlim/skills), checked out beside this one and exposed once as `~/.agents/skills`; author skills there, never here |
-| Skills sync | `sync-skills.sh` | clones or pulls the skills repo and owns the `~/.dotfiles-skills` link; called by `rebuild.sh` and `bootstrap.sh` |
-| Apply a change | `rebuild.sh` | **the user runs this, never the agent** |
-| Rebuild output | `scripts/rebuild-format.sh` | groups rebuild's raw stream into a summary; unknown lines pass through, never dropped. Proven by the `rebuild-format` check against `scripts/fixtures/`; `rebuild -v` prints the raw stream |
-| Fresh machine | `bootstrap.sh` | |
-| Formatter config | `treefmt.nix` | nixfmt RFC-style, via treefmt-nix |
-| Full per-file layout | `docs/architecture.md` | read only when changing module structure |
-| Runtime surprises | `docs/gotchas.md` | |
-| Change workflow | `docs/implementation_guardrails.md` | audit, implement, verify, hand off |
+| Shared agent policy | `home/ai/AGENTS.md` | symlinked to every agent's canonical path |
+| Skills hub | the [skills repo](https://github.com/choonchernlim/skills) | checked out beside this one, linked as ~/.agents/skills; `sync-skills.sh` syncs it; author skills there, never here |
+| Docs | `docs/architecture.md`, `docs/gotchas.md`, `docs/implementation_guardrails.md` | layout (only when changing modules); surprises; change workflow; invariant rationale |
 
-Rebuild only for package lists, system defaults, or shell config in `.nix` files. Everything under `home/` is live, and so is the skills checkout - `rebuild` is only what pulls its latest commit.
+Rebuild only for package lists, system defaults, or shell config in `.nix` files; everything under `home/` and the skills checkout is live.
 
-New files must be `git add`ed before any nix command sees them - flake sources include tracked files only. For a read-only check of an untracked tree, use `path:.` as the flake ref.
+`git add` new files before any nix command: flake sources include tracked files only. To check an untracked tree read-only, use `path:.` as the flake ref.
 
 ## Commands
 
 ```bash
-# Apply changes after editing any .nix file. THE USER RUNS THIS, NEVER THE AGENT.
-rebuild                 # profile recorded in /etc/dotfiles-profile (alias for ./rebuild.sh)
-rebuild work            # explicit profile; aborts on a mismatch unless --force
+rebuild                 # apply after editing any .nix file. THE USER RUNS THIS, NEVER THE AGENT.
+nix fmt                 # nixfmt; also runs after agent edits
 
-# Format all .nix files (nixfmt via treefmt-nix; also runs automatically on Claude and Codex edits)
-nix fmt
-
-# Validate without touching the system; flake check evaluates every profile.
+# Validate without touching the system (flake check evaluates every profile; always --impure)
 nix flake check --impure --no-build
-nix build --impure .#darwinConfigurations.work.system --dry-run
 
-# Shellcheck every mkReconcile script for a host (they are only checked when built)
+# Shellcheck every mkReconcile script for a host (only checked when built)
 nix build --impure --no-link .#darwinConfigurations.work.config.home-manager.users.$USER.home.activationPackage
 
-# Check formatting and lint in isolation
-nix build --impure .#checks.aarch64-darwin.formatting
-nix build --impure .#checks.aarch64-darwin.pre-commit
-
-# Replay captured rebuild streams through the summary formatter (the only way to verify it - never run rebuild)
+# Replay captured rebuild streams through the summary formatter (the only way to verify it)
 nix build --impure .#checks.aarch64-darwin.rebuild-format
 
-# Verify a profile is warning-free (expect empty output)
+# Every profile must print nothing here; eliminate any new warning before committing (options.json is a known upstream one)
 nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"
-
-# Refresh .git/hooks/pre-commit by hand (direnv auto-installs it on cd; see .envrc)
-direnv allow && direnv exec . true
-
-# First-time setup on a fresh machine
-./bootstrap.sh work     # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
 ```
 
 ## Do Not Read
@@ -87,14 +60,13 @@ direnv allow && direnv exec . true
 
 ## Key Invariants (Do Not Silently Revert)
 
-- **Never run `rebuild.sh` / `darwin-rebuild` yourself.** The user always applies the config. Stop at the static checks above and hand over a checklist of what to verify after they rebuild. It is checked out on three machines and only the user knows which one they are on; the `/etc/dotfiles-profile` guard is a backstop, not permission.
-- **All activation shell goes through `mkReconcile`** (`modules/home/lib/reconcile.nix`) - never a raw string in `home.activation`. It gates every script with shellcheck at build time, so a script calling a tool missing from the hermetic activation PATH fails the build instead of silently no-oping. It also declares tool deps via `path`, provides atomic `json_edit`, and respects `--dry-run`. Agent CLIs are called by absolute `/opt/homebrew/bin` path for the same reason.
-- **Never add `brew uninstall` loops to activation scripts** - `homebrew.onActivation.cleanup = "zap"` already removes every undeclared formula/cask on each switch. The declared lists in `modules/darwin/homebrew/*.nix` are the single source of truth; `common.nix` is the audited 3-way intersection, and anything not universal is duplicated into the host bundles that need it.
-- **`~/.agents/skills` is the single skills hub.** Codex, Copilot and OpenCode read it natively - never re-add a per-agent skills link for them (every skill would show twice), never point an agent's skills link at the repo path instead of the hub, and never place per-file links *inside* an agent's skills dir. `~/.codex/skills` belongs to Codex (it writes `.system/` there). The hub's target is a live git checkout, never a flake input or store path: agents write `.trash/` and `synced/` through it. Why each rule bites: [docs/gotchas.md](docs/gotchas.md).
+- **Never run `rebuild.sh` / `darwin-rebuild` yourself.** Stop at the static checks above and hand the user a checklist to verify after they rebuild.
+- **All activation shell goes through `mkReconcile`** - never a raw string in `home.activation`.
+- **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes undeclared packages; `modules/darwin/homebrew/` is the source of truth.
+- **The skills hub is the only skills link.** Never add a per-agent skills link for Codex, Copilot, or OpenCode, point one at the repo path, or link per-file inside an agent's skills dir. Its target is a live git checkout, never a store path.
 - **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key.
-- **This nix repo is the single source of truth for all AI-agent configuration** - plugins, extensions, MCP servers, and how skills are wired. Skill *content* lives in the skills repo. Per-agent reconciles in `modules/home/ai/` remove undeclared content on every rebuild, so installing through an agent CLI (`claude plugin install`, `agy plugin import`) is reverted. Mechanism and keep-sets: [docs/architecture.md](docs/architecture.md#ai-agent-plugin-reconcile).
-- Every profile must be warning-free except the one documented upstream `options.json` warning (see `docs/gotchas.md`). Any *new* warning must be investigated and eliminated before committing.
-- Never commit `.no-mistakes/` validation evidence to this repo - it is gitignored.
-- When disabling a config block, leave the original as a comment (not deleted) so it can be revisited later.
-- When a change affects the user-facing workflow (new commands, bootstrap steps, package lists, gotchas), update `README.md` (keep it short - link to `docs/`), `docs/architecture.md`, and `docs/gotchas.md`.
-- Comments explain the non-obvious *why* (hermetic PATH, merge-reconcile vs symlink, remove-then-add). Chronology and "confirmed via ..." notes belong in git history, not in modules.
+- **This repo is the single source of truth for AI-agent configuration** (plugins, extensions, MCP servers, skill wiring; skill *content* lives in the skills repo). Reconciles remove undeclared content each rebuild, so agent-CLI installs are reverted.
+- Never commit `.no-mistakes/` validation evidence - it is gitignored.
+- When disabling a config block, leave the original as a comment so it can be revisited later.
+- User-facing changes also update `README.md`, `docs/architecture.md`, and `docs/gotchas.md`.
+- Comments explain the non-obvious *why*; chronology belongs in git history.

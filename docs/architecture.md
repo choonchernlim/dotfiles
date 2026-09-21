@@ -11,6 +11,7 @@ Audience: maintainers deciding where a dotfiles change belongs.
 
 - [Repository Layout](#repository-layout)
 - [How Symlinks Work](#how-symlinks-work)
+- [Activation Scripts](#activation-scripts)
 - [Docker Toolchain](#docker-toolchain)
 - [Rebuild Output](#rebuild-output)
 - [Formatter and Linters](#formatter-and-linters)
@@ -130,6 +131,18 @@ A skill edit or a new skill directory is live without a rebuild. Nix never
 touches `~/.codex/skills`, where Codex writes bundled system skills. Per-agent
 settings live under `home/ai/settings/`.
 
+## Activation Scripts
+
+`mkReconcile` in `modules/home/lib/reconcile.nix` is the only way activation
+shell is written. A raw string in `home.activation` is never acceptable.
+
+Activation runs under a hermetic `PATH`, so a script that calls a tool missing
+from it would silently no-op. `mkReconcile` wraps each script in
+`writeShellApplication`, so shellcheck fails the build on that tool instead.
+It also declares tool dependencies through `path`, provides an atomic
+`json_edit`, and respects `--dry-run`. Agent CLIs are called by absolute
+`/opt/homebrew/bin` path for the same reason.
+
 ## Docker Toolchain
 
 Every profile installs Colima, the Docker CLI, Buildx, Compose, and the
@@ -186,14 +199,16 @@ The repo uses treefmt-nix (nixfmt) for formatting and git-hooks.nix for pre-comm
 ```sh
 nix fmt                                               # format all .nix files
 nix build --impure .#checks.aarch64-darwin.formatting # formatting gate (CI-style)
-nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix + shellcheck)
+nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix + shellcheck + AGENTS.md paths)
 nix build --impure .#checks.aarch64-darwin.rebuild-format # golden test for the rebuild summary
 nix flake check --impure --no-build                   # + evaluates every host profile
 direnv allow && direnv exec . true                    # install .git/hooks/pre-commit by hand
 ```
 
 Direnv refreshes the pre-commit hook through `.envrc` whenever the repository
-is entered. The hook runs nixfmt, statix, deadnix, and shellcheck. Its binaries
+is entered. The hook runs nixfmt, statix, deadnix, shellcheck, and
+`scripts/test_agents_md.py`, which fails when a backticked path in `AGENTS.md`
+no longer exists. Its binaries
 come from Nix store paths rather than the ambient `PATH`. Shellcheck skips two
 files that are not standalone bash: `cache-purge.sh` (a fragment that
 `writeShellApplication` wraps and shellchecks at build time) and `.envrc`.
