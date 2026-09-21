@@ -32,6 +32,7 @@ Personal Mac config managed with nix-darwin and home-manager. This repo is the s
 | Skills hub | `~/.dotfiles-skills/skills` | the separate [skills repo](https://github.com/choonchernlim/skills), checked out beside this one and exposed once as `~/.agents/skills`; author skills there, never here |
 | Skills sync | `sync-skills.sh` | clones or pulls the skills repo and owns the `~/.dotfiles-skills` link; called by `rebuild.sh` and `bootstrap.sh` |
 | Apply a change | `rebuild.sh` | **the user runs this, never the agent** |
+| Rebuild output | `scripts/rebuild-format.sh` | groups rebuild's raw stream into a summary; unknown lines pass through, never dropped. Proven by the `rebuild-format` check against `scripts/fixtures/`; `rebuild -v` prints the raw stream |
 | Fresh machine | `bootstrap.sh` | |
 | Formatter config | `treefmt.nix` | nixfmt RFC-style, via treefmt-nix |
 | Full per-file layout | `docs/architecture.md` | read only when changing module structure |
@@ -62,6 +63,9 @@ nix build --impure --no-link .#darwinConfigurations.work.config.home-manager.use
 # Check formatting and lint in isolation
 nix build --impure .#checks.aarch64-darwin.formatting
 nix build --impure .#checks.aarch64-darwin.pre-commit
+
+# Replay captured rebuild streams through the summary formatter (the only way to verify it - never run rebuild)
+nix build --impure .#checks.aarch64-darwin.rebuild-format
 
 # Verify a profile is warning-free (expect empty output)
 nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"

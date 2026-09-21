@@ -43,7 +43,15 @@ AGE_GATED_PARENTS=(
 total_reclaimed_kb=0
 to_delete=()
 
+# --auto runs inside every rebuild, so it is quiet by design: only deletions
+# (STALE) and a one-line summary print. Dry-run and --apply list everything -
+# showing what is excluded, and why, is the dry run's whole job.
+QUIET=0
+kept_count=0
+gc_ran=""
+
 log() { printf '%s\n' "$*"; }
+log_verbose() { [ "$QUIET" -eq 1 ] || log "$@"; }
 
 # Always succeeds, even if the path is missing or du fails on it.
 dir_size_kb() {
@@ -78,7 +86,8 @@ consider() {
     to_delete+=("$path")
     total_reclaimed_kb=$((total_reclaimed_kb + sz))
   else
-    log "  active  $(kb_to_human "$sz")  $path"
+    kept_count=$((kept_count + 1))
+    log_verbose "  active  $(kb_to_human "$sz")  $path"
   fi
 }
 
@@ -97,7 +106,8 @@ scan_dev_tree() {
   local hit
   while IFS= read -r -d "" hit; do
     if [ "$(basename "$hit")" = ".terraform" ] && [ -e "$hit/environment" ]; then
-      log "  skip    (workspace selected)  $hit"
+      kept_count=$((kept_count + 1))
+      log_verbose "  skip    (workspace selected)  $hit"
       continue
     fi
     consider "$hit"
@@ -134,7 +144,8 @@ run_tool_gc() {
       log "  GC      $(kb_to_human "$sz")  $bin  (cache: $dir)"
       continue
     fi
-    log "  GC      running: $bin"
+    gc_ran="${gc_ran:+$gc_ran, }$bin"
+    log_verbose "  GC      running: $bin"
     case "$bin" in
       uv) uv cache prune >/dev/null 2>&1 || true ;;
       pip3) pip3 cache purge >/dev/null 2>&1 || true ;;
@@ -158,14 +169,18 @@ apply_deletes() {
 MODE="dry"
 case "${1:-}" in
   --apply) MODE="apply" ;;
-  --auto) MODE="auto" ;;
+  --auto)
+    MODE="auto"
+    QUIET=1
+    ;;
   -h | --help)
     log "usage: cache-purge [--apply|--auto]"
     log "  (no flag)  dry run: report what would be reclaimed, delete nothing"
     log "  --apply    reclaim now, ignoring the free-space gate"
     log "  --auto     used by the rebuild activation: only proceeds when free"
     log "             space is below the gate; the 14-day staleness gate"
-    log "             always applies, in every mode"
+    log "             always applies, in every mode. Quiet: prints only"
+    log "             deletions and a one-line summary"
     exit 0
     ;;
   "") ;;
@@ -183,16 +198,21 @@ if [ "$MODE" = "auto" ]; then
   fi
 fi
 
-log "cache-purge: mode=$MODE, staleness cutoff=${STALE_DAYS}d"
-log "-- tool-native GC --"
+log_verbose "cache-purge: mode=$MODE, staleness cutoff=${STALE_DAYS}d"
+log_verbose "-- tool-native GC --"
 run_tool_gc
-log "-- home caches (age-gated allowlist) --"
+[ -z "$gc_ran" ] || [ "$QUIET" -eq 0 ] || log "cache-purge: GC ran: $gc_ran"
+log_verbose "-- home caches (age-gated allowlist) --"
 scan_age_gated
-log "-- dev tree ($DEV_ROOT) --"
+log_verbose "-- dev tree ($DEV_ROOT) --"
 scan_dev_tree
 
 if [ "$MODE" != "dry" ]; then
   apply_deletes
 fi
 
-log "cache-purge: reclaimed $(kb_to_human "$total_reclaimed_kb")"
+if [ "$QUIET" -eq 1 ]; then
+  log "cache-purge: reclaimed $(kb_to_human "$total_reclaimed_kb") ($kept_count active dirs kept)"
+else
+  log "cache-purge: reclaimed $(kb_to_human "$total_reclaimed_kb")"
+fi

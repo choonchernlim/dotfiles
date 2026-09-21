@@ -1,0 +1,56 @@
+>> profile: work
+>> on branch 'feature-x' (not main) - skipping git pull
+>> skills repo on branch 'wip' (not main) - skipping git pull
+>> syncing repo: git pull --rebase --autostash
+Created autostash: 1a2b3c4
+Updating 1111111..2222222
+Fast-forward
+ modules/home/zsh.nix | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+Successfully rebased and updated refs/heads/main.
+Applied autostash.
+>> clearing stale *.hm-bak backups
+/Users/tester/.zshrc.hm-bak
+building the system configuration...
+warning: Git tree '/Users/tester/.dotfiles' has uncommitted changes
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/3ggqbw7xv4cz69avafv82bb7k2m93hrc-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+warning: the option 'foo.bar' is deprecated
+these 2 derivations will be built:
+  /nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-foo.drv
+  /nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-bar.drv
+building '/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-foo.drv'...
+building '/nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-bar.drv'...
+copying path '/nix/store/cccccccccccccccccccccccccccccccc-baz' from 'https://cache.nixos.org'...
+setting up /Applications/Nix Apps...
+setting up /etc...
+Homebrew bundle...
+==> Homebrew collects anonymous analytics.
+Read the analytics documentation (and how to opt-out) here:
+  https://docs.brew.sh/Analytics
+No analytics have been recorded yet (nor will be during this `brew` run).
+
+==> Homebrew is run entirely by unpaid volunteers. Please consider donating:
+  https://github.com/Homebrew/brew#-donations
+
+==> New Casks
+gloomberb: Finance terminal
+recordly: Creator-focused screen recorder with auto-zoom, cursor effects, and more
+
+Installing newtool
+==> Upgrading 1 outdated package:
+some line the formatter has no rule for
+`brew bundle` complete! 3 Brewfile dependencies now installed.
+Activating home-manager configuration for tester
+Starting Home Manager activation
+Activating checkLinkTargets
+Activating cachePurgeAuto
+cache-purge: GC ran: uv
+  STALE   1.2G  /Users/tester/Library/Caches/JetBrains/IntelliJIdea2025.3
+cache-purge: reclaimed 1.4G (12 active dirs kept)
+Activating claudePlaywrightMcp
+Added stdio MCP server playwright with command: /nix/store/1zm1xb652wk1kscxbcvbryq8y45b0gy5-nodejs-24.16.0/bin/npx @playwright/mcp@latest to user config
+Activating skillsHubCheck
+warning: ~/.agents/skills is empty - the skills checkout is missing.
+error: builder for '/nix/store/dddddddddddddddddddddddddddddddd-boom.drv' failed with exit code 1
+[1;32mcolored line the formatter must strip[0m
+progress 10%progress 100%

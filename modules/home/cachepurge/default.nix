@@ -6,7 +6,9 @@
 #   (no flag)  dry run: report what would be reclaimed, delete nothing
 #   --apply    reclaim now, ignoring the free-space gate
 #   --auto     used by the activation below: only proceeds when free space is
-#              below the 100G gate; the 14-day staleness gate always applies
+#              below the 100G gate; the 14-day staleness gate always applies.
+#              Quiet by design (deletions + a one-line summary): it runs inside
+#              every rebuild, and the full listing is the dry run's job
 #
 # The script itself is ./cache-purge.sh - plain bash, shellcheck-gated at build
 # time by writeShellApplication. Its safety rules are documented in its header.

@@ -1,0 +1,157 @@
+>> profile: personal
+>> syncing repo: git pull --rebase --autostash
+Already up to date.
+>> syncing skills repo: git pull --rebase --autostash
+Already up to date.
+>> clearing stale *.hm-bak backups
+building the system configuration...
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/3ggqbw7xv4cz69avafv82bb7k2m93hrc-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+setting up /Applications/Nix Apps...
+setting up pam...
+applying patches...
+setting up /etc...
+setting up launchd services...
+configuring networking...
+configuring application firewall...
+configuring power...
+setting up /Library/Fonts/Nix Fonts...
+setting nvram variables...
+setting up Homebrew prefixes...
+setting up Homebrew (/opt/homebrew)...
+Homebrew bundle...
+==> Auto-updating Homebrew...
+==> Auto-updated Homebrew!
+Updated 1 tap (homebrew/cask).
+==> Downloading https://formulae.brew.sh/api/cask.jws.json
+
+You have 26 outdated formulae and 2 outdated casks installed.
+
+Fetching rsync, whatsapp, sublime-text
+Using oven-sh/bun
+Using redis-stack/redis-stack
+Using terraform-linters/tap
+Using azure-cli
+Using cloud-sql-proxy
+Using go
+Using tree
+Using black
+Using syntax-highlight
+Using suspicious-package
+Using apparency
+Using bun
+Using quicklook-video
+Using adobe-creative-cloud
+Using bruno
+Using exiftool
+Using calibrite-profiler
+Using chatgpt
+Using claude
+Using ffmpeg
+Using claude-code@latest
+Using copilot-cli
+Using cyberduck
+Using firefoxpwa
+Using garmin-basecamp
+Using garmin-express
+Using google-drive
+Using gpsbabel
+Using google-gemini
+Using grammarly-desktop
+Using intellij-idea
+Using graphviz
+Using nordvpn
+Using postman
+Using redis-stack
+Using herdr
+Using redis-stack-redisinsight
+Using redis-stack-server
+Using signal
+Using spotify
+Using tflint
+Using trezor-suite
+Upgrading whatsapp
+Using zed
+Using 1password
+Using alfred
+Using antigravity-cli
+Using brave-browser
+Using firefox
+Using font-hack-nerd-font
+Using font-meslo-lg-nerd-font
+Using gcloud-cli
+Using google-chrome
+Using grandperspective
+Using logi-options+
+Using obsidian
+Using rectangle
+Upgrading sublime-text
+Using visual-studio-code
+Using wezterm
+Using hf
+Using htop
+Using imagemagick
+Using k6
+Using kubectl
+Using minikube
+Using ollama
+Using pipx
+Using yt-dlp
+Using bash
+Using coreutils
+Using curl
+Using gh
+Using git-lfs
+Upgrading rsync
+Using shellcheck
+Using uv
+Using wget
+Using yamllint
+Using yarn
+Using colima
+Using docker
+Using docker-buildx
+Using docker-compose
+Using docker-credential-helper
+`brew bundle` complete! 85 Brewfile dependencies now installed.
+Removing: /opt/homebrew/Cellar/xxhash/0.8.3... (28 files, 557KB)
+==> This operation has freed approximately 557KB of disk space.
+Activating home-manager configuration for tester
+Starting Home Manager activation
+Activating checkLinkTargets
+Activating writeBoundary
+Activating agyUpdate
+⟳ Checking for updates... (current version 1.2.7)
+✓ You are already on the latest version.
+Activating antigravityReconcile
+Activating antigravitySettings
+Activating brewMaintenance
+Activating cachePurgeAuto
+cache-purge: GC ran: uv, pip3, npm, yarn, bun, go
+cache-purge: reclaimed 7.6G (110 active dirs kept)
+Activating caskDequarantine
+Activating checkFilesChanged
+Activating claudePlaywrightMcp
+Removed MCP server playwright from user config
+File modified: /Users/tester/.claude.json
+Added stdio MCP server playwright with command: /nix/store/1zm1xb652wk1kscxbcvbryq8y45b0gy5-nodejs-24.16.0/bin/npx @playwright/mcp@latest to user config
+File modified: /Users/tester/.claude.json
+Activating claudeReconcile
+Activating claudeLangfusePlugin
+Activating claudeLangfuseTagsPatch
+Activating linkGeneration
+Cleaning up orphan links from /Users/tester
+Creating home file links in /Users/tester
+Activating codexConfig
+Activating codexLangfusePlugin
+Activating codexReconcile
+Activating copilotReconcile
+Activating dockerCredsSetup
+Activating gcloudSetup
+Activating installPackages
+Activating legacySweep
+Activating miseSetup
+Activating onFilesChange
+Activating quicklookRefresh
+Activating setupLaunchAgents
+Activating skillsHubCheck
+Activating zshSetup

@@ -68,7 +68,7 @@ Nixpkgs supplies autosuggestions and highlighting, while Starship supplies the
 prompt. The retained aliases are `rebuild`, `personal_claude`, and the
 Langfuse wrappers. Mise replaces nvm and sdkman.
 
-**`rebuild` prints a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See AGENTS.md "Known upstream warning" for details and the one-line workaround.
+**`rebuild` reports a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See "Every rebuild emits one `options.json` warning" below for details and the one-line workaround.
 
 **`rebuild` auto-syncs the repo before applying.** `rebuild.sh` runs `git pull --rebase --autostash` when on `main` (skipped with a notice on any other branch) so a machine always applies the latest committed config. Autostash means uncommitted edits survive the pull. If the pull fails (offline, conflict), the rebuild aborts rather than applying on top of unresolved state.
 
@@ -93,3 +93,29 @@ This is harmless and the build succeeds. It is an upstream nixpkgs bug in
 Adding `manual.manpages.enable = false;` to `modules/home/default.nix` silences
 it; that is intentionally not done, pending an upstream fix. Every *other*
 warning is a real regression - investigate it before committing.
+
+The `rebuild` summary shows it as one line, `⚠ 1 known warning: options.json
+(upstream)`, and the full text stays in the log. Any other warning prints in full
+under an "unknown warning - investigate before committing" note, so the
+invariant above still bites.
+
+**`rebuild` output goes through a formatter.**
+`rebuild.sh` tees the raw stream to `~/.cache/dotfiles/rebuild-<timestamp>.log`
+and pipes it through `scripts/rebuild-format.sh`, so the summary is grouped and
+short. Because the stream is piped, Nix's live progress bar is gone; the
+formatter draws a `⏳ <phase>  <elapsed>` status line in its place, paused during
+the sync phase so it never erases the `sudo` password prompt. `rebuild -v` prints
+the raw stream instead. On failure the last 40 raw lines and the log path are
+printed. See [Rebuild Output](architecture.md#rebuild-output).
+
+Any background process the inner run starts must detach its stdio
+(`>/dev/null 2>&1 &`), as the `sudo` keepalive loop does. Otherwise it inherits
+the pipe, the formatter never sees end of input, and `rebuild` hangs after the
+switch finishes.
+
+**Homebrew variables for `brew bundle` go in `homebrew.onActivation.extraEnv`.**
+`environment.variables` never reaches the bundle run: nix-darwin starts the
+activation script under `env -i` and then runs `brew` through
+`sudo --preserve-env=PATH`. It only covers interactive `brew`, so the hint,
+analytics, and new-casks blocks kept printing on every rebuild until the same
+variables were also set in `extraEnv`.

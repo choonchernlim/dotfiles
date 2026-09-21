@@ -12,6 +12,7 @@ Audience: maintainers deciding where a dotfiles change belongs.
 - [Repository Layout](#repository-layout)
 - [How Symlinks Work](#how-symlinks-work)
 - [Docker Toolchain](#docker-toolchain)
+- [Rebuild Output](#rebuild-output)
 - [Formatter and Linters](#formatter-and-linters)
 - [AI Agent Plugin Reconcile](#ai-agent-plugin-reconcile)
 - [History](#history)
@@ -79,7 +80,9 @@ home/                  - config files live-symlinked into ~/.config/, ~/.claude/
   ai/                  - shared AGENTS.md, per-agent settings/ (skills live in the skills repo)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - re-applies the flake; profile defaults to /etc/dotfiles-profile and a
-                         mismatch aborts without --force
+                         mismatch aborts without --force; logs the raw run and prints a summary
+scripts/rebuild-format.sh - filters rebuild's raw stream into the grouped summary
+scripts/fixtures/      - captured rebuild streams + golden output for the rebuild-format check
 bootstrap.sh           - one-time setup: Nix, symlink, skills checkout, first switch (pinned
                          darwin-rebuild), git hooks
 sync-skills.sh         - clones or pulls the skills repo beside this checkout and links it to
@@ -137,6 +140,42 @@ the Docker engine without requiring Docker Desktop.
 `~/.docker/config.json`. It preserves runtime additions while declaring
 Keychain credentials, the GCP helper, and Homebrew's CLI plugin directory.
 
+## Rebuild Output
+
+`rebuild.sh` runs as two processes. The one you launch (outer) re-executes
+itself with `REBUILD_INNER=1` (inner). The inner run does the work - repo sync,
+`sudo`, `darwin-rebuild switch` - and prints a raw stream. The outer run tees
+that stream to `~/.cache/dotfiles/rebuild-<timestamp>.log` (newest 10 kept) and
+pipes it through `scripts/rebuild-format.sh`. It then prints a footer, or on a
+failure the failed phase, the last 40 raw lines, and the log path. `-v` skips the
+formatter and prints the raw stream, still logged.
+
+The formatter is a rule table, one `case` arm per known line shape. Its contract:
+
+- A line that matches no rule is printed dimmed under the current section and is
+  never dropped, so reworded upstream output makes the summary noisier, not
+  quieter.
+- Known warnings (`options.json`, a dirty git tree) collapse to one counted line.
+  Any other `warning:` prints in full with an "investigate" note, so a new
+  warning is still a regression you see.
+- After an `error:` the section that was cut short prints no success line.
+- It stays bash 3.2 compatible, because `#!/usr/bin/env bash` can resolve to the
+  macOS `/bin/bash`.
+
+The `rebuild-format` flake check replays the captured streams in
+`scripts/fixtures/` and diffs against the `.expected` files. `rebuild` itself is
+never run by an agent, so this is the verification. Fixtures use synthetic paths
+only, as this repo is public. After changing a rule, regenerate the expected files
+with the command the failing check prints.
+
+Homebrew's own noise is suppressed at the source. nix-darwin runs `brew bundle`
+as `sudo --preserve-env=PATH ... env brew bundle` from a script started under
+`env -i`, so `environment.variables` never reaches it. The Homebrew variables
+therefore live in `homebrew.onActivation.extraEnv`
+(`modules/darwin/homebrew/default.nix`), and `environment.variables` only covers
+interactive `brew`. `cache-purge --auto` is quiet by design for the same reason;
+its dry run keeps the full listing.
+
 ## Formatter and Linters
 
 The repo uses treefmt-nix (nixfmt) for formatting and git-hooks.nix for pre-commit enforcement.
@@ -144,14 +183,17 @@ The repo uses treefmt-nix (nixfmt) for formatting and git-hooks.nix for pre-comm
 ```sh
 nix fmt                                               # format all .nix files
 nix build --impure .#checks.aarch64-darwin.formatting # formatting gate (CI-style)
-nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix)
+nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix + shellcheck)
+nix build --impure .#checks.aarch64-darwin.rebuild-format # golden test for the rebuild summary
 nix flake check --impure --no-build                   # + evaluates every host profile
 direnv allow && direnv exec . true                    # install .git/hooks/pre-commit by hand
 ```
 
 Direnv refreshes the pre-commit hook through `.envrc` whenever the repository
-is entered. The hook runs nixfmt, statix, and deadnix. Its binaries come from
-Nix store paths rather than the ambient `PATH`.
+is entered. The hook runs nixfmt, statix, deadnix, and shellcheck. Its binaries
+come from Nix store paths rather than the ambient `PATH`. Shellcheck skips two
+files that are not standalone bash: `cache-purge.sh` (a fragment that
+`writeShellApplication` wraps and shellchecks at build time) and `.envrc`.
 
 `nix develop` alone creates a transient garbage-collection root. Nix-direnv
 creates a persistent root under `.direnv/` after `direnv allow`, which

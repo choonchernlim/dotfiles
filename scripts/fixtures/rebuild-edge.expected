@@ -1,0 +1,34 @@
+🔧 rebuild  work
+
+📥 sync
+   ℹ dotfiles  on branch 'feature-x' - pull skipped
+   ℹ skills    on branch 'wip' - pull skipped
+   ↺ dotfiles  local edits autostashed
+   ⬆ dotfiles  updated 1111111..2222222
+   🧽 backup    removed ~/.zshrc.hm-bak
+
+🔨 build
+   ❗ warning: the option 'foo.bar' is deprecated
+      ↑ unknown warning - investigate before committing
+   ✓ system configuration
+   📦 2 derivations built, 1 path fetched
+   ⚠ 2 known warnings: dirty git tree, options.json (upstream)
+
+🍎 system
+   ✓ 2 steps
+
+🍺 homebrew
+   · ==> Upgrading 1 outdated package:
+   · some line the formatter has no rule for
+   ⬇ installed newtool
+   ✓ 3 deps in sync
+
+🏠 home
+   🗑 stale     1.2G  ~/Library/Caches/JetBrains/IntelliJIdea2025.3
+   🧹 cache     reclaimed 1.4G (12 active dirs kept)
+   🔌 claude    playwright MCP registered
+   ❗ warning: ~/.agents/skills is empty - the skills checkout is missing.
+      ↑ unknown warning - investigate before committing
+   ❌ error: builder for '/nix/store/dddddddddddddddddddddddddddddddd-boom.drv' failed with exit code 1
+   · colored line the formatter must strip
+   · progress 100%

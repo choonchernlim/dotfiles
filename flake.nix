@@ -114,8 +114,35 @@
             };
             statix.enable = true; # check-only anti-pattern lint (no auto-rewrite)
             deadnix.enable = true; # check-only dead-code lint (no --edit)
+            shellcheck = {
+              enable = true; # rebuild.sh, bootstrap.sh, sync-skills.sh, scripts/*.sh
+              # Neither is a standalone script: cache-purge.sh is a shebang-less fragment
+              # that writeShellApplication wraps and already shellchecks at build time
+              # (modules/home/cachepurge); .envrc is direnv's dialect (`use flake`).
+              excludes = [
+                "cache-purge\\.sh$"
+                "^\\.envrc$"
+              ];
+            };
           };
         };
+        # nix build .#checks.aarch64-darwin.rebuild-format - replays captured `rebuild`
+        # streams through scripts/rebuild-format.sh and diffs against the golden files.
+        # `rebuild` itself must never be run by an agent, so this is what proves the
+        # formatter. Runs under nix's bash 5; bash 3.2 (macOS /bin/bash) compatibility
+        # is a script constraint checked by hand.
+        rebuild-format = pkgs.runCommand "rebuild-format-golden" { nativeBuildInputs = [ pkgs.bash ]; } ''
+          export HOME=/Users/tester REBUILD_FORMAT_TIMES=0
+          for n in sample edge; do
+            bash ${./scripts/rebuild-format.sh} < ${./scripts/fixtures}/rebuild-$n.log > $n.out
+            diff -u ${./scripts/fixtures}/rebuild-$n.expected $n.out || {
+              echo "rebuild-$n: output drifted from the golden file. If intended, regenerate:" >&2
+              echo "  HOME=/Users/tester REBUILD_FORMAT_TIMES=0 bash scripts/rebuild-format.sh < scripts/fixtures/rebuild-$n.log > scripts/fixtures/rebuild-$n.expected" >&2
+              exit 1
+            }
+          done
+          touch $out
+        '';
         # Claude Code and Codex must run the same hooks (both call scripts/format-hook.sh);
         # drift between the two blocks fails evaluation, so --no-build catches it too.
         agent-hooks =

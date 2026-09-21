@@ -91,10 +91,13 @@ nix build --impure .#darwinConfigurations.work.system --dry-run
 ```sh
 rebuild         # apply changes to this machine's recorded profile (alias for ./rebuild.sh)
 rebuild work    # same, and errors out if this machine is recorded as a different profile
+rebuild -v      # print the raw stream instead of the grouped summary
 nix fmt         # format all .nix files (also fires automatically on Claude and Codex edits)
 ```
 
 Only run `rebuild` when changing a package list, system default, or `.nix` config. Editing files under `home/` takes effect immediately - they're live-symlinked into place.
+
+`rebuild` prints a short grouped summary. The complete raw output of every run is kept in `~/.cache/dotfiles/` (newest 10), and a failure prints its last lines and the log path. See [Rebuild Output](docs/architecture.md#rebuild-output).
 
 Agent skills live in the separate [skills repo](https://github.com/choonchernlim/skills). `rebuild` clones it beside this checkout, or pulls its latest commit, and serves it live as `~/.agents/skills`. Edit and commit skills there.
 

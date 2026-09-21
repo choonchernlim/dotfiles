@@ -1,0 +1,27 @@
+🔧 rebuild  personal
+
+📥 sync
+   ✓ dotfiles  up to date
+   ✓ skills    up to date
+   ✓ no stale *.hm-bak backups
+
+🔨 build
+   ✓ system configuration
+   ⚠ 1 known warning: options.json (upstream)
+
+🍎 system
+   ✓ 12 steps
+
+🍺 homebrew
+   ℹ 26 outdated formulae, 2 outdated casks
+   ⬇ fetching  rsync, whatsapp, sublime-text
+   ⬆ upgraded  whatsapp, sublime-text, rsync
+   🗑 removed   xxhash (557KB)
+   ✓ 85 deps in sync
+
+🏠 home
+   🤖 agy       1.2.7 (latest)
+   🧹 cache     reclaimed 7.6G (110 active dirs kept)
+   🔌 claude    playwright MCP re-registered
+   🔗 links     refreshed
+   ✓ 28 activation steps

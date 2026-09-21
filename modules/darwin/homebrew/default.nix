@@ -11,7 +11,9 @@
     mutableTaps = true; # taps are declared in the bundles; mutable so the brew CLI still works between rebuilds
   };
 
-  # Analytics off; NO_ENV_HINTS silences the hint noise brew prints on every auto-update.
+  # Covers interactive `brew` only: this lands in /etc/zshenv, which the switch never
+  # reads. Activation runs under `env -i` and then `sudo --preserve-env=PATH`, so
+  # onActivation.extraEnv below is the only way these reach the `brew bundle` run.
   environment.variables = {
     HOMEBREW_NO_ANALYTICS = "1";
     HOMEBREW_NO_ENV_HINTS = "1";
@@ -20,6 +22,11 @@
   homebrew = {
     enable = true;
     onActivation = {
+      extraEnv = {
+        HOMEBREW_NO_ANALYTICS = "1"; # analytics + donation blurb
+        HOMEBREW_NO_ENV_HINTS = "1"; # auto-update / `man brew` hint block
+        HOMEBREW_NO_UPDATE_REPORT_NEW = "1"; # "==> New Casks" listing
+      };
       # "zap" removes every brew/cask not declared in the bundles on each rebuild,
       # so the declared lists are the single source of truth for Homebrew state.
       # Every profile has been audited against its machine before this was enabled.
