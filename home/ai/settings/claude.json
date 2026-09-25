@@ -1,6 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "syncClaudeAiSkills": false,
+  "env": {
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "autoCompactWindow": 400000,
   "permissions": {
     "allow": [
       "Bash(npm *)",
@@ -9,7 +15,6 @@
       "Bash(python3 *)",
       "Bash(uv *)",
       "Bash(lsof *)",
-      "Bash(source *)",
       "mcp__playwright__*",
       "mcp__ide__getDiagnostics"
     ],
@@ -18,14 +23,19 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(curl *)",
-      "Read(./.env)",
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.dev)",
+      "Read(**/.env.prod)",
+      "Read(**/.env.stage)",
+      "Read(**/.env.test)",
       "Read(./secrets/**)"
     ]
   },
-  "model": "opusplan[1m]",
+  "model": "opusplan",
   "disableAgentView": true,
   "disableWorkflows": true,
-  "disableArtifact": true,
+  "enableArtifact": false,
   "statusLine": {
     "type": "command",
     "command": "bash ~/.dotfiles/home/ai/statusline.sh"
@@ -41,7 +51,14 @@
       }
     }
   },
-  "effortLevel": "high",
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
   "theme": "dark-ansi",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": false
