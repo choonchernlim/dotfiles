@@ -30,7 +30,7 @@
       "Read(./secrets/**)"
     ]
   },
-  "model": "sonnet",
+  "model": "opusplan",
   "disableAgentView": true,
   "disableWorkflows": true,
   "enableArtifact": false,
