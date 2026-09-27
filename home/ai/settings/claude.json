@@ -48,18 +48,16 @@
     }
   },
   "modelSettings": {
-    "claude-sonnet-5": {
-      "effortLevel": "medium"
-    },
-    "claude-opus-5": {
-      "effortLevel": "high"
-    },
-    "claude-opus-5-5": {
-      "effortLevel": "high"
-    }
+    "claude-sonnet-5": { "effortLevel": "medium" },
+    "claude-opus-5-5": { "effortLevel": "high" },
+    "claude-opus-5": { "effortLevel": "high" }
   },
   "autoCompactWindow": 400000,
   "theme": "dark-ansi",
+  "includeGitInstructions": false,
   "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": false
+  "agentPushNotifEnabled": false,
+  "disableClaudeAiConnectors": true,
+  "bashOutputMaxChars": 15000,
+  "outputStyle": "Concise"
 }
