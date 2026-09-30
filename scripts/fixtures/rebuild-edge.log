@@ -9,6 +9,8 @@ Fast-forward
  1 file changed, 2 insertions(+), 2 deletions(-)
 Successfully rebased and updated refs/heads/main.
 Applied autostash.
+>> syncing skills repo: git pull --rebase --autostash
+>> sync skills: pull failed - reset to origin/main, local state saved in branch rebuild-backup/20260929-101500
 >> clearing stale *.hm-bak backups
 /Users/tester/.zshrc.hm-bak
 building the system configuration...

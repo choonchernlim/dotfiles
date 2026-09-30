@@ -241,6 +241,15 @@ while IFS= read -r line || [ -n "$line" ]; do
       sync_target=skills
       drop
       ;;
+    # scripts/git-sync.sh: "<label>: pull failed - reset to <upstream>, local state saved in branch <name>"
+    ">> sync "*": pull failed - reset to "*)
+      rest="${line#>> sync }"
+      label="${rest%%:*}"
+      rest="${rest#*reset to }"
+      emit "   ${YEL}⚠ $(printf '%-9s' "$label") conflict - reset to ${rest%%,*}${RST}"
+      emit "     ${DIM}↳ local work saved in branch ${rest##* }${RST}"
+      drop
+      ;;
     ">> on branch "*)
       b="${line#*\'}"
       row "ℹ" dotfiles "on branch '${b%%\'*}' - pull skipped"

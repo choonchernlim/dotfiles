@@ -102,7 +102,8 @@ Only run `rebuild` when changing a package list, system default, or `.nix` confi
 Agent skills live in the separate [skills repo](https://github.com/choonchernlim/skills). `rebuild` clones it beside this checkout, or pulls its latest commit, and serves it live as `~/.agents/skills`. Edit and commit skills there.
 
 The [rebuild safety rules](docs/gotchas.md) cover profile checks, repository
-synchronization, and stale agent backups.
+synchronization (a conflicting pull is saved to a `rebuild-backup/*` branch and
+reset to upstream), and stale agent backups.
 
 ## Resources
 

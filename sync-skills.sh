@@ -38,10 +38,7 @@ else
   branch="$(git -C "$SKILLS_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
   if [ "$branch" = "main" ]; then
     echo ">> syncing skills repo: git pull --rebase --autostash" >&2
-    if ! git -C "$SKILLS_DIR" pull --rebase --autostash; then
-      echo "error: skills repo git pull failed - resolve conflicts/network before rebuilding" >&2
-      exit 1
-    fi
+    "$DIR/scripts/git-sync.sh" "$SKILLS_DIR" skills
   else
     echo ">> skills repo on branch '${branch:-unknown}' (not main) - skipping git pull" >&2
   fi

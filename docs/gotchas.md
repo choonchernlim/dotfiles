@@ -36,7 +36,8 @@ would list each skill twice.
 Skills are authored in the separate skills repo, which `sync-skills.sh` checks
 out beside this one. The hub links into that checkout, so skill edits and new
 skill directories are live without rebuilding. `rebuild` pulls the checkout only
-when it is on `main`, so a skill developed on a branch is left alone.
+when it is on `main`, so a skill developed on a branch is left alone. A conflicting
+pull is recovered the same way as the dotfiles pull: backup branch, then reset to upstream.
 
 **An empty `~/.agents/skills` means the skills checkout is missing.**
 home-manager links the hub without checking its target. A switch that bypassed
@@ -70,7 +71,7 @@ Langfuse wrappers. Mise replaces nvm and sdkman.
 
 **`rebuild` reports a harmless `options.json` warning** - an upstream nixpkgs bug in home-manager's man-page generation; the build succeeds. See "Every rebuild emits one `options.json` warning" below for details and the one-line workaround.
 
-**`rebuild` auto-syncs the repo before applying.** `rebuild.sh` runs `git pull --rebase --autostash` when on `main` (skipped with a notice on any other branch) so a machine always applies the latest committed config. Autostash means uncommitted edits survive the pull. If the pull fails (offline, conflict), the rebuild aborts rather than applying on top of unresolved state.
+**`rebuild` auto-syncs the repo before applying.** `rebuild.sh` runs `git pull --rebase --autostash` when on `main` (skipped with a notice on any other branch) so a machine always applies the latest committed config. Autostash means uncommitted edits survive the pull. If the pull conflicts, `scripts/git-sync.sh` saves everything local (unpushed commits, uncommitted and untracked files) to a `rebuild-backup/<timestamp>` branch, then hard-resets to upstream so the rebuild applies the remote's state instead of blocking. Recover with `git log rebuild-backup/<timestamp>` and `git checkout rebuild-backup/<timestamp> -- <path>` or `git cherry-pick`. If the fetch itself fails (offline, no access) there is nothing to reset to, so the rebuild aborts.
 
 **Neovim bootstraps on first launch** - clones plugins from GitHub; needs network once.
 

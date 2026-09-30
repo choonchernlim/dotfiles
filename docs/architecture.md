@@ -83,6 +83,8 @@ treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt
 rebuild.sh             - re-applies the flake; profile defaults to /etc/dotfiles-profile and a
                          mismatch aborts without --force; logs the raw run and prints a summary
 scripts/rebuild-format.sh - filters rebuild's raw stream into the grouped summary
+scripts/git-sync.sh    - pulls a checkout on main; on conflict backs up local state to a
+                         rebuild-backup/* branch and resets to upstream (rebuild.sh, sync-skills.sh)
 scripts/fixtures/      - captured rebuild streams + golden output for the rebuild-format check
 bootstrap.sh           - one-time setup: Nix, symlink, skills checkout, first switch (pinned
                          darwin-rebuild), git hooks

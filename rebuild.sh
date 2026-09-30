@@ -121,14 +121,13 @@ echo ">> profile: $profile" >&2
 
 # Sync with the remote before applying so edits pushed from another machine
 # are picked up. Only on main; --rebase --autostash keeps the common
-# "edit a .nix then rebuild" (dirty tree) flow clean. Abort on real failures.
+# "edit a .nix then rebuild" (dirty tree) flow clean. A conflicting pull is
+# recovered by git-sync.sh (backup branch, then reset to upstream) so it never
+# blocks the rebuild; a network failure still aborts.
 branch="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
 if [ "$branch" = "main" ]; then
   echo ">> syncing repo: git pull --rebase --autostash" >&2
-  if ! git -C "$DIR" pull --rebase --autostash; then
-    echo "error: git pull failed - resolve conflicts/network before rebuilding" >&2
-    exit 1
-  fi
+  "$DIR/scripts/git-sync.sh" "$DIR" dotfiles
 else
   echo ">> on branch '${branch:-unknown}' (not main) - skipping git pull" >&2
 fi

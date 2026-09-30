@@ -5,6 +5,8 @@
    ℹ skills    on branch 'wip' - pull skipped
    ↺ dotfiles  local edits autostashed
    ⬆ dotfiles  updated 1111111..2222222
+   ⚠ skills    conflict - reset to origin/main
+     ↳ local work saved in branch rebuild-backup/20260929-101500
    🧽 backup    removed ~/.zshrc.hm-bak
 
 🔨 build
