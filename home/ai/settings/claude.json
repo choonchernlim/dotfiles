@@ -48,9 +48,18 @@
     }
   },
   "modelSettings": {
-    "claude-sonnet-5": { "effortLevel": "medium" },
-    "claude-opus-5-5": { "effortLevel": "high" },
-    "claude-opus-5": { "effortLevel": "high" }
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5": {
+      "effortLevel": "high"
+    },
+    "claude-sonnet-5-5": {
+      "effortLevel": "medium"
+    }
   },
   "autoCompactWindow": 400000,
   "theme": "dark-ansi",
