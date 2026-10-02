@@ -20,9 +20,11 @@
    ✓ 2 steps
 
 🍺 homebrew
+   ⬇ installing newtool
+   ⬆ upgrading flaky-cask
+   ❌ Upgrading flaky-cask failed
    · ==> Upgrading 1 outdated package:
    · some line the formatter has no rule for
-   ⬇ installed newtool
    ✓ 3 deps in sync
 
 🏠 home

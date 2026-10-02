@@ -42,7 +42,7 @@ known_warns="" n_known=0 n_built=0 n_fetched=0 in_list=0
 # system
 n_steps=0
 # homebrew
-brew_up="" brew_inst="" brew_rm="" brew_deps="" in_new=0
+brew_rm="" brew_deps="" in_new=0
 # home
 n_act=0 links_seen=0 agy_ver="" mcp_gone="" mcp_done=0
 
@@ -153,10 +153,11 @@ flush_section() {
       if [ "$mode" = full ]; then note "✓" "$(plural "$n_steps" step)"; fi
       ;;
     homebrew)
-      if [ -n "$brew_up" ]; then row "⬆" upgraded "$brew_up"; fi
-      if [ -n "$brew_inst" ]; then row "⬇" installed "$brew_inst"; fi
       if [ -n "$brew_rm" ]; then row "🗑" removed "$brew_rm"; fi
-      if [ "$mode" = full ] && [ -n "$brew_deps" ]; then note "✓" "$brew_deps deps in sync"; fi
+      if [ "$mode" = full ] && [ -n "$brew_deps" ]; then
+        if [ "$TIMES" != 0 ]; then d="  ($(fmt_dur $(($(now) - sec_start))))"; fi
+        note "✓" "$brew_deps deps in sync${d}"
+      fi
       ;;
     home)
       if [ -n "$mcp_gone" ] && [ "$mcp_done" -eq 0 ]; then
@@ -173,12 +174,16 @@ section() { # section ID ICON TITLE
   sec_start="$(now)"
   # rebuild.sh reads this back to name the phase that failed.
   if [ -n "${REBUILD_PHASE_FILE:-}" ]; then printf '%s\n' "$3" >"$REBUILD_PHASE_FILE"; fi
-  emit ""
-  emit "$2 $3"
+  # Stop the ticker before the header: its redraw must not race the first lines.
   case "$1" in
-    sync) set_tick "" ;;
+    # Both can prompt for the sudo password (sync: sudo -v; homebrew: a cask
+    # upgrade's own sudo), and a redraw would erase the prompt. Homebrew shows
+    # live action rows instead of a timer.
+    sync | homebrew) set_tick "" ;;
     *) set_tick "$3" ;;
   esac
+  emit ""
+  emit "$2 $3"
 }
 
 finish() {
@@ -379,13 +384,15 @@ while IFS= read -r line || [ -n "$line" ]; do
     "Using "*)
       drop
       ;;
+    "Upgrading "*" has failed!" | "Installing "*" has failed!")
+      t="${line% has failed!}"
+      emit "   ${RED}❌ ${t} failed${RST}"
+      ;;
     "Upgrading "*)
-      brew_up="${brew_up:+$brew_up, }${line#Upgrading }"
-      drop
+      row "⬆" upgrading "${line#Upgrading }"
       ;;
     "Installing "*)
-      brew_inst="${brew_inst:+$brew_inst, }${line#Installing }"
-      drop
+      row "⬇" installing "${line#Installing }"
       ;;
     "Removing: "*"/Cellar/"*)
       rest="${line#*/Cellar/}"

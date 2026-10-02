@@ -44,6 +44,8 @@ gloomberb: Finance terminal
 recordly: Creator-focused screen recorder with auto-zoom, cursor effects, and more
 
 Installing newtool
+Upgrading flaky-cask
+Upgrading flaky-cask has failed!
 ==> Upgrading 1 outdated package:
 some line the formatter has no rule for
 `brew bundle` complete! 3 Brewfile dependencies now installed.
