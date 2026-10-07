@@ -139,7 +139,9 @@ vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to
 `settings/claude.json` and `settings/copilot.json` call them through `$HOME`, so
 every host resolves the same path. The scripts exit early outside a herdr pane.
 Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
-ignores the rest of herdr's runtime state.
+ignores the rest of herdr's runtime state. That config turns on in-herdr toasts
+(popups are off by default) and binds `prefix+a` / `prefix+shift+a` to cycle
+agents, which herdr leaves unset.
 
 ## Activation Scripts
 
