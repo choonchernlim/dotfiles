@@ -96,5 +96,19 @@
       "**Org-specific CLIs**: None configured — this repo uses nix, npx, brew, xcode-select, shellcheck as personal toolchain utilities",
       "routine under meteoric/ prefix: not established by evidence"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

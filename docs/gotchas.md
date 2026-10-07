@@ -121,3 +121,10 @@ activation script under `env -i` and then runs `brew` through
 `sudo --preserve-env=PATH`. It only covers interactive `brew`, so the hint,
 analytics, and new-casks blocks kept printing on every rebuild until the same
 variables were also set in `extraEnv`.
+
+**Re-running `herdr integration install` breaks the committed hooks.**
+It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted
+`'~/...'` path, which bash never expands (exit 127, so the hook silently never
+runs). Restore `bash "$HOME/..."` and review the diff of the vendored script under
+`home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
+ignored.

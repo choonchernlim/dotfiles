@@ -28,6 +28,9 @@ in
     file = {
       ".copilot/copilot-instructions.md".source = mkOut "${aiDir}/AGENTS.md";
       ".copilot/settings.json".source = mkOut "${aiDir}/settings/copilot.json";
+      # Vendored from `herdr integration install copilot`; the SessionStart hook
+      # in settings/copilot.json points here (see the claude module for why mkOut).
+      ".copilot/hooks/herdr-agent-state.sh".source = mkOut "${aiDir}/hooks/copilot/herdr-agent-state.sh";
       ".copilot/mcp-config.json".text = builtins.toJSON {
         mcpServers.playwright = {
           type = "local";

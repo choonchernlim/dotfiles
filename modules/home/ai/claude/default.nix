@@ -54,6 +54,10 @@ in
         force = true;
       };
       ".claude/settings.json".source = mkOut "${aiDir}/settings/claude.json";
+      # Vendored from `herdr integration install claude`; the SessionStart hook
+      # in settings/claude.json points here. mkOut so a re-install writes back
+      # into the repo as a visible diff instead of a stray host-local file.
+      ".claude/hooks/herdr-agent-state.sh".source = mkOut "${aiDir}/hooks/claude/herdr-agent-state.sh";
     };
 
     activation = {

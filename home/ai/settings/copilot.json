@@ -1,4 +1,13 @@
 {
   "experimental": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "bash": "bash \"$HOME/.copilot/hooks/herdr-agent-state.sh\"",
+        "timeoutSec": 10,
+        "type": "command"
+      }
+    ]
+  },
   "model": "claude-opus-4.8"
 }

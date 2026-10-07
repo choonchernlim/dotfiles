@@ -133,6 +133,14 @@ A skill edit or a new skill directory is live without a rebuild. Nix never
 touches `~/.codex/skills`, where Codex writes bundled system skills. Per-agent
 settings live under `home/ai/settings/`.
 
+The herdr agent-state hooks that `herdr integration install` generates are
+vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to
+`~/.claude/hooks/` and `~/.copilot/hooks/`. The `SessionStart` entries in
+`settings/claude.json` and `settings/copilot.json` call them through `$HOME`, so
+every host resolves the same path. The scripts exit early outside a herdr pane.
+Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
+ignores the rest of herdr's runtime state.
+
 ## Activation Scripts
 
 `mkReconcile` in `modules/home/lib/reconcile.nix` is the only way activation

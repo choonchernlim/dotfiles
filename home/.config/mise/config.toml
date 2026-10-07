@@ -11,3 +11,4 @@ terraform = "1.7.4"  # from TFENV_TERRAFORM_VERSION in the retired tfenv.sh
 # mise 2025+ ignores idiomatic version files unless opted in. Preserve .nvmrc
 # behavior and honor Java projects that pin a JDK via .java-version/.sdkmanrc.
 idiomatic_version_file_enable_tools = ["java", "node"]
+trusted_config_paths = ["~/Documents/development"]
