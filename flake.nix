@@ -45,6 +45,7 @@
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
       treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+      rebuildPkgs = import ./scripts/rebuild { inherit pkgs; };
 
       # One profile per hosts/<name>.nix - the same discovery rebuild.sh does.
       hostNames = map (lib.removeSuffix ".nix") (
@@ -95,7 +96,11 @@
 
       # bootstrap.sh runs the first switch through this so it uses the darwin-rebuild
       # pinned in flake.lock, not whatever the release branch points at that day.
-      packages.${system}.darwin-rebuild = nix-darwin.packages.${system}.darwin-rebuild;
+      packages.${system} = {
+        darwin-rebuild = nix-darwin.packages.${system}.darwin-rebuild;
+        # `rebuild` and its formatter; the root rebuild.sh shim runs `nix run .#rebuild`.
+        inherit (rebuildPkgs) rebuild rebuild-format;
+      };
 
       # nix fmt - formats all .nix files via nixfmt
       formatter.${system} = treefmtEval.config.build.wrapper;
@@ -125,33 +130,36 @@
             deadnix.enable = true; # check-only dead-code lint (no --edit)
             shellcheck = {
               enable = true; # rebuild.sh, bootstrap.sh, sync-skills.sh, scripts/*.sh
-              # Neither is a standalone script: cache-purge.sh is a shebang-less fragment
-              # that writeShellApplication wraps and already shellchecks at build time
-              # (modules/home/cachepurge); .envrc is direnv's dialect (`use flake`).
+              # None is a standalone script: cache-purge.sh and scripts/rebuild/*.sh are
+              # shebang-less fragments that writeShellApplication wraps and already
+              # shellchecks at build time (modules/home/cachepurge, scripts/rebuild);
+              # .envrc is direnv's dialect (`use flake`).
               excludes = [
                 "cache-purge\\.sh$"
+                "^scripts/rebuild/.*\\.sh$"
                 "^\\.envrc$"
               ];
             };
           };
         };
         # nix build .#checks.aarch64-darwin.rebuild-format - replays captured `rebuild`
-        # streams through scripts/rebuild-format.sh and diffs against the golden files.
-        # `rebuild` itself must never be run by an agent, so this is what proves the
-        # formatter. Runs under nix's bash 5; bash 3.2 (macOS /bin/bash) compatibility
-        # is a script constraint checked by hand.
-        rebuild-format = pkgs.runCommand "rebuild-format-golden" { nativeBuildInputs = [ pkgs.bash ]; } ''
+        # streams through the packaged rebuild-format (scripts/rebuild) and diffs against
+        # the golden files. `rebuild` itself must never be run by an agent, so this is
+        # what proves the formatter.
+        rebuild-format = pkgs.runCommand "rebuild-format-golden" { } ''
           export HOME=/Users/tester REBUILD_FORMAT_TIMES=0
           for n in sample edge; do
-            bash ${./scripts/rebuild-format.sh} < ${./scripts/fixtures}/rebuild-$n.log > $n.out
+            ${lib.getExe rebuildPkgs.rebuild-format} < ${./scripts/fixtures}/rebuild-$n.log > $n.out
             diff -u ${./scripts/fixtures}/rebuild-$n.expected $n.out || {
               echo "rebuild-$n: output drifted from the golden file. If intended, regenerate:" >&2
-              echo "  HOME=/Users/tester REBUILD_FORMAT_TIMES=0 bash scripts/rebuild-format.sh < scripts/fixtures/rebuild-$n.log > scripts/fixtures/rebuild-$n.expected" >&2
+              echo "  HOME=/Users/tester REBUILD_FORMAT_TIMES=0 nix run .#rebuild-format < scripts/fixtures/rebuild-$n.log > scripts/fixtures/rebuild-$n.expected" >&2
               exit 1
             }
           done
           touch $out
         '';
+        # Builds `rebuild` itself, so its build-time shellcheck gates `nix flake check`.
+        inherit (rebuildPkgs) rebuild;
         # Claude Code and Codex must run the same hooks (both call scripts/format-hook.sh);
         # drift between the two blocks fails evaluation, so --no-build catches it too.
         agent-hooks =

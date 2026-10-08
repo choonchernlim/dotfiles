@@ -43,7 +43,8 @@ nix flake check --impure --no-build
 # Shellcheck every mkReconcile script for a host (only checked when built)
 nix build --impure --no-link .#darwinConfigurations.work.config.home-manager.users.$USER.home.activationPackage
 
-# Replay captured rebuild streams through the summary formatter (the only way to verify it)
+# Replay captured rebuild streams through the summary formatter (the only way to verify it);
+# `nix flake check` also builds `rebuild` itself, which shellchecks it
 nix build --impure .#checks.aarch64-darwin.rebuild-format
 
 # Every profile must print nothing here; eliminate any new warning before committing (options.json is a known upstream one)

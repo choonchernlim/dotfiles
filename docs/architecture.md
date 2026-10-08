@@ -81,9 +81,11 @@ modules/
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, per-agent settings/ (skills live in the skills repo)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
-rebuild.sh             - re-applies the flake; profile defaults to /etc/dotfiles-profile and a
-                         mismatch aborts without --force; logs the raw run and prints a summary
-scripts/rebuild-format.sh - filters rebuild's raw stream into the grouped summary
+rebuild.sh             - shim: `nix run`s the flake-pinned `rebuild` (scripts/rebuild)
+scripts/rebuild/       - `rebuild` (rebuild.sh) and `rebuild-format` (format.sh) as
+                         writeShellApplication packages; rebuild re-applies the flake (profile
+                         defaults to /etc/dotfiles-profile, a mismatch aborts without --force),
+                         logs the raw run and prints the grouped summary
 scripts/git-sync.sh    - pulls a checkout on main; on conflict backs up local state to a
                          rebuild-backup/* branch and resets to upstream (rebuild.sh, sync-skills.sh)
 scripts/fixtures/      - captured rebuild streams + golden output for the rebuild-format check
@@ -173,11 +175,13 @@ Keychain credentials, the GCP helper, and Homebrew's CLI plugin directory.
 
 ## Rebuild Output
 
-`rebuild.sh` runs as two processes. The one you launch (outer) re-executes
+The root `rebuild.sh` is a shim that runs `nix run --impure .#rebuild`, the
+`scripts/rebuild/` package: pinned bash 5 and tools, shellchecked at build time.
+That command runs as two processes. The one you launch (outer) re-executes
 itself with `REBUILD_INNER=1` (inner). The inner run does the work - repo sync,
 `sudo`, `darwin-rebuild switch` - and prints a raw stream. The outer run tees
 that stream to `~/.cache/dotfiles/rebuild-<timestamp>.log` (newest 10 kept) and
-pipes it through `scripts/rebuild-format.sh`. It then prints a footer, or on a
+pipes it through `rebuild-format`. It then prints a footer, or on a
 failure the failed phase, the last 40 raw lines, and the log path. `-v` skips the
 formatter and prints the raw stream, still logged.
 
@@ -190,11 +194,10 @@ The formatter is a rule table, one `case` arm per known line shape. Its contract
   Any other `warning:` prints in full with an "investigate" note, so a new
   warning is still a regression you see.
 - After an `error:` the section that was cut short prints no success line.
-- It stays bash 3.2 compatible, because `#!/usr/bin/env bash` can resolve to the
-  macOS `/bin/bash`.
 
 The `rebuild-format` flake check replays the captured streams in
-`scripts/fixtures/` and diffs against the `.expected` files. `rebuild` itself is
+`scripts/fixtures/` through the packaged formatter and diffs against the
+`.expected` files. `rebuild` itself is
 never run by an agent, so this is the verification. Fixtures use synthetic paths
 only, as this repo is public. After changing a rule, regenerate the expected files
 with the command the failing check prints.

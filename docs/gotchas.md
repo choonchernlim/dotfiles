@@ -46,6 +46,13 @@ activation prints a warning. Run `rebuild` again. This happens once on each
 machine whose `rebuild` pulled the skills-repo change, because that run was
 still executing the previous `rebuild.sh`.
 
+**`rebuild` runs the logic from the tree as it was before the pull.**
+The `rebuild.sh` shim builds `scripts/rebuild/` with `nix run` first, then the
+command pulls the repo. A change to the rebuild logic itself therefore takes
+effect on the run after the one that pulled it; `darwin-rebuild` still evaluates
+the post-pull flake. A new file under `scripts/rebuild/` must be `git add`ed
+before it is visible to `nix run`.
+
 Codex owns
 `~/.codex/skills/.system/`; Nix leaves that directory alone. If Copilot stops
 following the hub, its fallback belongs in `modules/home/ai/copilot.nix`.
@@ -102,7 +109,7 @@ invariant above still bites.
 
 **`rebuild` output goes through a formatter.**
 `rebuild.sh` tees the raw stream to `~/.cache/dotfiles/rebuild-<timestamp>.log`
-and pipes it through `scripts/rebuild-format.sh`, so the summary is grouped and
+and pipes it through `rebuild-format` (`scripts/rebuild/`), so the summary is grouped and
 short. Because the stream is piped, Nix's live progress bar is gone; the
 formatter draws a `⏳ <phase>  <elapsed>` status line in its place, paused during
 the sync and homebrew phases so it never erases a `sudo` password prompt (a cask

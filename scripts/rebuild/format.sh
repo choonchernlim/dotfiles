@@ -1,6 +1,7 @@
-#!/usr/bin/env bash
+# Body of the `rebuild-format` command, wrapped by ./default.nix (writeShellApplication:
+# pinned bash 5, strict mode, build-time shellcheck).
 # Turns the raw `rebuild` stream (stdin) into a grouped, emoji-annotated summary
-# (stdout). rebuild.sh owns the raw stream: it tees it to a log first, so this
+# (stdout). ./rebuild.sh owns the raw stream: it tees it to a log first, so this
 # script only presents and can never lose information.
 #
 # Contract - keep it when adding rules:
@@ -10,14 +11,11 @@
 #   - a known warning is collapsed to a count; every other `warning:` prints in
 #     full with a nudge to investigate (docs/gotchas.md: a new warning is a
 #     regression).
-#   - bash 3.2 compatible (macOS /bin/bash): no associative arrays, no
-#     `${var,,}`, no `mapfile`.
 #
 # Env:
 #   REBUILD_FORMAT_TIMES=0  omit clock times and durations, and the live status
 #                           line - deterministic output for the golden test
 #   NO_COLOR                disable ANSI colour (also off when stdout is no tty)
-set -euo pipefail
 
 TIMES="${REBUILD_FORMAT_TIMES:-1}"
 DIM="" RED="" YEL="" RST=""
