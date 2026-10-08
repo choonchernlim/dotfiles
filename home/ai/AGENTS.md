@@ -6,6 +6,7 @@
 
 ## Version control
 
+- Never run `git commit` or `git push` without my explicit approval. First show me the code changes (`git status --short`, `git diff`) and ask me to review them; commit or push only after I approve, and treat each approval as covering that one commit or push only.
 - Never add your own agent name as a co-author in commit messages.
 - Never manually modify CHANGELOG.md or other files marked as auto-generated.
 

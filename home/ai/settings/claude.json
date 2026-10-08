@@ -14,18 +14,6 @@
       "Bash(lsof *)",
       "mcp__playwright__*",
       "mcp__ide__getDiagnostics"
-    ],
-    "deny": [
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(curl *)",
-      "Read(**/.env)",
-      "Read(**/.env.local)",
-      "Read(**/.env.dev)",
-      "Read(**/.env.prod)",
-      "Read(**/.env.stage)",
-      "Read(**/.env.test)",
-      "Read(./secrets/**)"
     ]
   },
   "model": "opusplan",
