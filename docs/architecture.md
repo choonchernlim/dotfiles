@@ -52,6 +52,7 @@ modules/
   home/zsh.nix         - feature: zsh + starship + direnv (+ zshSetup: ~/.zshrc_conf dir,
                          brew-completions cache)
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
+  home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ai/             - feature (directory): AI agent config, one self-contained unit per agent
       default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
@@ -142,6 +143,11 @@ Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
 ignores the rest of herdr's runtime state. That config turns on in-herdr toasts
 (popups are off by default) and binds `prefix+a` / `prefix+shift+a` to cycle
 agents, which herdr leaves unset.
+
+herdr plugins (the reviewr diff-review pane) are declared in
+`modules/home/herdr.nix` and installed on rebuild with `herdr plugin install
+--ref <commit>`; a plugin whose pinned commit is already installed is skipped.
+To bump one, change its `ref` there.
 
 ## Activation Scripts
 

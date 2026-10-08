@@ -122,6 +122,13 @@ activation script under `env -i` and then runs `brew` through
 analytics, and new-casks blocks kept printing on every rebuild until the same
 variables were also set in `extraEnv`.
 
+**Install herdr plugins through `modules/home/herdr.nix`, not `herdr plugin install`.**
+The plugin checkouts and `plugins.json` land in the gitignored part of
+`home/.config/herdr/` (`~/.config/herdr` is a symlink into this repo), so a
+hand install exists on one host only. Add the plugin to the `plugins` list
+instead; the rebuild installs it. Removing one from the list does not
+uninstall it: run `herdr plugin uninstall`.
+
 **Re-running `herdr integration install` breaks the committed hooks.**
 It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted
 `'~/...'` path, which bash never expands (exit 127, so the hook silently never

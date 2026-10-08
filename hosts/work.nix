@@ -13,6 +13,7 @@
     imports = [
       ../modules/home/zsh.nix
       ../modules/home/mise.nix
+      ../modules/home/herdr.nix
       ../modules/home/gcloud.nix
       ../modules/home/ai
       ../modules/home/colima.nix
