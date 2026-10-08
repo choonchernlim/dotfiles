@@ -2,7 +2,9 @@
   "bashOutputMaxChars": 10000,
   "permissions": {
     "deny": [
-      "Read(**/flake.lock)"
+      "Read(**/flake.lock)",
+      "Read(**/Cargo.lock)",
+      "Read(home/.config/herdr/plugins/**)"
     ]
   },
   "hooks": {

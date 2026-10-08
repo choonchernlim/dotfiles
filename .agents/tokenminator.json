@@ -1,5 +1,7 @@
 {
   "ignore": {
-    "CLD-IMPORT:home/ai/CLAUDE.md": "home/ai/AGENTS.md IS ~/.claude/CLAUDE.md - nix symlinks it there (modules/home/ai/claude/default.nix). A CLAUDE.md bridge beside it would load the global policy twice in every session in this repo: once as the global file, once as a nested project file."
+    "CLD-IMPORT:home/ai/CLAUDE.md": "home/ai/AGENTS.md IS ~/.claude/CLAUDE.md - nix symlinks it there (modules/home/ai/claude/default.nix). A CLAUDE.md bridge beside it would load the global policy twice in every session in this repo: once as the global file, once as a nested project file.",
+    "INS-LONG:home/.config/herdr/plugins/*": "third-party herdr plugin installed at runtime; gitignored, not authored here",
+    "SRC-LARGE:home/.config/herdr/plugins/*": "third-party herdr plugin installed at runtime; gitignored, not authored here"
   }
 }
