@@ -10,6 +10,7 @@
       "bash"
       "coreutils"
       "curl"
+      "exiftool"
       "gh"
       "git-lfs"
       "rsync"
