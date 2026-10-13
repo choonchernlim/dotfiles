@@ -134,7 +134,11 @@ The plugin checkouts and `plugins.json` land in the gitignored part of
 `home/.config/herdr/` (`~/.config/herdr` is a symlink into this repo), so a
 hand install exists on one host only. Add the plugin to the `plugins` list
 instead; the rebuild installs it. Removing one from the list does not
-uninstall it: run `herdr plugin uninstall`.
+uninstall it: run `herdr plugin uninstall`. Local plugins under
+`home/herdr-plugins/` are linked (`herdr plugin link`), not installed. The
+`worktreeinclude` hook runs in the background, so a very large include set may
+still be copying when an agent starts; `herdr plugin log dotfiles.worktreeinclude`
+shows what it copied.
 
 **Re-running `herdr integration install` breaks the committed hooks.**
 It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted

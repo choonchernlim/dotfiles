@@ -1,0 +1,10 @@
+id = "dotfiles.worktreeinclude"
+name = "Worktree Include"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Copy gitignored files listed in .worktreeinclude into new worktrees, like `claude -w`"
+platforms = ["macos"]
+
+[[events]]
+on = "worktree.created"
+command = ["bash", "seed-worktree.sh"]

@@ -53,6 +53,8 @@ modules/
                          brew-completions cache)
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
   home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup)
+  home/herdr-plugins/  - live-linked local herdr plugins (worktreeinclude: copies .worktreeinclude
+                         files into new worktrees, like `claude -w`)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ai/             - feature (directory): AI agent config, one self-contained unit per agent
       default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
@@ -150,6 +152,12 @@ herdr plugins (the reviewr diff-review pane) are declared in
 `modules/home/herdr.nix` and installed on rebuild with `herdr plugin install
 --ref <commit>`; a plugin whose pinned commit is already installed is skipped.
 To bump one, change its `ref` there.
+
+`home/herdr-plugins/worktreeinclude` is a local plugin that `herdrPluginsSetup`
+links with `herdr plugin link` (the path is the live checkout, so edits apply
+without a rebuild). On `worktree.created` (herdr's `prefix+shift+g`) it copies
+files that match the main checkout's `.worktreeinclude` and are gitignored into
+the new worktree, which is what `claude -w` does.
 
 ## Activation Scripts
 
