@@ -156,3 +156,11 @@ herdr checks out worktrees under `~/.herdr/worktrees/<repo>/<name>`, outside
 `.mise.toml`. `home/.config/mise/config.toml` lists `~/.herdr/worktrees` in
 `trusted_config_paths` (live, no rebuild; `~` expands per user, so every host
 that has mise and herdr gets it).
+
+**The repo devShell must stay `mkShellNoCC`.**
+The default `mkShell` stdenv exports `DEVELOPER_DIR` and `SDKROOT` at a nix
+apple-sdk and puts xcbuild's `xcrun` first on `PATH`. direnv carries that into
+everything started in this directory (herdr panes, agents), where `/usr/bin/git`,
+an `xcrun` shim, then fails with `error: tool 'git' not found`. After changing
+the devShell, run `direnv reload` and open a new pane; existing processes keep
+the old environment.

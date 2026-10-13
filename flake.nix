@@ -174,7 +174,11 @@
       // lib.mapAttrs' (name: cfg: lib.nameValuePair "host-${name}" cfg.system) self.darwinConfigurations;
 
       # `nix develop` enters this shell and installs .git/hooks/pre-commit via shellHook.
-      devShells.${system}.default = pkgs.mkShell {
+      # NoCC: the default stdenv exports DEVELOPER_DIR/SDKROOT at a nix apple-sdk (no git)
+      # and puts xcbuild's xcrun first on PATH, so /usr/bin/git (an xcrun shim) fails with
+      # "tool 'git' not found" in everything direnv spawns here (herdr panes, agents).
+      # Nothing in this shell compiles, so it needs no C toolchain.
+      devShells.${system}.default = pkgs.mkShellNoCC {
         shellHook = self.checks.${system}.pre-commit.shellHook;
         buildInputs = self.checks.${system}.pre-commit.enabledPackages;
       };
