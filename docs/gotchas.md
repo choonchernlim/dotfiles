@@ -133,7 +133,10 @@ variables were also set in `extraEnv`.
 The plugin checkouts and `plugins.json` land in the gitignored part of
 `home/.config/herdr/` (`~/.config/herdr` is a symlink into this repo), so a
 hand install exists on one host only. Add the plugin to the `plugins` list
-instead; the rebuild installs it. Removing one from the list does not
+instead (with its plugin `id`); every rebuild installs the pinned commit and
+enables it. A failed install or a missing `/opt/homebrew/bin/herdr` does not fail
+the rebuild but prints a `herdr-plugins-setup:` line on stderr, so check the
+rebuild output on a host where a plugin is missing. Removing one from the list does not
 uninstall it: run `herdr plugin uninstall`. Local plugins under
 `home/herdr-plugins/` are linked (`herdr plugin link`), not installed. The
 `worktreeinclude` hook runs in the background, so a very large include set may
@@ -146,3 +149,10 @@ It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quo
 runs). Restore `bash "$HOME/..."` and review the diff of the vendored script under
 `home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
 ignored.
+
+**herdr worktrees need their own mise trust root.**
+herdr checks out worktrees under `~/.herdr/worktrees/<repo>/<name>`, outside
+`~/Documents/development`, so mise prompts `mise trust` for each new worktree's
+`.mise.toml`. `home/.config/mise/config.toml` lists `~/.herdr/worktrees` in
+`trusted_config_paths` (live, no rebuild; `~` expands per user, so every host
+that has mise and herdr gets it).
