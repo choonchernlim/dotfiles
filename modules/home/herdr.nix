@@ -58,7 +58,7 @@ in
               || echo "herdr-plugins-setup: install of $2@$3 failed; rerun rebuild or see 'herdr plugin log $1'" >&2
             ;;
         esac
-        "$herdr" plugin enable "$1" >/dev/null 2>&1 \
+        "$herdr" plugin enable "$1" >/dev/null \
           || echo "herdr-plugins-setup: could not enable $1" >&2
       }
 
