@@ -45,6 +45,11 @@ in
         exit 0
       fi
 
+      # herdr shells out to git and the plugin's build script, and neither is on
+      # the hermetic activation PATH (os error 2). /usr/bin/git validates TLS
+      # against the Keychain; ${"$"}{pkgs.git} would not (see zscaler.nix).
+      export PATH="$PATH:/usr/bin:/bin"
+
       installed=$("$herdr" plugin list 2>/dev/null || true)
 
       # install_plugin ID REPO REF: installs the pinned commit unless already

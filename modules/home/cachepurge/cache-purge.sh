@@ -163,6 +163,9 @@ run_tool_gc() {
   local bin dir sz after freed failed
   PATH="/opt/homebrew/bin:$HOME/.local/share/mise/shims:$PATH"
   export PATH
+  # A mise shim errors ("not currently active") outside a dir with a mise
+  # config, and activation's cwd has none; $HOME resolves to the global config.
+  cd "$HOME"
   for bin in uv pip3 npm yarn pnpm bun go; do
     command -v "$bin" >/dev/null 2>&1 || continue
     case "$bin" in
