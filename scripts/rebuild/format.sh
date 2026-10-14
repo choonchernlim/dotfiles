@@ -476,6 +476,17 @@ while IFS= read -r line || [ -n "$line" ]; do
       row "🧹" cache "${line#cache-purge: }"
       drop
       ;;
+    "dev-root: "*)
+      # Messages can carry several paths, so every $HOME collapses (tilde()
+      # handles only a leading one).
+      rest="${line#dev-root: }"
+      rest="${rest//"$HOME"/\~}"
+      case "$rest" in
+        "warning: "*) row "⚠" devroot "${rest#warning: }" ;;
+        *) row "🚚" devroot "$rest" ;;
+      esac
+      drop
+      ;;
 
     *) passthru ;;
   esac

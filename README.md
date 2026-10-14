@@ -55,10 +55,15 @@ See [docs/architecture.md](docs/architecture.md) for the full per-host module br
 ### Installation
 
 ```sh
+mkdir -p ~/Developer/github && cd ~/Developer/github
 git clone https://github.com/choonchernlim/dotfiles.git
 cd dotfiles
 ./bootstrap.sh work       # or: ./bootstrap.sh personal / ./bootstrap.sh work-atdj
 ```
+
+Keep the checkout out of `~/Documents`, `~/Desktop`, and `~/Downloads`. macOS
+privacy protection blocks detached processes such as the herdr server from
+those folders. See [Gotchas](docs/gotchas.md).
 
 `bootstrap.sh` does five things in order:
 1. Installs Determinate Nix (skips if already installed)

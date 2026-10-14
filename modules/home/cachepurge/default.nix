@@ -1,6 +1,6 @@
 # Cache-purge feature module: reclaims disk space from stale tool caches and
 # dev-tree build artifacts. Selected per-host via hosts/*.nix (all 3 hosts; the
-# script no-ops where ~/Documents/development doesn't exist).
+# script no-ops where ~/Developer doesn't exist).
 #
 # `cache-purge` is a real command (home.packages) with three modes:
 #   (no flag)  dry run: report what would be reclaimed, delete nothing

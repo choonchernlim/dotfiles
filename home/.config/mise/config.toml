@@ -13,4 +13,6 @@ terraform = "1.7.4"  # from TFENV_TERRAFORM_VERSION in the retired tfenv.sh
 idiomatic_version_file_enable_tools = ["java", "node"]
 # herdr checks out worktrees under ~/.herdr/worktrees, outside the repo roots,
 # so each new worktree's .mise.toml would otherwise prompt for `mise trust`.
-trusted_config_paths = ["~/Documents/development", "~/.herdr/worktrees"]
+# ~/Documents/development stays until every host has made the dev root move
+# (docs/gotchas.md), so an unmoved host keeps its trust meanwhile.
+trusted_config_paths = ["~/Developer", "~/Documents/development", "~/.herdr/worktrees"]

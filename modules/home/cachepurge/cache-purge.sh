@@ -7,7 +7,7 @@
 #   - tool-native GC (`uv cache prune`, `pip3 cache purge`, ...) runs first;
 #     only caches with no such command are ever deleted directly.
 #   - direct deletes are scoped to an explicit allowlist of cache directories,
-#     or to a fixed set of build-artifact names inside ~/Documents/development.
+#     or to a fixed set of build-artifact names inside ~/Developer.
 #   - staleness is checked by recursively probing for ANY file modified in the
 #     last STALE_DAYS, never a directory's own top-level mtime (that signal is
 #     wrong: e.g. a JetBrains cache dir with an old mtime but daily writes).
@@ -21,7 +21,7 @@
 
 STALE_DAYS=14
 FREE_GATE_KB=$((100 * 1024 * 1024)) # 100G, in the 1K blocks df -k reports
-DEV_ROOT="$HOME/Documents/development"
+DEV_ROOT="$HOME/Developer"
 
 # Age-gated cache dirs with no tool-native GC command. Staleness is checked
 # per immediate child (each JetBrains IDE version, each playwright build, ...).

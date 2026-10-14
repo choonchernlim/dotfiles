@@ -152,10 +152,43 @@ ignored.
 
 **herdr worktrees need their own mise trust root.**
 herdr checks out worktrees under `~/.herdr/worktrees/<repo>/<name>`, outside
-`~/Documents/development`, so mise prompts `mise trust` for each new worktree's
+`~/Developer`, so mise prompts `mise trust` for each new worktree's
 `.mise.toml`. `home/.config/mise/config.toml` lists `~/.herdr/worktrees` in
 `trusted_config_paths` (live, no rebuild; `~` expands per user, so every host
 that has mise and herdr gets it).
+
+**Keep checkouts out of `~/Documents`, `~/Desktop`, and `~/Downloads`.**
+macOS privacy protection (TCC) grants these folders per app. A process
+detached from the terminal, such as the herdr server, is checked as itself
+rather than as WezTerm, so it and every pane it starts get `Operation not
+permitted` on any path that resolves into them. That includes the
+live-symlinked configs: the mise and starship configs resolve through
+`~/.dotfiles` into the checkout. A Full Disk Access grant for herdr is not a
+fix, because Homebrew's ad-hoc-signed binary lands at a new path with a new
+signature on every upgrade. Code lives in `~/Developer`.
+
+**Dev root move: `~/Documents/development` to `~/Developer`.**
+On each host, quit agents and IDEs, then:
+
+```sh
+herdr server stop
+mv ~/Documents/development ~/Developer
+~/Developer/github/dotfiles/rebuild.sh <profile>
+```
+
+Run the first rebuild by full path: the `rebuild` alias resolves through
+`~/.dotfiles`, which dangles until `rebuild.sh` re-points it (and
+`sync-skills.sh` re-points `~/.dotfiles-skills`). The `devRootMigration`
+activation in `modules/home/legacy.nix` then rewrites the path-keyed state:
+`~/.gitconfig` `includeIf` conditions, Claude Code projects, prompt history and
+per-project memory folders, Codex `config.toml` tables, git worktree links, and
+direnv approvals (only those that still match the `.envrc` content). Each step
+shows as a `devroot` row in the rebuild summary; a `⚠ devroot` row means the
+move is pending or both roots exist. Not migrated: herdr workspaces (the
+running server overwrites `session.json`; recreate them) and IDE recent
+projects (reopen from the new path). Once every host has moved, delete
+`devRootMigration` and drop `~/Documents/development` from the mise
+`trusted_config_paths`.
 
 **The repo devShell must stay `mkShellNoCC`.**
 The default `mkShell` stdenv exports `DEVELOPER_DIR` and `SDKROOT` at a nix

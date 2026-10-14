@@ -29,9 +29,12 @@
 
 🏠 home
    🗑 stale     1.2G  ~/Library/Caches/JetBrains/IntelliJIdea2025.3
-   ⚠ cache     could not remove ~/Documents/development/proj/.next
+   ⚠ cache     could not remove ~/Developer/proj/.next
    🧹 cache     freed 1.4G (bun 200M, 1 stale dir 1.2G)
    ⚠ cache     GC failed: npm
+   🚚 devroot   rewrote ~/.gitconfig
+   🚚 devroot   moved ~/.claude/projects/-Users-tester-Documents-development-proj
+   ⚠ devroot   both ~/.claude/projects/-Users-tester-Documents-development-app and ~/.claude/projects/-Users-tester-Developer-app exist - merge them by hand
    🔌 claude    playwright MCP registered
    ❗ warning: ~/.agents/skills is empty - the skills checkout is missing.
       ↑ unknown warning - investigate before committing

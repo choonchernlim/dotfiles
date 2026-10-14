@@ -296,7 +296,8 @@ agent config dir first. That ordering is also why Antigravity's
 This repository replaced the retired
 [Ansible setup](../../mac-dev-bootstrap/). Each capability moved to a Nix
 feature or was removed. `modules/home/legacy.nix` owns the remaining
-one-time sweeps.
+one-time sweeps, including the `devRootMigration` activation that rewrites
+path-keyed state after the `~/Documents/development` to `~/Developer` move.
 
 The remaining migration follow-up is the deliberate design of
 `system.defaults`. Its placeholder stays commented in

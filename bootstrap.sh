@@ -17,6 +17,16 @@ if [ -z "$profile" ] || [ ! -f "$DIR/hosts/$profile.nix" ]; then
   exit 1
 fi
 
+# macOS privacy protection (TCC) blocks detached processes such as the herdr
+# server from these folders, and the live-symlinked configs resolve into this
+# checkout (docs/gotchas.md).
+case "$DIR" in
+  "$HOME/Documents"/* | "$HOME/Desktop"/* | "$HOME/Downloads"/*)
+    echo "error: $DIR is in a macOS privacy-protected folder; clone into ~/Developer/github instead" >&2
+    exit 1
+    ;;
+esac
+
 echo "==> Step 0: Xcode Command Line Tools"
 # git (needed to clone this repo) and several build steps require the CLT.
 # xcode-select --install pops a GUI dialog; wait until the tools appear.
