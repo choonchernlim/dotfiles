@@ -66,7 +66,7 @@ Remove the old link in an activation ordered before `linkGeneration`.
 `modules/home/legacy.nix` handles the known stale `~/.codex/skills` link.
 
 **`home/ai/AGENTS.md` is my personal agent policy.**
-It installs for Claude, Codex, Copilot, OpenCode, and Antigravity. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions.
+It installs for Claude, Codex, Copilot, OpenCode, and Antigravity. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions. Keep it agent-neutral: name Claude-only slash commands (e.g. `/simplify`) as examples next to a generic step, never as the only instruction.
 
 **The Claude model is set only in `home/ai/settings/claude.json`.**
 `ANTHROPIC_MODEL` is deliberately not exported by nix: the env var overrides the settings `model` key and used to make that key dead. If `/model` reports an env override, something outside this repo is setting it.

@@ -10,12 +10,22 @@
 - Never add your own agent name as a co-author in commit messages.
 - Never manually modify CHANGELOG.md or other files marked as auto-generated.
 
+## Pre-commit review
+
+- After any code change, and before showing me the diff for commit approval, run these passes in order. Skip them only when the change is purely docs, comments, or formatting.
+  1. Simplify: review the diff for reuse, simplification, and efficiency, and apply the cleanups (Claude Code: `/simplify`).
+  2. Re-run the project's checks (lint, tests, build) and fix any failures.
+  3. Bug review: review the final diff for correctness bugs (Claude Code: `/code-review`). Fix confirmed findings and re-run the checks; list uncertain or skipped findings with the diff instead of changing code for them.
+  4. Security review: only when the diff touches auth, secrets, input parsing, shell or process execution, network calls, or permissions (Claude Code: `/security-review`). Handle findings the same way as step 3.
+- Agents without these commands use their own review command if they have one (e.g. Codex `/review`), otherwise do each pass by reading the diff.
+- When showing the diff, say which passes ran, what they changed, and any open findings.
+
 ## Engineering priorities
 
 - When making technical decisions, do not weigh development cost heavily. Prefer quality, simplicity, robustness, scalability, and long-term maintainability.
 
 ## Bug-fixing & testing workflow
 
-- When fixing a bug, first reproduce it end-to-end, as closely as possible to how an end user would experience it. This ensures the fix addresses the real problem.
+- When fixing a bug, first reproduce it end-to-end, as closely as possible to how an end user would experience it. This ensures the fix addresses the real problem. To confirm end-to-end, launch and drive the real app (Claude Code: `/run`).
 - When end-to-end testing a product, scrutinize the UI and aim for pixel-perfection. Fix anything that looks off along the way, even if unrelated to the current task.
 - Hold the same standard for engineering excellence: fix lint errors, test failures, and test flakiness you encounter, even if unrelated to what you're currently working on.
