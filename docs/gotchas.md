@@ -136,7 +136,9 @@ hand install exists on one host only. Add the plugin to the `plugins` list
 instead (with its plugin `id`); every rebuild installs the pinned commit and
 enables it. A failed install or a missing `/opt/homebrew/bin/herdr` does not fail
 the rebuild but prints a `herdr-plugins-setup:` line on stderr, so check the
-rebuild output on a host where a plugin is missing. Removing one from the list does not
+rebuild output on a host where a plugin is missing. herdr records absolute paths,
+so after a move (such as the dev root move) `herdr plugin list` warns `manifest
+unavailable`; the next rebuild reinstalls or relinks the affected plugins. Removing one from the list does not
 uninstall it: run `herdr plugin uninstall`. Local plugins under
 `home/herdr-plugins/` are linked (`herdr plugin link`), not installed. The
 `worktreeinclude` hook runs in the background, so a very large include set may

@@ -150,12 +150,15 @@ agents, which herdr leaves unset.
 
 herdr plugins (the reviewr diff-review pane) are declared in
 `modules/home/herdr.nix` and installed on rebuild with `herdr plugin install
---ref <commit>`; a plugin whose pinned commit is already installed is skipped.
-To bump one, change its `ref` there.
+--ref <commit>`; a plugin already installed at its pinned commit with its
+manifest on disk is skipped, and one whose recorded path went stale (a moved
+checkout or dev root) is uninstalled and reinstalled. To bump one, change its
+`ref` there.
 
 `home/herdr-plugins/worktreeinclude` is a local plugin that `herdrPluginsSetup`
 links with `herdr plugin link` (the path is the live checkout, so edits apply
-without a rebuild). On `worktree.created` (herdr's `prefix+shift+g`) it copies
+without a rebuild); a link whose recorded manifest is not the live checkout's is
+unlinked and relinked. On `worktree.created` (herdr's `prefix+shift+g`) it copies
 files that match the main checkout's `.worktreeinclude` and are gitignored into
 the new worktree, which is what `claude -w` does.
 

@@ -50,30 +50,59 @@ in
       # against the Keychain; ${"$"}{pkgs.git} would not (see zscaler.nix).
       export PATH="$PATH:/usr/bin:/bin"
 
-      installed=$("$herdr" plugin list 2>/dev/null || true)
+      # herdr records absolute paths, so a moved checkout or dev root leaves a
+      # plugin registered but unloadable ("manifest unavailable"). Health is
+      # therefore judged on the recorded manifest, not on the id being listed.
+      # A failed listing skips the run rather than reinstalling everything.
+      installed=$("$herdr" plugin list --json 2>/dev/null) || {
+        echo "herdr-plugins-setup: could not list plugins, skipping" >&2
+        exit 0
+      }
 
-      # install_plugin ID REPO REF: installs the pinned commit unless already
-      # present, then always enables it (a no-op when already enabled), so the
-      # plugin is installed and enabled on every host after a rebuild.
+      # field ID JQ_PATH: a field of the registered plugin ID; empty when unregistered.
+      field() {
+        printf '%s' "$installed" \
+          | jq -r --arg id "$1" ".result.plugins[]? | select(.plugin_id == \$id) | $2 // empty"
+      }
+
+      # install_plugin ID REPO REF: (re)installs the pinned commit unless it is
+      # registered at that commit with its manifest on disk, then always enables
+      # it (a no-op when already enabled), so the plugin is installed and
+      # enabled on every host after a rebuild.
       install_plugin() {
-        case "$installed" in
-          *"github:''${2}@''${3}"*) ;;
-          *)
-            "$herdr" plugin install --yes --ref "$3" "$2" \
-              || echo "herdr-plugins-setup: install of $2@$3 failed; rerun rebuild or see 'herdr plugin log $1'" >&2
-            ;;
-        esac
+        _manifest=$(field "$1" .manifest_path)
+        if [ ! -f "$_manifest" ] || [ "$(field "$1" .source.resolved_commit)" != "$3" ]; then
+          if [ -n "$_manifest" ]; then
+            "$herdr" plugin uninstall "$1" >/dev/null \
+              || echo "herdr-plugins-setup: could not uninstall stale $1" >&2
+          fi
+          "$herdr" plugin install --yes --ref "$3" "$2" \
+            || echo "herdr-plugins-setup: install of $2@$3 failed; rerun rebuild or see 'herdr plugin log $1'" >&2
+        fi
         "$herdr" plugin enable "$1" >/dev/null \
           || echo "herdr-plugins-setup: could not enable $1" >&2
       }
 
       ${installLines}
 
-      # `plugin link` registers the path itself, so a plugin id already listed is skipped.
-      case "$installed" in
-        *dotfiles.worktreeinclude*) ;;
-        *) "$herdr" plugin link ${lib.escapeShellArg localPlugin} || true ;;
-      esac
+      # `plugin link` registers the path itself, so it is relinked only when the
+      # recorded manifest is not the live checkout's. herdr records the resolved
+      # path (~/.dotfiles is a symlink), so compare against that.
+      _local_id=dotfiles.worktreeinclude
+      _local_dir=${lib.escapeShellArg localPlugin}
+      if _resolved=$(cd "$_local_dir" 2>/dev/null && pwd -P); then
+        _local_manifest="$_resolved/herdr-plugin.toml"
+        if [ "$(field "$_local_id" .manifest_path)" != "$_local_manifest" ] || [ ! -f "$_local_manifest" ]; then
+          if [ -n "$(field "$_local_id" .plugin_id)" ]; then
+            "$herdr" plugin unlink "$_local_id" >/dev/null \
+              || echo "herdr-plugins-setup: could not unlink stale $_local_id" >&2
+          fi
+          "$herdr" plugin link "$_local_dir" \
+            || echo "herdr-plugins-setup: could not link $_local_dir" >&2
+        fi
+      else
+        echo "herdr-plugins-setup: $_local_dir missing, skipping local plugin" >&2
+      fi
     '';
   };
 }
