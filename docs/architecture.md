@@ -157,10 +157,14 @@ checkout or dev root) is uninstalled and reinstalled. To bump one, change its
 
 `home/herdr-plugins/worktreeinclude` is a local plugin that `herdrPluginsSetup`
 links with `herdr plugin link` (the path is the live checkout, so edits apply
-without a rebuild); a link whose recorded manifest is not the live checkout's is
-unlinked and relinked. On `worktree.created` (herdr's `prefix+shift+g`) it copies
-files that match the main checkout's `.worktreeinclude` and are gitignored into
-the new worktree, which is what `claude -w` does.
+without a rebuild); a link whose recorded manifest is not the live checkout's, or
+whose recorded `version` differs from the manifest's, is unlinked and relinked
+(herdr copies the manifest into `plugins.json` at link time, so bump `version`
+to roll out a manifest edit). On `worktree.created` (herdr's `prefix+shift+g`) it
+copies files that match the main checkout's `.worktreeinclude` and are gitignored
+into the new worktree, which is what `claude -w` does. It also runs on
+`worktree.opened` and then copies only files the worktree lacks, so a worktree
+whose created hook never ran is backfilled and local edits are never overwritten.
 
 ## Activation Scripts
 

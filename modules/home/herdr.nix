@@ -77,7 +77,7 @@ in
               || echo "herdr-plugins-setup: could not uninstall stale $1" >&2
           fi
           "$herdr" plugin install --yes --ref "$3" "$2" \
-            || echo "herdr-plugins-setup: install of $2@$3 failed; rerun rebuild or see 'herdr plugin log $1'" >&2
+            || echo "herdr-plugins-setup: install of $2@$3 failed; rerun rebuild or see 'herdr plugin log list --plugin $1'" >&2
         fi
         "$herdr" plugin enable "$1" >/dev/null \
           || echo "herdr-plugins-setup: could not enable $1" >&2
@@ -85,14 +85,19 @@ in
 
       ${installLines}
 
-      # `plugin link` registers the path itself, so it is relinked only when the
-      # recorded manifest is not the live checkout's. herdr records the resolved
-      # path (~/.dotfiles is a symlink), so compare against that.
+      # Relink when the recorded manifest is not the live checkout's (herdr records
+      # the resolved path; ~/.dotfiles is a symlink) or its version moved on: herdr
+      # snapshots the manifest at link time, so bump `version` to roll out edits.
       _local_id=dotfiles.worktreeinclude
       _local_dir=${lib.escapeShellArg localPlugin}
       if _resolved=$(cd "$_local_dir" 2>/dev/null && pwd -P); then
         _local_manifest="$_resolved/herdr-plugin.toml"
-        if [ "$(field "$_local_id" .manifest_path)" != "$_local_manifest" ] || [ ! -f "$_local_manifest" ]; then
+        # First top-level match only; an unparsable version skips the version check
+        # rather than relinking on every rebuild.
+        _local_version=$(sed -n '/^version = /{s/^version = "\(.*\)"$/\1/p;q;}' "$_local_manifest" 2>/dev/null || true)
+        if [ "$(field "$_local_id" .manifest_path)" != "$_local_manifest" ] \
+          || { [ -n "$_local_version" ] && [ "$(field "$_local_id" .version)" != "$_local_version" ]; } \
+          || [ ! -f "$_local_manifest" ]; then
           if [ -n "$(field "$_local_id" .plugin_id)" ]; then
             "$herdr" plugin unlink "$_local_id" >/dev/null \
               || echo "herdr-plugins-setup: could not unlink stale $_local_id" >&2

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Copy files listed in the main checkout's .worktreeinclude into a new worktree,
 # mirroring `claude -w`: a file is copied only if it matches .worktreeinclude
-# AND is gitignored. Runs on herdr's worktree.created event.
+# AND is gitignored. Runs on herdr's worktree.created event, and on
+# worktree.opened so a worktree whose created hook never ran is backfilled.
 set -euo pipefail
 
 # herdr's environment may lack the nix profile, which provides jq.
@@ -23,10 +24,12 @@ trap 'rm -rf "$tmp"' EXIT
 # Newline-separated because macOS comm has no -z; filenames with newlines are unsupported.
 git -C "$main" ls-files --others --ignored --exclude-from=.worktreeinclude | sort >"$tmp/listed"
 git -C "$main" ls-files --others --ignored --exclude-standard | sort >"$tmp/ignored"
-comm -12 "$tmp/listed" "$tmp/ignored" >"$tmp/copy"
+# Fill gaps only: the worktree may hold local edits, and this also runs on every
+# open. -L catches a dangling symlink, which -e reports as absent.
+comm -12 "$tmp/listed" "$tmp/ignored" | while IFS= read -r f; do
+  [ -e "$wt/$f" ] || [ -L "$wt/$f" ] || printf '%s\0' "$f"
+done >"$tmp/copy"
 
-n=$(wc -l <"$tmp/copy" | tr -d ' ')
-if [ "$n" -gt 0 ]; then
-  tr '\n' '\0' <"$tmp/copy" | tar -C "$main" --null -T - -cf - | tar -C "$wt" -xpf -
-fi
-echo "copied $n files from $main into $wt"
+[ -s "$tmp/copy" ] || exit 0
+tar -C "$main" --null -T - -cf - <"$tmp/copy" | tar -C "$wt" -xpf -
+echo "copied $(tr -cd '\0' <"$tmp/copy" | wc -c | tr -d ' ') files from $main into $wt"

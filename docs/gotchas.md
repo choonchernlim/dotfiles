@@ -141,8 +141,10 @@ so after a move (such as the dev root move) `herdr plugin list` warns `manifest
 unavailable`; the next rebuild reinstalls or relinks the affected plugins. Removing one from the list does not
 uninstall it: run `herdr plugin uninstall`. Local plugins under
 `home/herdr-plugins/` are linked (`herdr plugin link`), not installed. The
-`worktreeinclude` hook runs in the background, so a very large include set may
-still be copying when an agent starts; `herdr plugin log dotfiles.worktreeinclude`
+`worktreeinclude` manifest is snapshotted into `plugins.json` at link time, so
+bump its `version` after editing it (see [architecture](architecture.md)). The
+hook runs in the background, so a very large include set may still be copying
+when an agent starts; `herdr plugin log list --plugin dotfiles.worktreeinclude`
 shows what it copied.
 
 **Re-running `herdr integration install` breaks the committed hooks.**
