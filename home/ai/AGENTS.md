@@ -29,3 +29,41 @@
 - When fixing a bug, first reproduce it end-to-end, as closely as possible to how an end user would experience it. This ensures the fix addresses the real problem. To confirm end-to-end, launch and drive the real app (Claude Code: `/run`).
 - When end-to-end testing a product, scrutinize the UI and aim for pixel-perfection. Fix anything that looks off along the way, even if unrelated to the current task.
 - Hold the same standard for engineering excellence: fix lint errors, test failures, and test flakiness you encounter, even if unrelated to what you're currently working on.
+
+## Completion summary
+
+- End every reply that finishes a task (files changed, or multi-step work done) with the summary below, so I can reconstruct what happened after running many agents in parallel. Skip it for quick answers, mid-task check-ins, subagent reports, and any request or skill that sets its own output format (e.g. JSON only).
+- Use this exact template: same sections, same order, same emojis. Under a section that doesn't apply, write "None" instead of dropping it. This rule takes precedence over any brevity or output-style instruction.
+- Write for a reader with no memory of the session: name the repo and branch, give the why behind each change, and reference files as `path:line`.
+
+```markdown
+## 🧾 Summary - <repo> @ <branch>
+
+**🎯 Problem:** what I asked for and why, in 1-2 lines
+**🚦 Status:** ✅ Done | 🟡 Partial | ❌ Blocked - one line on what is left
+
+### 🛠️ Changes
+| Type | What | Why | Where |
+|---|---|---|---|
+| ✨ Feature / 🐛 Fix / ♻️ Refactor / 🔧 Config / 📝 Docs / 🧪 Test | the change, as a user would notice it | motivation, or root cause for a fix | `path:line` |
+
+### 🧠 Decisions
+| Decision | Why | Rejected alternative |
+|---|---|---|
+
+### 🧪 Verification
+| Check | Result |
+|---|---|
+| lint / tests / build / e2e / review passes | ✅ / ❌ / ⏭️ skipped, with counts or the reason |
+
+### 📦 State
+Uncommitted | committed `<sha>` | pushed - plus anything left running (servers, worktrees, background jobs)
+
+### 🔓 Open topics
+- ⚠️ Risks and known issues
+- ❓ Questions for me
+- 💡 Noticed but out of scope
+
+### 👉 Your next step
+- The one thing I should do next (e.g. review the diff and approve the commit)
+```
