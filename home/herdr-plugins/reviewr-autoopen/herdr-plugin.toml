@@ -1,0 +1,10 @@
+id = "dotfiles.reviewr-autoopen"
+name = "Reviewr Auto-open"
+version = "0.2.0"
+min_herdr_version = "0.9.3"
+description = "Open the reviewr pane in new git-repo workspaces that reviewr's own worktree-event auto-open misses (plain workspaces, a repo's main space)"
+platforms = ["macos"]
+
+[[events]]
+on = "workspace.created"
+command = ["bash", "open-reviewr.sh"]

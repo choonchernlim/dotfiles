@@ -54,7 +54,8 @@ modules/
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
   home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup)
   home/herdr-plugins/  - live-linked local herdr plugins (worktreeinclude: copies .worktreeinclude
-                         files into new worktrees, like `claude -w`)
+                         files into new worktrees, like `claude -w`; reviewr-autoopen: opens
+                         reviewr in repo workspaces its own auto-open misses)
   home/gcloud.nix      - feature: gcloud shell wiring, config, components (+ gcloudSetup)
   home/ai/             - feature (directory): AI agent config, one self-contained unit per agent
       default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
@@ -155,16 +156,27 @@ manifest on disk is skipped, and one whose recorded path went stale (a moved
 checkout or dev root) is uninstalled and reinstalled. To bump one, change its
 `ref` there.
 
-`home/herdr-plugins/worktreeinclude` is a local plugin that `herdrPluginsSetup`
-links with `herdr plugin link` (the path is the live checkout, so edits apply
-without a rebuild); a link whose recorded manifest is not the live checkout's, or
-whose recorded `version` differs from the manifest's, is unlinked and relinked
-(herdr copies the manifest into `plugins.json` at link time, so bump `version`
-to roll out a manifest edit). On `worktree.created` (herdr's `prefix+shift+g`) it
-copies files that match the main checkout's `.worktreeinclude` and are gitignored
+Every subdirectory of `home/herdr-plugins/` with a `herdr-plugin.toml` is a
+local plugin, and `herdrPluginsSetup` links each under its manifest `id` with
+`herdr plugin link` (the path is the live checkout, so edits apply without a rebuild); a link
+whose recorded manifest is not the live checkout's, or whose recorded `version`
+differs from the manifest's, is unlinked and relinked (herdr copies the manifest
+into `plugins.json` at link time, so bump `version` to roll out a manifest edit).
+
+`worktreeinclude`: on `worktree.created` (herdr's `prefix+shift+g`) it copies files that match the main checkout's `.worktreeinclude` and are gitignored
 into the new worktree, which is what `claude -w` does. It also runs on
 `worktree.opened` and then copies only files the worktree lacks, so a worktree
 whose created hook never ran is backfilled and local edits are never overwritten.
+
+`reviewr-autoopen`: reviewr opens its pane only on `worktree.created` and
+`worktree.opened`, so two kinds of repo workspace never get one: a plain
+workspace (`herdr workspace create`, which fires only `workspace.created`; a later
+`worktree open` reuses it with `already_open`, which reviewr skips), and the main
+space herdr creates beside a new linked worktree (the worktree event names only
+the linked worktree's workspace). On `workspace.created` in a git repo it opens
+the reviewr pane with `herdr plugin pane open --no-focus`, split right like
+reviewr's default. A plain workspace gets it at once; one that carries repo info
+first waits up to 5s for reviewr's own pane, so the two never both open one.
 
 ## Activation Scripts
 

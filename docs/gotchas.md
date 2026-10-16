@@ -140,12 +140,23 @@ rebuild output on a host where a plugin is missing. herdr records absolute paths
 so after a move (such as the dev root move) `herdr plugin list` warns `manifest
 unavailable`; the next rebuild reinstalls or relinks the affected plugins. Removing one from the list does not
 uninstall it: run `herdr plugin uninstall`. Local plugins under
-`home/herdr-plugins/` are linked (`herdr plugin link`), not installed. The
-`worktreeinclude` manifest is snapshotted into `plugins.json` at link time, so
-bump its `version` after editing it (see [architecture](architecture.md)). The
-hook runs in the background, so a very large include set may still be copying
+`home/herdr-plugins/` are linked (`herdr plugin link`), not installed: every
+subdirectory with a `herdr-plugin.toml` is linked under its manifest `id`;
+deleting or renaming one leaves the old link registered, so run `herdr plugin
+unlink <id>`. A
+local manifest is snapshotted into
+`plugins.json` at link time, so bump its `version` after editing it (see
+[architecture](architecture.md)). The `worktreeinclude` hook runs in the background, so a very large include set may still be copying
 when an agent starts; `herdr plugin log list --plugin dotfiles.worktreeinclude`
 shows what it copied.
+
+**reviewr's own auto-open skips plain workspaces and a repo's main space.**
+`reviewr-autoopen` fills that gap, but only for workspaces created after it is
+linked: in an older workspace without the pane, run the `reviewr: open pane`
+action once. It always splits right and ignores reviewr's `toggle_placement`,
+`toggle_direction`, and `auto_open` settings, so change the hook if you change
+those. `herdr plugin log list --plugin dotfiles.reviewr-autoopen` shows what it
+opened.
 
 **Re-running `herdr integration install` breaks the committed hooks.**
 It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted

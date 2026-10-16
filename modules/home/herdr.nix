@@ -22,10 +22,6 @@ let
     }
   ];
 
-  # Local plugin, linked from the live checkout so script edits apply without a
-  # rebuild. It copies .worktreeinclude files into new worktrees, like `claude -w`.
-  localPlugin = "${dotfiles}/home/herdr-plugins/worktreeinclude";
-
   installLines = lib.concatMapStringsSep "\n" (p: ''
     install_plugin ${lib.escapeShellArg p.id} ${lib.escapeShellArg p.repo} ${lib.escapeShellArg p.ref}
   '') plugins;
@@ -85,29 +81,36 @@ in
 
       ${installLines}
 
-      # Relink when the recorded manifest is not the live checkout's (herdr records
-      # the resolved path; ~/.dotfiles is a symlink) or its version moved on: herdr
+      # Every home/herdr-plugins/<dir>/ with a manifest is a local plugin, linked
+      # from the live checkout so script edits apply without a rebuild. Relink
+      # when the recorded manifest is not the live checkout's (herdr records the
+      # resolved path; ~/.dotfiles is a symlink) or its version moved on: herdr
       # snapshots the manifest at link time, so bump `version` to roll out edits.
-      _local_id=dotfiles.worktreeinclude
-      _local_dir=${lib.escapeShellArg localPlugin}
-      if _resolved=$(cd "$_local_dir" 2>/dev/null && pwd -P); then
+      _local_root=${lib.escapeShellArg "${dotfiles}/home/herdr-plugins"}
+      [ -d "$_local_root" ] \
+        || echo "herdr-plugins-setup: $_local_root missing, skipping local plugins" >&2
+      for _local_dir in "$_local_root"/*/; do
+        _resolved=$(cd "$_local_dir" 2>/dev/null && pwd -P) || continue
         _local_manifest="$_resolved/herdr-plugin.toml"
+        [ -f "$_local_manifest" ] || continue
         # First top-level match only; an unparsable version skips the version check
         # rather than relinking on every rebuild.
-        _local_version=$(sed -n '/^version = /{s/^version = "\(.*\)"$/\1/p;q;}' "$_local_manifest" 2>/dev/null || true)
+        _local_id=$(sed -n '/^id = /{s/^id = "\(.*\)"$/\1/p;q;}' "$_local_manifest")
+        _local_version=$(sed -n '/^version = /{s/^version = "\(.*\)"$/\1/p;q;}' "$_local_manifest")
+        if [ -z "$_local_id" ]; then
+          echo "herdr-plugins-setup: no id in $_local_manifest, skipping" >&2
+          continue
+        fi
         if [ "$(field "$_local_id" .manifest_path)" != "$_local_manifest" ] \
-          || { [ -n "$_local_version" ] && [ "$(field "$_local_id" .version)" != "$_local_version" ]; } \
-          || [ ! -f "$_local_manifest" ]; then
+          || { [ -n "$_local_version" ] && [ "$(field "$_local_id" .version)" != "$_local_version" ]; }; then
           if [ -n "$(field "$_local_id" .plugin_id)" ]; then
             "$herdr" plugin unlink "$_local_id" >/dev/null \
               || echo "herdr-plugins-setup: could not unlink stale $_local_id" >&2
           fi
-          "$herdr" plugin link "$_local_dir" \
-            || echo "herdr-plugins-setup: could not link $_local_dir" >&2
+          "$herdr" plugin link "$_resolved" \
+            || echo "herdr-plugins-setup: could not link $_resolved" >&2
         fi
-      else
-        echo "herdr-plugins-setup: $_local_dir missing, skipping local plugin" >&2
-      fi
+      done
     '';
   };
 }

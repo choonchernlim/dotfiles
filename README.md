@@ -39,8 +39,8 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI ag
 
 | Profile     | Adds beyond the common base               |
 |-------------|-------------------------------------------|
-| `work`      | mise, herdr plugins (incl. `.worktreeinclude` copy for new worktrees), gitea, Langfuse, Zscaler cert trust |
-| `personal`  | mise, herdr plugins                       |
+| `work`      | mise, herdr plugins (reviewr in every repo workspace, `.worktreeinclude` copy for new worktrees), gitea, Langfuse, Zscaler cert trust |
+| `personal`  | mise, herdr plugins (same as `work`)      |
 | `work-atdj` | gitea, Zscaler cert trust (no mise)       |
 
 See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.
