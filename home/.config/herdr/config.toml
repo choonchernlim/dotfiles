@@ -15,6 +15,12 @@ next_agent       = "prefix+a"
 previous_agent   = "prefix+shift+a"
 copy_mode  = "prefix+y"  # herdr's copy-mode entry key; copy-mode's own internal keys (v/space select, y/Enter copy, q/Esc cancel) aren't configurable
 
+# Toggle the reviewr diff pane. prefix+shift+r would shadow herdr's default reload_config.
+[[keys.command]]
+key = "prefix+shift+v"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"  # <plugin_id>.<action_id>
+
 [ui]
 agent_panel_sort = "priority"
 

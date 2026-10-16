@@ -146,8 +146,9 @@ vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to
 every host resolves the same path. The scripts exit early outside a herdr pane.
 Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
 ignores the rest of herdr's runtime state. That config turns on in-herdr toasts
-(popups are off by default) and binds `prefix+a` / `prefix+shift+a` to cycle
-agents, which herdr leaves unset.
+(popups are off by default), binds `prefix+a` / `prefix+shift+a` to cycle
+agents, which herdr leaves unset, and binds `prefix+shift+v` to toggle the
+reviewr pane (`prefix+shift+r` is herdr's default `reload_config`).
 
 herdr plugins (the reviewr diff-review pane) are declared in
 `modules/home/herdr.nix` and installed on rebuild with `herdr plugin install
