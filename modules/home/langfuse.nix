@@ -13,13 +13,11 @@ let
 in
 
 {
-  # Link only the compose file and the ClickHouse log override it mounts, so
-  # the directory stays free for a user-owned .env, never committed to this
-  # public repo.
+  # Link only the compose file so the directory stays free for a user-owned
+  # .env, never committed to this public repo. The compose file mounts
+  # clickhouse-logs.xml straight from the checkout (see the comment there).
   home.file.".config/langfuse/docker-compose.yml".source =
     config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/langfuse/docker-compose.yml";
-  home.file.".config/langfuse/clickhouse-logs.xml".source =
-    config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/langfuse/clickhouse-logs.xml";
 
   programs.zsh.initContent = lib.mkOrder 900 ''
     _langfuse_compose="$HOME/.config/langfuse/docker-compose.yml"

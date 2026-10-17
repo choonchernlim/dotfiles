@@ -101,7 +101,10 @@ services:
     volumes:
       - langfuse_clickhouse_data:/var/lib/clickhouse
       - langfuse_clickhouse_logs:/var/log/clickhouse-server
-      - ./clickhouse-logs.xml:/etc/clickhouse-server/config.d/zz-logs.xml:ro
+      # Source must be the repo checkout, not ~/.config/langfuse: that path
+      # resolves into /nix/store, which the colima VM cannot see, so dockerd
+      # fails trying to mkdir the mount source.
+      - ${HOME}/.dotfiles/home/.config/langfuse/clickhouse-logs.xml:/etc/clickhouse-server/config.d/zz-logs.xml:ro
     ports:
       - 127.0.0.1:8123:8123
       - 127.0.0.1:9000:9000

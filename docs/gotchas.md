@@ -220,8 +220,9 @@ ClickHouse keeps its own telemetry tables (`system.trace_log`, `text_log`, ...)
 forever by default; they reached ~17G against ~175M of real Langfuse data, so
 `clickhouse-logs.xml` removes them. Log sections the image does not know are
 ignored, so re-check with `SELECT name FROM system.tables WHERE name LIKE '%_log'`
-after an image upgrade. The override only stops new writes. Run `rebuild` before
-`langfuse-up`, or Docker creates a directory where the bind-mounted file should be.
+after an image upgrade. The override only stops new writes. Its bind-mount source is the repo
+checkout via `~/.dotfiles`, never a `~/.config` link: those resolve into `/nix/store`,
+which the colima VM cannot see, and dockerd fails with `mkdir ...: file exists`.
 One-time cleanup: drop existing tables by hand (`DROP TABLE system.trace_log SYNC`),
 truncate the old files in the `langfuse_clickhouse_logs` volume, then
 `docker builder prune -a` and `colima ssh -- sudo fstrim -av`. `docker image prune -a`
