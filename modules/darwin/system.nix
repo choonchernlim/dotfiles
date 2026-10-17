@@ -8,7 +8,12 @@
   nixpkgs.config.allowUnfree = true;
   # nixpkgs.hostPlatform is set per-host in hosts/*.nix.
 
-  security.pam.services.sudo_local.touchIdAuth = true;
+  security.pam.services.sudo_local = {
+    touchIdAuth = true;
+    # pam_tid cannot reach the GUI session from a multiplexer pane (herdr), so
+    # sudo fell back to the password; pam_reattach re-attaches it first.
+    reattach = true;
+  };
 
   # Records which profile this machine runs. rebuild.sh reads it to default the
   # profile argument and to refuse a different one without --force: with
