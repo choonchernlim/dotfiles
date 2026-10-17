@@ -69,7 +69,7 @@ modules/
                          sweep of both agy's plugin store and ~/.gemini/extensions
       copilot.nix      - symlinks, MCP config, plugin-store reset
       opencode.nix     - symlinks, opencode.json (MCP)
-  home/colima.nix      - feature (all 3 hosts): autostarts colima at login via a launchd agent
+  home/colima.nix      - feature (all 3 hosts): autostarts colima at login and prunes docker (weekly; unused images monthly) and fstrims via launchd agents
   home/docker.nix      - feature (all 3 hosts): reconciles Docker credentials and Homebrew
                          CLI plugin discovery via an atomic jq merge, not a symlink
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,

@@ -228,3 +228,8 @@ truncate the old files in the `langfuse_clickhouse_logs` volume, then
 `docker builder prune -a` and `colima ssh -- sudo fstrim -av`. `docker image prune -a`
 also frees space but forces re-pulls through the Zscaler proxy. Shrinking the disk
 itself needs `colima delete --data`, which wipes the gitea and langfuse volumes.
+`colima.nix` runs two launchd agents (logs in `~/Library/Logs/colima.prune*.log`).
+Weekly (Sunday 03:00) it prunes build cache, dangling images and stopped
+containers older than 7 days, then fstrims. Monthly (1st, 04:00) it also runs
+`image prune -a` for images unused for 30 days, which are re-pulled through the
+Zscaler proxy when needed. Volumes are never touched.
