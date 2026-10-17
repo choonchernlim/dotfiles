@@ -212,3 +212,18 @@ everything started in this directory (herdr panes, agents), where `/usr/bin/git`
 an `xcrun` shim, then fails with `error: tool 'git' not found`. After changing
 the devShell, run `direnv reload` and open a new pane; existing processes keep
 the old environment.
+
+**Colima's disk is sparse and grows until trimmed; ClickHouse system logs were the bulk.**
+`~/.colima/_lima/_disks/colima/datadisk` only grows on the Mac; freed space inside
+the VM returns to macOS after `fstrim` (the guest has a weekly `fstrim.timer`).
+ClickHouse keeps its own telemetry tables (`system.trace_log`, `text_log`, ...)
+forever by default; they reached ~17G against ~175M of real Langfuse data, so
+`clickhouse-logs.xml` removes them. Log sections the image does not know are
+ignored, so re-check with `SELECT name FROM system.tables WHERE name LIKE '%_log'`
+after an image upgrade. The override only stops new writes. Run `rebuild` before
+`langfuse-up`, or Docker creates a directory where the bind-mounted file should be.
+One-time cleanup: drop existing tables by hand (`DROP TABLE system.trace_log SYNC`),
+truncate the old files in the `langfuse_clickhouse_logs` volume, then
+`docker builder prune -a` and `colima ssh -- sudo fstrim -av`. `docker image prune -a`
+also frees space but forces re-pulls through the Zscaler proxy. Shrinking the disk
+itself needs `colima delete --data`, which wipes the gitea and langfuse volumes.

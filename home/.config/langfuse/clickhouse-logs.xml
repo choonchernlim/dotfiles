@@ -1,0 +1,26 @@
+<clickhouse>
+    <!--
+        Local single-user stack: ClickHouse's own telemetry tables are never read
+        here, yet the defaults keep them forever (they grew to ~17G while the
+        actual Langfuse data was ~175M). Drop the noisy ones and cap the server
+        text logs. query_log stays at its default: it is small, and giving it a
+        TTL would make ClickHouse rename the existing table to query_log_0.
+    -->
+    <trace_log remove="1"/>
+    <text_log remove="1"/>
+    <metric_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <part_log remove="1"/>
+    <processors_profile_log remove="1"/>
+    <opentelemetry_span_log remove="1"/>
+    <query_metric_log remove="1"/>
+    <latency_log remove="1"/>
+    <error_log remove="1"/>
+    <background_schedule_pool_log remove="1"/>
+
+    <logger>
+        <level>warning</level>
+        <size>100M</size>
+        <count>3</count>
+    </logger>
+</clickhouse>

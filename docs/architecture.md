@@ -75,7 +75,8 @@ modules/
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          gitea-up/-down/-status/-logs shell functions
   home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
-                         langfuse-up/-down/-status/-logs shell functions
+                         langfuse-up/-down/-status/-logs shell functions; links
+                         clickhouse-logs.xml (caps ClickHouse system-log growth)
   home/zscaler.nix     - feature (work, work-atdj): Zscaler MITM cert wiring - NODE_EXTRA_CA_CERTS,
                          git http.sslcainfo, colima guest VM trust; the cert file itself stays
                          user-owned, not nix-managed (public repo)
