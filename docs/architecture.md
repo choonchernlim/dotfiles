@@ -27,7 +27,7 @@ flake.nix              - entry point; derives user from $SUDO_USER/$USER (impure
 hosts/
   work.nix             - { system, darwin, home } - darwin imports homebrew bundles + quicklook;
                          home imports the feature modules this host gets
-  personal.nix         - same shape
+  personal.nix         - same shape; also sets dotfiles.claude.model = "opus"
   work-atdj.nix        - same shape; common homebrew bundle + the work-atdj extras bundle
                          (Claude desktop app and Claude Code CLI);
                          home modules zsh/gcloud/ai/colima/docker/gitea/zscaler/cachepurge
@@ -60,7 +60,8 @@ modules/
   home/ai/             - feature (directory): AI agent config, one self-contained unit per agent
       default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
                          rationale (playwrightMcp, absolute paths)
-      claude/          - default.nix (symlinks, MCP, reconcile) + langfuse.nix (TEMPORARY plugin
+      claude/          - default.nix (symlinks, MCP, reconcile, per-host dotfiles.claude.model
+                         option for the `claude` alias's --model) + langfuse.nix (TEMPORARY plugin
                          install and CC_LANGFUSE_TAGS patch)
       codex/           - default.nix (config.toml upsert, MCP, backup sweep; no skills link -
                          Codex reads the hub natively and owns ~/.codex/skills)

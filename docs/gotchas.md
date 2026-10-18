@@ -68,7 +68,8 @@ Remove the old link in an activation ordered before `linkGeneration`.
 **`home/ai/AGENTS.md` is my personal agent policy.**
 It installs for Claude, Codex, Copilot, OpenCode, and Antigravity. If you clone this repo, edit or delete it - you'd silently inherit my agent instructions. Keep it agent-neutral: name Claude-only slash commands (e.g. `/simplify`) as examples next to a generic step, never as the only instruction.
 
-**The Claude model is set only in `home/ai/settings/claude.json`.**
+**The shared Claude model is set only in `home/ai/settings/claude.json`.**
+Per-host exceptions go through `dotfiles.claude.model` in `hosts/<name>.nix` (the `personal` host sets `opus`), which appends `--model` to the `claude` zsh alias - never edit the shared file per host, it is a live symlink every host reads. The flag only reaches shell launches: IDE extensions and anything exec'ing the binary directly still get the settings value.
 `ANTHROPIC_MODEL` is deliberately not exported by nix: the env var overrides the settings `model` key and used to make that key dead. If `/model` reports an env override, something outside this repo is setting it.
 
 **The shell setup is deliberately minimal.**

@@ -66,7 +66,7 @@ nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warn
 - **All activation shell goes through `mkReconcile`** - never a raw string in `home.activation`.
 - **Never add `brew uninstall` loops to activation scripts** - `cleanup = "zap"` already removes undeclared packages; `modules/darwin/homebrew/` is the source of truth.
 - **The skills hub is the only skills link.** Never add a per-agent skills link for Codex, Copilot, or OpenCode, point one at the repo path, or link per-file inside an agent's skills dir. Its target is a live git checkout, never a store path.
-- **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key.
+- **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key. A per-host model goes in `dotfiles.claude.model` (a `--model` flag on the `claude` alias), never in the shared settings file.
 - **This repo is the single source of truth for AI-agent configuration** (plugins, extensions, MCP servers, skill wiring; skill *content* lives in the skills repo). Reconciles remove undeclared content each rebuild, so agent-CLI installs are reverted.
 - Never commit `.no-mistakes/` validation evidence - it is gitignored.
 - When disabling a config block, leave the original as a comment so it can be revisited later.
