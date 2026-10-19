@@ -34,7 +34,12 @@
 let
   script = pkgs.writeShellApplication {
     inherit name;
-    runtimeInputs = [ pkgs.jq ] ++ path;
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.coreutils # _apply's chmod --reference is GNU-only
+      pkgs.diffutils # _apply's cmp
+    ]
+    ++ path;
     # SC2015: the deliberate best-effort idiom `cmd && other || true`.
     # SC2016: false positive on jq filters, where $var must NOT be shell-expanded.
     excludeShellChecks = [
@@ -42,18 +47,38 @@ let
       "SC2016"
     ];
     text = ''
-      # json_edit FILE JQ_ARG... - atomically rewrite FILE via jq (tmp + mv in
-      # the same directory), so an interrupt mid-write never corrupts a state
-      # file other tools also read. No-op if jq fails or produces empty output.
+      # _apply FILE CMD... - run CMD with FILE as its last argument and replace
+      # FILE with the output atomically (tmp + mv in the same directory), so an
+      # interrupt mid-write never corrupts a state file other tools also read.
+      # FILE keeps its mode (mktemp creates 0600). Returns 0 when FILE changed,
+      # 1 when it was already up to date, and 2 when CMD failed or printed
+      # nothing: FILE is then left as is and a warning names it, so a config the
+      # owning app broke shows in the rebuild output.
+      _apply() {
+        _ap_file="$1"
+        shift
+        _ap_tmp=$(mktemp "$_ap_file.XXXXXX") || {
+          echo "${name}: cannot write next to $_ap_file" >&2
+          return 2
+        }
+        if ! "$@" "$_ap_file" > "$_ap_tmp" || [ ! -s "$_ap_tmp" ]; then
+          rm -f "$_ap_tmp"
+          echo "${name}: could not rewrite $_ap_file, left unchanged" >&2
+          return 2
+        fi
+        if cmp -s "$_ap_file" "$_ap_tmp"; then
+          rm -f "$_ap_tmp"
+          return 1
+        fi
+        chmod --reference="$_ap_file" "$_ap_tmp"
+        mv "$_ap_tmp" "$_ap_file"
+      }
+
+      # json_edit FILE JQ_ARG... - _apply through jq, best-effort.
       json_edit() {
         _je_file="$1"
         shift
-        _je_tmp=$(mktemp "$_je_file.XXXXXX") || return 0
-        if jq "$@" "$_je_file" > "$_je_tmp" 2>/dev/null && [ -s "$_je_tmp" ]; then
-          mv "$_je_tmp" "$_je_file"
-        else
-          rm -f "$_je_tmp"
-        fi
+        _apply "$_je_file" jq "$@" || true
       }
 
       ${text}

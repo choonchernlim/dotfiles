@@ -154,12 +154,11 @@ enables it. A failed install or a missing `/opt/homebrew/bin/herdr` does not fai
 the rebuild but prints a `herdr-plugins-setup:` line on stderr, so check the
 rebuild output on a host where a plugin is missing. herdr records absolute paths,
 so after a move (such as the dev root move) `herdr plugin list` warns `manifest
-unavailable`; the next rebuild reinstalls or relinks the affected plugins. Removing one from the list does not
-uninstall it: run `herdr plugin uninstall`. Local plugins under
+unavailable`; the next rebuild reinstalls or relinks the affected plugins. The
+rebuild also uninstalls or unlinks every plugin that is not declared, so a hand
+install is removed on the next rebuild. Local plugins under
 `home/herdr-plugins/` are linked (`herdr plugin link`), not installed: every
-subdirectory with a `herdr-plugin.toml` is linked under its manifest `id`;
-deleting or renaming one leaves the old link registered, so run `herdr plugin
-unlink <id>`. A
+subdirectory with a `herdr-plugin.toml` is linked under its manifest `id`. A
 local manifest is snapshotted into
 `plugins.json` at link time, so bump its `version` after editing it (see
 [architecture](architecture.md)). The `worktreeinclude` hook runs in the background, so a very large include set may still be copying
@@ -177,8 +176,8 @@ opened.
 **Re-running `herdr integration install` breaks the committed hooks.**
 It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted
 `'~/...'` path, which bash never expands (exit 127, so the hook silently never
-runs). Restore `bash "$HOME/..."` and review the diff of the vendored script under
-`home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
+runs). The `hook-paths` flake check fails on it. Restore `bash "$HOME/..."` and
+review the diff of the vendored script under `home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
 ignored.
 
 **herdr worktrees need their own mise trust root.**

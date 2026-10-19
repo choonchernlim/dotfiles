@@ -129,11 +129,6 @@ in
                 done
               done
             fi
-            _claude=/opt/homebrew/bin/claude
-            if [ -x "$_claude" ]; then
-              "$_claude" mcp remove --scope user context7 2>/dev/null || true
-            fi
-
             # Stale backups: home-manager's *.hm-bak and the agent's own dated
             # settings.json.YYYYMMDD copies. Both recur as long as the agent
             # fights the symlink, so this sweep is permanent.

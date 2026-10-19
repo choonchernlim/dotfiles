@@ -196,6 +196,24 @@
             (lib.importJSON ./.claude/settings.json).hooks == (lib.importJSON ./.codex/hooks.json).hooks
           ) ".claude/settings.json and .codex/hooks.json must declare identical hooks";
           pkgs.emptyFile;
+        # Re-running `herdr integration install` rewrites these hook commands with a
+        # quoted '~/...' path that bash never expands, so the hook silently never runs.
+        hook-paths =
+          let
+            quotedTilde =
+              f:
+              let
+                hooks = builtins.toJSON (lib.importJSON ./home/ai/settings/${f}).hooks;
+              in
+              lib.hasInfix "'~/" hooks || lib.hasInfix "\"~/" hooks;
+            unexpanded = lib.filter quotedTilde [
+              "claude.json"
+              "copilot.json"
+            ];
+          in
+          assert lib.assertMsg (unexpanded == [ ])
+            "home/ai/settings: a quoted ~/ never expands; use \"$HOME/...\" in the hooks of ${toString unexpanded}";
+          pkgs.emptyFile;
         # Every profile's mkReconcile scripts and nothing else, so building this shellchecks
         # each one without building the systems; evaluating it (--no-build) already fails on
         # a raw home.activation string.

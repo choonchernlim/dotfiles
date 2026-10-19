@@ -30,7 +30,8 @@ in
 
       _docker_config="$HOME/.docker/config.json"
       mkdir -p "$HOME/.docker"
-      [ -e "$_docker_config" ] || printf '{}' > "$_docker_config"
+      # 0600 like docker's own: json_edit keeps the mode a new file starts with.
+      [ -e "$_docker_config" ] || (umask 077 && printf '{}' > "$_docker_config")
 
       json_edit "$_docker_config" \
         '.credsStore = "osxkeychain"

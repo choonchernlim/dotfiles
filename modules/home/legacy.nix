@@ -91,6 +91,13 @@ in
         rm -f "$HOME/.codex/skills"
       fi
 
+      # ── context7 MCP server (retired 2026-07-08): the ctx7 CLI replaced it;
+      #    nothing else removes an undeclared Claude MCP ──────────────────────
+      _claude=/opt/homebrew/bin/claude
+      if [ -x "$_claude" ]; then
+        "$_claude" mcp remove --scope user context7 >/dev/null 2>&1 || true
+      fi
+
       # ── First-takeover .hm-bak backups: created once when home-manager first
       #    claimed a path that already existed (pre-nix machines) ──────────────
       rm -f "$HOME/.config/starship.toml.hm-bak"
@@ -115,8 +122,6 @@ in
   home.activation.devRootMigration = mkReconcile {
     name = "dev-root-migration";
     path = [
-      pkgs.coreutils
-      pkgs.diffutils
       pkgs.direnv
       pkgs.gawk
       pkgs.gnugrep
@@ -160,23 +165,8 @@ in
       # Cheap pre-check, so a migrated machine never re-runs a rewriter.
       _has() { [ -f "$1" ] && grep -qF -- "$2" "$1"; }
 
-      # _apply FILE CMD...: run CMD with FILE as its last argument and replace
-      # FILE with the output (keeping its mode) when CMD succeeded and the
-      # output is non-empty and different. Returns 0 only when FILE changed,
-      # so only real rewrites are reported.
-      _apply() {
-        _file="$1"
-        shift
-        _tmp=$(mktemp "$_file.XXXXXX") || return 1
-        if "$@" "$_file" > "$_tmp" && [ -s "$_tmp" ] && ! cmp -s "$_file" "$_tmp" \
-          && chmod --reference="$_file" "$_tmp"; then
-          mv "$_tmp" "$_file"
-        else
-          rm -f "$_tmp"
-          return 1
-        fi
-      }
-
+      # _apply (lib/reconcile.nix) returns 0 only when FILE changed, so only
+      # real rewrites are reported below.
       _rewrite_text() { _apply "$1" sed -E -e "$_sed_abs" -e "$_sed_tilde"; }
 
       # git: includeIf gitdir: conditions and their include paths. A stale

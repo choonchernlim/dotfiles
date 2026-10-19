@@ -1,4 +1,4 @@
-# herdr plugins: declared here, installed on rebuild. herdr's plugin state
+# herdr plugins: declared here, installed on rebuild, and anything undeclared removed. herdr's plugin state
 # (plugins.json and the plugin checkouts) is runtime state under the gitignored
 # part of home/.config/herdr/, so the declaration below is the only thing that
 # travels between hosts. Selected per-host via hosts/*.nix (hosts with the herdr cask).
@@ -81,6 +81,9 @@ in
 
       ${installLines}
 
+      # Every declared id, for the prune at the end; local plugins add theirs below.
+      _keep=(${lib.concatMapStringsSep " " (p: lib.escapeShellArg p.id) plugins})
+
       # Every home/herdr-plugins/<dir>/ with a manifest is a local plugin, linked
       # from the live checkout so script edits apply without a rebuild. Relink
       # when the recorded manifest is not the live checkout's (herdr records the
@@ -89,6 +92,7 @@ in
       _local_root=${lib.escapeShellArg "${dotfiles}/home/herdr-plugins"}
       [ -d "$_local_root" ] \
         || echo "herdr-plugins-setup: $_local_root missing, skipping local plugins" >&2
+      _unparsed=0
       for _local_dir in "$_local_root"/*/; do
         _resolved=$(cd "$_local_dir" 2>/dev/null && pwd -P) || continue
         _local_manifest="$_resolved/herdr-plugin.toml"
@@ -98,9 +102,11 @@ in
         _local_id=$(sed -n '/^id = /{s/^id = "\(.*\)"$/\1/p;q;}' "$_local_manifest")
         _local_version=$(sed -n '/^version = /{s/^version = "\(.*\)"$/\1/p;q;}' "$_local_manifest")
         if [ -z "$_local_id" ]; then
-          echo "herdr-plugins-setup: no id in $_local_manifest, skipping" >&2
+          echo "herdr-plugins-setup: no id in $_local_manifest, skipping it and the prune" >&2
+          _unparsed=1
           continue
         fi
+        _keep+=("$_local_id")
         if [ "$(field "$_local_id" .manifest_path)" != "$_local_manifest" ] \
           || { [ -n "$_local_version" ] && [ "$(field "$_local_id" .version)" != "$_local_version" ]; }; then
           if [ -n "$(field "$_local_id" .plugin_id)" ]; then
@@ -111,6 +117,28 @@ in
             || echo "herdr-plugins-setup: could not link $_resolved" >&2
         fi
       done
+
+      # Keep-set prune, so dropping a plugin from `plugins` or deleting or
+      # renaming a local plugin dir takes effect on every host. The listing from
+      # the start still holds every undeclared plugin (the steps above only
+      # register declared ids). Skipped without the local root, or when a local
+      # manifest's id could not be read: that plugin would look undeclared.
+      if [ ! -d "$_local_root" ] || [ "$_unparsed" = 1 ]; then
+        exit 0
+      fi
+      printf '%s' "$installed" \
+        | jq -r --args '.result.plugins[]?
+            | select(.plugin_id != null and (.plugin_id | IN($ARGS.positional[]) | not))
+            | [.plugin_id, .source.kind] | @tsv' "''${_keep[@]}" \
+        | while IFS=$'\t' read -r _id _kind; do
+          if [ "$_kind" = local ]; then _verb="unlink"; else _verb="uninstall"; fi
+          # </dev/null: herdr must not read the rest of this loop's input.
+          if "$herdr" plugin "$_verb" "$_id" >/dev/null </dev/null; then
+            echo "herdr-plugins-setup: ''${_verb}ed undeclared plugin $_id" >&2
+          else
+            echo "herdr-plugins-setup: could not $_verb undeclared plugin $_id" >&2
+          fi
+        done
     '';
   };
 }

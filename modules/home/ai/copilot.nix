@@ -43,7 +43,7 @@ in
     # Filesystem + JSON reset, not CLI calls (networked, unreliable offline).
     # config.json is JSONC (// header), which jq cannot parse: strip the
     # comment lines, clear installedPlugins (keeping trustedFolders etc.),
-    # re-add the header - atomically via tmp+mv.
+    # re-add the header - atomically via _apply.
     activation.copilotReconcile = mkReconcile {
       name = "copilot-reconcile";
       text = ''
@@ -52,16 +52,12 @@ in
           rm -rf "$_cop/installed-plugins"
           _cf="$_cop/config.json"
           if [ -e "$_cf" ]; then
-            _tmp=$(mktemp "$_cf.XXXXXX")
-            if {
+            _clear_plugins() {
               printf '// User settings belong in settings.json.\n'
               printf '// This file is managed automatically.\n'
-              grep -v '^//' "$_cf" | jq '.installedPlugins = []'
-            } > "$_tmp" 2>/dev/null; then
-              mv "$_tmp" "$_cf"
-            else
-              rm -f "$_tmp"
-            fi
+              grep -v '^//' "$1" | jq '.installedPlugins = []'
+            }
+            _apply "$_cf" _clear_plugins || true
           fi
         fi
 

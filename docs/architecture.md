@@ -156,7 +156,8 @@ The herdr agent-state hooks that `herdr integration install` generates are
 vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to
 `~/.claude/hooks/` and `~/.copilot/hooks/`. The `SessionStart` entries in
 `settings/claude.json` and `settings/copilot.json` call them through `$HOME`, so
-every host resolves the same path. The scripts exit early outside a herdr pane.
+every host resolves the same path; the `hook-paths` flake check fails if a
+`'~/` path creeps back in. The scripts exit early outside a herdr pane.
 Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
 ignores the rest of herdr's runtime state. That config turns on in-herdr toasts
 (popups are off by default), binds `prefix+a` / `prefix+shift+a` to cycle
@@ -176,6 +177,11 @@ local plugin, and `herdrPluginsSetup` links each under its manifest `id` with
 whose recorded manifest is not the live checkout's, or whose recorded `version`
 differs from the manifest's, is unlinked and relinked (herdr copies the manifest
 into `plugins.json` at link time, so bump `version` to roll out a manifest edit).
+
+Then it prunes: every registered plugin that is neither in the `plugins` list
+nor a local plugin directory is uninstalled (GitHub) or unlinked (local), so a
+removal or rename reaches every host on its next rebuild. The prune is skipped
+when the plugin list cannot be read or `home/herdr-plugins/` is missing.
 
 `worktreeinclude`: on `worktree.created` (herdr's `prefix+shift+g`) it copies files that match the main checkout's `.worktreeinclude` and are gitignored
 into the new worktree, which is what `claude -w` does. It also runs on
@@ -201,7 +207,8 @@ shell is written. A raw string in `home.activation` is never acceptable.
 fails the build on quoting and syntax errors, and strict mode makes a tool
 missing from the hermetic activation `PATH` fail activation instead of
 no-oping. It also declares tool dependencies through `path`, provides an
-atomic `json_edit`, and respects `--dry-run`. Agent CLIs are not on that
+atomic `json_edit` (keeps the file's mode, and warns instead of writing when
+jq fails), and respects `--dry-run`. Agent CLIs are not on that
 `PATH`, so they are called by absolute `/opt/homebrew/bin` path.
 
 Shellcheck does not check that commands exist. The `activation` flake check
@@ -318,7 +325,7 @@ store on every rebuild.
 
 | Agent | Module | Sweep | Keep-set |
 | --- | --- | --- | --- |
-| Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; `claude mcp remove` for undeclared MCP | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
+| Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; the playwright MCP is removed and re-added on every rebuild; undeclared MCP servers are not pruned | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
 | Codex | `ai/codex/default.nix` | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add | none - Codex has no list-and-prune |
 | Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
 | Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
