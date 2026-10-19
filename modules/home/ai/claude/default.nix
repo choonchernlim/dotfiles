@@ -17,7 +17,7 @@ let
   # See ../default.nix for why this is an absolute nix-store npx.
   playwrightMcp = {
     command = "${pkgs.nodejs}/bin/npx";
-    args = [ "@playwright/mcp@latest" ];
+    args = [ "@playwright/mcp@0.0.83" ];
   };
 
   # Declared plugins/marketplaces are whatever home/ai/settings/claude.json

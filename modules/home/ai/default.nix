@@ -28,6 +28,9 @@
 #   directory" exec'ing "npx"). ${pkgs.nodejs}/bin/npx resolves everywhere,
 #   including work-atdj (no mise), without putting node on the interactive
 #   PATH: pkgs.nodejs is referenced only here, never added to home.packages.
+#   The package is pinned to an exact version: it runs with browser and file
+#   access, and `@latest` would change what runs on each rebuild, outside
+#   flake.lock. Bump every copy together.
 #
 # Agent CLIs are called by absolute /opt/homebrew/bin path, never `command -v`:
 # home-manager's activation PATH is hermetic (nix-store bash/coreutils/grep/
