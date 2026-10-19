@@ -197,12 +197,18 @@ first waits up to 5s for reviewr's own pane, so the two never both open one.
 `mkReconcile` in `modules/home/lib/reconcile.nix` is the only way activation
 shell is written. A raw string in `home.activation` is never acceptable.
 
-Activation runs under a hermetic `PATH`, so a script that calls a tool missing
-from it would silently no-op. `mkReconcile` wraps each script in
-`writeShellApplication`, so shellcheck fails the build on that tool instead.
-It also declares tool dependencies through `path`, provides an atomic
-`json_edit`, and respects `--dry-run`. Agent CLIs are called by absolute
-`/opt/homebrew/bin` path for the same reason.
+`mkReconcile` wraps each script in `writeShellApplication`, so shellcheck
+fails the build on quoting and syntax errors, and strict mode makes a tool
+missing from the hermetic activation `PATH` fail activation instead of
+no-oping. It also declares tool dependencies through `path`, provides an
+atomic `json_edit`, and respects `--dry-run`. Agent CLIs are not on that
+`PATH`, so they are called by absolute `/opt/homebrew/bin` path.
+
+Shellcheck does not check that commands exist. The `activation` flake check
+builds every script on every profile. Evaluating it fails on any
+`home.activation` entry this repo defines without `mkReconcile`; an inline
+`home-manager.sharedModules` module needs `_file` so its entries count as the
+repo's.
 
 ## Docker Toolchain
 
@@ -264,6 +270,8 @@ nix build --impure .#checks.aarch64-darwin.formatting # formatting gate (CI-styl
 nix build --impure .#checks.aarch64-darwin.pre-commit # lint gate (statix + deadnix + shellcheck + AGENTS.md paths)
 nix build --impure .#checks.aarch64-darwin.rebuild-format # golden test for the rebuild summary
 nix flake check --impure --no-build                   # + evaluates every host profile
+nix build --impure .#checks.aarch64-darwin.activation # shellchecks every mkReconcile script
+scripts/check-warnings.sh                             # no new evaluation warnings on any profile
 direnv allow && direnv exec . true                    # install .git/hooks/pre-commit by hand
 ```
 
@@ -271,9 +279,16 @@ Direnv refreshes the pre-commit hook through `.envrc` whenever the repository
 is entered. The hook runs nixfmt, statix, deadnix, shellcheck, and
 `scripts/test_agents_md.py`, which fails when a backticked path in `AGENTS.md`
 no longer exists. Its binaries
-come from Nix store paths rather than the ambient `PATH`. Shellcheck skips two
-files that are not standalone bash: `cache-purge.sh` (a fragment that
-`writeShellApplication` wraps and shellchecks at build time) and `.envrc`.
+come from Nix store paths rather than the ambient `PATH`. Shellcheck skips the
+files that are not standalone bash: `cache-purge.sh` and `scripts/rebuild/*.sh`
+(fragments that `writeShellApplication` wraps and shellchecks at build time)
+and `.envrc`.
+
+`.github/workflows/check.yml` runs the same gate on every push to `main` and
+every pull request, on an Apple silicon runner: it evaluates every check and
+profile, builds every check except the full `host-<name>` systems, and runs
+`scripts/check-warnings.sh`. `rebuild` pulls `main` first, so this is what keeps
+a commit from one machine from breaking the others.
 
 `nix develop` alone creates a transient garbage-collection root. Nix-direnv
 creates a persistent root under `.direnv/` after `direnv allow`, which

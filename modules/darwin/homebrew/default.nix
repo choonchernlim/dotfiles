@@ -55,6 +55,10 @@
         mkReconcile = import ../../home/lib/reconcile.nix { inherit pkgs lib; };
       in
       {
+        # Without this the entries below look defined by home-manager, so the flake
+        # `activation` check would skip them.
+        _file = ./default.nix;
+
         # Prune brew caches and orphaned deps after every bundle run. Runs as the
         # user (brew refuses root), hence a home-manager activation.
         home.activation.brewMaintenance = mkReconcile {

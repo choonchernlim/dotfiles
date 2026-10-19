@@ -309,6 +309,7 @@ while IFS= read -r line || [ -n "$line" ]; do
       section build "🔨" build
       drop
       ;;
+    # Known warnings; scripts/check-warnings.sh ignores the same ones.
     "warning: Using 'builtins.derivation' to create a derivation named 'options.json'"*)
       known_warn "options.json (upstream)"
       ;;

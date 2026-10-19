@@ -1,8 +1,10 @@
 # mkReconcile: the single way this repo writes home-manager activation shell.
 #
 # Wraps the script in pkgs.writeShellApplication so that:
-#   - shellcheck runs at BUILD time: a script calling a tool that is not on the
-#     hermetic activation PATH fails `rebuild` instead of silently no-oping;
+#   - shellcheck runs at BUILD time (quoting, syntax, unset variables); the
+#     `activation` flake check builds every script, so this gates checks too.
+#     It does not check that commands exist: a tool missing from PATH fails at
+#     activation, loudly, through strict mode;
 #   - strict mode (set -euo pipefail) is on; genuinely best-effort commands
 #     (network calls, optional binaries) opt out per-command with `|| true`;
 #   - tool deps are declared via `path` (runtimeInputs) instead of sprinkling
@@ -58,6 +60,7 @@ let
     '';
   };
 in
+# flake.nix (reconcileScripts) recognises a reconcile by exactly this line.
 lib.hm.dag.entryAfter ([ "writeBoundary" ] ++ after) ''
   run ${script}/bin/${name}
 ''

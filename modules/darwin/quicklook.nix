@@ -21,6 +21,10 @@ _:
         mkReconcile = import ../home/lib/reconcile.nix { inherit pkgs lib; };
       in
       {
+        # Without this the entries below look defined by home-manager, so the flake
+        # `activation` check would skip them.
+        _file = ./quicklook.nix;
+
         # Strip quarantine so Finder loads the generators, then refresh the registry.
         home.activation.quicklookRefresh = mkReconcile {
           name = "quicklook-refresh";

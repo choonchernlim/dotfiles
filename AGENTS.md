@@ -37,19 +37,22 @@ Rebuild only for package lists, system defaults, or shell config in `.nix` files
 rebuild                 # apply after editing any .nix file. THE USER RUNS THIS, NEVER THE AGENT.
 nix fmt                 # nixfmt; also runs after agent edits
 
-# Validate without touching the system (flake check evaluates every profile; always --impure)
+# Validate without touching the system (flake check evaluates every profile; always --impure).
+# Fails on module warnings and on any home.activation entry that is not a mkReconcile.
 nix flake check --impure --no-build
 
-# Shellcheck every mkReconcile script for a host (only checked when built)
-nix build --impure --no-link .#darwinConfigurations.work.config.home-manager.users.$USER.home.activationPackage
+# Shellcheck every mkReconcile script on every profile (only checked when built)
+nix build --impure --no-link .#checks.aarch64-darwin.activation
 
 # Replay captured rebuild streams through the summary formatter (the only way to verify it);
 # `nix flake check` also builds `rebuild` itself, which shellchecks it
 nix build --impure .#checks.aarch64-darwin.rebuild-format
 
-# Every profile must print nothing here; eliminate any new warning before committing (options.json is a known upstream one)
-nix eval --impure .#darwinConfigurations.work.system.drvPath 2>&1 | grep -i warning | grep -v options.json | grep -v "uncommitted changes"
+# Fails on any new evaluation warning on any profile (options.json is a known upstream one)
+scripts/check-warnings.sh
 ```
+
+CI (`.github/workflows/check.yml`) runs these checks on every push to `main` and every pull request.
 
 ## Do Not Read
 

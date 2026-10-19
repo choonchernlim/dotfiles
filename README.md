@@ -88,8 +88,12 @@ langfuse-up
 
 ```sh
 nix flake check --impure --no-build   # evaluates every profile, not just this machine's
+nix build --impure .#checks.aarch64-darwin.activation # shellchecks every activation script
+scripts/check-warnings.sh             # no new evaluation warnings
 nix build --impure .#darwinConfigurations.work.system --dry-run
 ```
+
+CI (`.github/workflows/check.yml`) runs the checks from `AGENTS.md` "Commands" on every push to `main` and every pull request.
 
 ### Daily Use
 

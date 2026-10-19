@@ -90,6 +90,35 @@
             }
           ];
         };
+
+      # The home.activation entries a profile defines from this repo, joined. home-manager's
+      # own are defined in another store path; an inline attrset (hosts/*.nix `home`) has no
+      # file, so it counts as the repo's. Each must be the `run <store path>/bin/<name>` line
+      # mkReconcile emits, so the result's string context is exactly those scripts.
+      reconcileScripts =
+        name: cfg:
+        let
+          inherit (cfg.config.home-manager.users.${user}.home) activation;
+          hmOptions = cfg.options.home-manager.users.valueMeta.attrs.${user}.configuration.options;
+          fromRepo = d: lib.hasPrefix "${self}/" d.file || !lib.hasPrefix builtins.storeDir d.file;
+          # `activation ? n` drops an entry whose definition is an mkIf that came out false.
+          names = lib.filter (n: activation ? ${n}) (
+            lib.unique (
+              lib.concatMap (d: lib.attrNames d.value) (
+                lib.filter fromRepo hmOptions.home.activation.definitionsWithLocations
+              )
+            )
+          );
+          raw = lib.filter (
+            n:
+            builtins.match "[[:space:]]*run /nix/store/[^/]+/bin/[^[:space:]]+[[:space:]]*" activation.${n}.data
+            == null
+          ) names;
+        in
+        assert lib.assertMsg (
+          raw == [ ]
+        ) "host ${name}: home.activation entries not built with mkReconcile: ${toString raw}";
+        lib.concatMapStrings (n: activation.${n}.data) names;
     in
     {
       darwinConfigurations = lib.genAttrs hostNames mkHost;
@@ -167,11 +196,26 @@
             (lib.importJSON ./.claude/settings.json).hooks == (lib.importJSON ./.codex/hooks.json).hooks
           ) ".claude/settings.json and .codex/hooks.json must declare identical hooks";
           pkgs.emptyFile;
+        # Every profile's mkReconcile scripts and nothing else, so building this shellchecks
+        # each one without building the systems; evaluating it (--no-build) already fails on
+        # a raw home.activation string.
+        activation = pkgs.writeText "activation-scripts" (
+          lib.concatStrings (lib.mapAttrsToList reconcileScripts self.darwinConfigurations)
+        );
       }
       # host-<name>: every profile's system closure, so `nix flake check --impure --no-build`
       # evaluates all of them from any machine and a broken hosts/<name>.nix is caught
       # before that machine rebuilds. (Without --no-build these build the full systems.)
-      // lib.mapAttrs' (name: cfg: lib.nameValuePair "host-${name}" cfg.system) self.darwinConfigurations;
+      # Module warnings (home-manager's included) fail it; see scripts/check-warnings.sh.
+      // lib.mapAttrs' (
+        name: cfg:
+        lib.nameValuePair "host-${name}" (
+          assert lib.assertMsg (
+            cfg.config.warnings == [ ]
+          ) "host ${name} has module warnings:\n${lib.concatStringsSep "\n" cfg.config.warnings}";
+          cfg.system
+        )
+      ) self.darwinConfigurations;
 
       # `nix develop` enters this shell and installs .git/hooks/pre-commit via shellHook.
       # NoCC: the default stdenv exports DEVELOPER_DIR/SDKROOT at a nix apple-sdk (no git)

@@ -113,7 +113,15 @@ warning is a real regression - investigate it before committing.
 The `rebuild` summary shows it as one line, `⚠ 1 known warning: options.json
 (upstream)`, and the full text stays in the log. Any other warning prints in full
 under an "unknown warning - investigate before committing" note, so the
-invariant above still bites.
+invariant above still bites. Before a rebuild, `scripts/check-warnings.sh` (also
+run in CI) fails on the same unknown warnings, and the `host-<name>` flake checks
+fail on module warnings.
+
+**An inline `home-manager.sharedModules` module needs `_file`.**
+Without it, its `home.activation` entries look defined by home-manager itself, so
+the `activation` flake check skips them and a raw activation string there goes
+unnoticed. `modules/darwin/homebrew/default.nix` and `modules/darwin/quicklook.nix`
+set `_file = ./<this file>;` for this reason.
 
 **`rebuild` output goes through a formatter.**
 `rebuild.sh` tees the raw stream to `~/.cache/dotfiles/rebuild-<timestamp>.log`

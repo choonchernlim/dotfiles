@@ -1,0 +1,36 @@
+# The static checks from AGENTS.md "Commands" (docs/architecture.md explains why).
+# host-<name> checks are full system closures, so they are evaluated, not built.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-latest # Apple silicon, matching aarch64-darwin
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@v23
+      # --impure: flake.nix derives the profile user from $USER (here "runner").
+      - name: Evaluate every check and profile
+        run: nix flake check --impure --no-build
+      - name: Build every check except full host systems
+        run: |
+          nix eval --impure --json .#checks.aarch64-darwin --apply builtins.attrNames \
+            | jq -r '.[] | select(startswith("host-") | not) | ".#checks.aarch64-darwin.\(.)"' \
+            | xargs nix build --impure --no-link -L
+      - name: No new evaluation warnings
+        run: scripts/check-warnings.sh

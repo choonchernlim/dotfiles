@@ -33,8 +33,8 @@ Rules for changing this repository. Follow these phases in order.
 
 ## Verify
 
-- `nix fmt`, then `nix flake check --impure --no-build` (evaluates every profile) and the warning grep from AGENTS.md "Commands" - no new warnings beyond the documented `options.json` one.
-- Build the affected home activation package so every `mkReconcile` script
+- `nix fmt`, then `nix flake check --impure --no-build` (evaluates every profile) and `scripts/check-warnings.sh` - no new warnings beyond the documented `options.json` one.
+- Build the `activation` check so every `mkReconcile` script
   is shellchecked rather than only evaluated.
 - Diff every config file the change owns: capture path and content before and after the rebuild. Any unintended change is a blocker.
 - The user runs `rebuild` themselves; hand them a checklist of what to confirm afterwards.
