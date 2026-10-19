@@ -38,6 +38,8 @@ in
   home = {
     file = {
       ".codex/AGENTS.md".source = mkOut "${aiDir}/AGENTS.md";
+      # The `reviewer` subagent named by AGENTS.md's pre-commit review.
+      ".codex/agents/reviewer.toml".source = mkOut "${aiDir}/agents/codex/reviewer.toml";
     };
 
     activation = {

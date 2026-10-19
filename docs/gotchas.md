@@ -25,6 +25,13 @@ explicit profile aborts unless `--force` is present because zap can remove
 host-specific packages. The first `bootstrap.sh` call therefore requires a
 profile argument.
 
+**The Claude `reviewer` subagent's model can be silently overridden.**
+`model: opus` in `home/ai/agents/claude/reviewer.md` beats the
+`CLAUDE_CODE_SUBAGENT_MODEL=sonnet` that `home/ai/settings/claude.json` sets,
+unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is also set. `CLAUDE_CODE_EFFORT_LEVEL`
+beats its `effort: high`. Setting either of those two variables downgrades every
+review pass, and so does a `model` passed on the spawn call.
+
 **AI-agent plugins and extensions are nix-managed.**
 Anything installed outside this repo (via `claude plugin install`, `codex plugin add`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild`. To keep a plugin, declare it in nix - for Claude that means `enabledPlugins`/`extraKnownMarketplaces` in `home/ai/settings/claude.json`, which the reconcile reads as its keep-set. See [AI Agent Plugin Reconcile](architecture.md#ai-agent-plugin-reconcile) for details.
 

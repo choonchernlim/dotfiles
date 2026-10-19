@@ -68,6 +68,8 @@ in
           force = true;
         };
         ".claude/settings.json".source = mkOut "${aiDir}/settings/claude.json";
+        # The `reviewer` subagent named by AGENTS.md's pre-commit review.
+        ".claude/agents/reviewer.md".source = mkOut "${aiDir}/agents/claude/reviewer.md";
         # Vendored from `herdr integration install claude`; the SessionStart hook
         # in settings/claude.json points here. mkOut so a re-install writes back
         # into the repo as a visible diff instead of a stray host-local file.

@@ -1,0 +1,5 @@
+name = "reviewer"
+description = "Fresh-context reviewer for the pre-commit review passes. Use for each cohesion, bug, or security pass on a diff."
+# No `model`: inherits the session model (codexModel in modules/home/ai/codex/default.nix).
+model_reasoning_effort = "high"
+developer_instructions = "Review only, never edit. Report findings as `path:line`, marked confirmed or uncertain."

@@ -12,17 +12,17 @@
 
 ## Pre-commit review
 
-- After any code change, and before showing me the diff for commit approval, run these passes in order. Skip them only when the change is purely docs, comments, or formatting.
-  1. Simplify: review the diff for reuse, simplification, and efficiency, and apply the cleanups (Claude Code: `/simplify`).
-  2. Re-run the project's checks (lint, tests, build) and fix any failures.
-  3. Bug review: review the final diff for correctness bugs (Claude Code: `/code-review`). Fix confirmed findings and re-run the checks; list uncertain or skipped findings with the diff instead of changing code for them.
-  4. Security review: only when the diff touches auth, secrets, input parsing, shell or process execution, network calls, or permissions (Claude Code: `/security-review`). Handle findings the same way as step 3.
-- Agents without these commands use their own review command if they have one (e.g. Codex `/review`), otherwise do each pass by reading the diff.
-- When showing the diff, say which passes ran, what they changed, and any open findings.
+- After any code change (skip for docs, comments, formatting), before showing the diff for approval:
+  1. Simplify the diff (Claude Code: `/simplify`).
+  2. Re-run the project's checks (lint, tests, build); fix failures.
+  3. Have the `reviewer` subagent review the diff, one pass each in parallel: cohesion (conventions, invariants, docs/tests updated, nothing out of scope); bugs (Claude Code: `/code-review high`; Codex: `/review`); security, only if it touches auth, secrets, input parsing, shell, network, or permissions. No reviewer: do the passes yourself.
+  4. Fix confirmed findings and re-run the checks; list the rest with the diff.
+- When showing the diff, say which passes ran, on which model, what they changed, and any open findings.
 
 ## Engineering priorities
 
 - When making technical decisions, do not weigh development cost heavily. Prefer quality, simplicity, robustness, scalability, and long-term maintainability.
+- Follow the patterns of sibling code and reuse existing mechanisms.
 
 ## Bug-fixing & testing workflow
 

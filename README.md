@@ -26,7 +26,7 @@ It installs tools, reconciles mutable configuration, and links editable files.
 | Toolchains | mise with Java, Node.js, and Terraform |
 | Cloud | gcloud configuration and components |
 | Developer tools | Neovim, ripgrep, fd, fzf, jq, lazygit, and Git tooling |
-| AI agents | Shared policy, skills, plugins, MCP servers, and tracing |
+| AI agents | Shared policy, skills, plugins, MCP servers, a high-effort `reviewer` subagent, and tracing |
 | Containers | Colima with Homebrew-managed Docker, Buildx, and Compose plugins |
 | Local services | Gitea and Langfuse through Docker Compose |
 | Credentials | Keychain registry storage and the GCP Artifact Registry helper |

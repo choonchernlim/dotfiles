@@ -84,7 +84,7 @@ modules/
   home/cachepurge/     - feature (all 3 hosts): default.nix wraps cache-purge.sh (plain bash,
                          shellcheck-gated) as the `cache-purge` command + the auto activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
-  ai/                  - shared AGENTS.md, per-agent settings/ (skills live in the skills repo)
+  ai/                  - shared AGENTS.md, per-agent settings/ and agents/ (skills live in the skills repo)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - shim: `nix run`s the flake-pinned `rebuild` (scripts/rebuild)
 scripts/rebuild/       - `rebuild` (rebuild.sh) and `rebuild-format` (format.sh) as
@@ -140,6 +140,17 @@ Claude Code and Antigravity receive their own directory links to the hub.
 A skill edit or a new skill directory is live without a rebuild. Nix never
 touches `~/.codex/skills`, where Codex writes bundled system skills. Per-agent
 settings live under `home/ai/settings/`.
+
+The pre-commit review in `AGENTS.md` delegates its review passes to a
+`reviewer` subagent. Each agent gets its own definition under
+`home/ai/agents/<agent>/`, in that agent's native format, and the definition
+sets its model and effort:
+
+| Target path | Agent | Model / effort |
+| --- | --- | --- |
+| `~/.claude/agents/reviewer.md` | Claude Code | `opus`, `high` |
+| `~/.codex/agents/reviewer.toml` | Codex | inherits `codexModel`, `high` |
+| `~/.gemini/config/agents/reviewer.md` | Antigravity | `pro` tier (agy has no per-subagent effort) |
 
 The herdr agent-state hooks that `herdr integration install` generates are
 vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to

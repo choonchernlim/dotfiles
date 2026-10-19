@@ -54,6 +54,9 @@ in
   home = {
     file = {
       ".gemini/antigravity-cli/ANTIGRAVITY.md".source = mkOut "${aiDir}/AGENTS.md";
+      # The `reviewer` subagent named by AGENTS.md's pre-commit review. agy
+      # reads global agents from ~/.gemini/config, not ~/.gemini/antigravity-cli.
+      ".gemini/config/agents/reviewer.md".source = mkOut "${aiDir}/agents/antigravity/reviewer.md";
       # agy reads global skills from ~/.gemini/antigravity-cli/skills only (no
       # native ~/.agents support), so this links at the hub (./default.nix),
       # not at the repo. force: pre-nix entries here were symlinks, which
