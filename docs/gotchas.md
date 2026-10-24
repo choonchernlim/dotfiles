@@ -197,6 +197,23 @@ live-symlinked configs: the mise and starship configs resolve through
 fix, because Homebrew's ad-hoc-signed binary lands at a new path with a new
 signature on every upgrade. Code lives in `~/Developer`.
 
+**WezTerm Option+Left/Right types `;3D` instead of jumping a word.**
+WezTerm encodes Option+arrow as xterm `ESC[1;3D`/`ESC[1;3C`, which zsh and
+most line editors leave unbound, so the tail lands as literal text.
+`home/.config/wezterm/wezterm.lua` rebinds them with `SendKey` to Alt-b/Alt-f
+(live, no rebuild), the word jump every readline-style editor binds, matching
+Terminal.app. Fix it there rather than with a zsh `bindkey`, which would cover
+only the shell prompt.
+
+**VS Code's terminal shows prompt icons as boxes unless it uses a Nerd Font.**
+Its default font (Menlo) lacks the starship glyphs; VS Code draws only the
+powerline arrows itself. `home/vscode/settings.json` sets
+`terminal.integrated.fontFamily` to Hack Nerd Font, like WezTerm. It is
+live-linked to `~/Library/Application Support/Code/User/settings.json`, so
+settings changed in VS Code's UI land in the repo. The first rebuild on a host
+that already has a settings.json moves it to `settings.json.hm-bak`; merge
+anything worth keeping into the repo copy.
+
 **Dev root move: `~/Documents/development` to `~/Developer`.**
 On each host, quit agents and IDEs, then:
 

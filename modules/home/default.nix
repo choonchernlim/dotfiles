@@ -46,6 +46,9 @@ in
       ".config/wezterm".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/wezterm";
       ".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/nvim";
       ".config/herdr".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/.config/herdr";
+      # Only the file: the rest of Code/User is VS Code's runtime state.
+      "Library/Application Support/Code/User/settings.json".source =
+        config.lib.file.mkOutOfStoreSymlink "${dotfiles}/home/vscode/settings.json";
     };
   };
   fonts.fontconfig.enable = true;

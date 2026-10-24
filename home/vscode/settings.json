@@ -1,0 +1,5 @@
+{
+  // Same font as WezTerm: the default (Menlo) lacks the Nerd Font glyphs the
+  // starship prompt uses, so they render as boxes.
+  "terminal.integrated.fontFamily": "'Hack Nerd Font'"
+}

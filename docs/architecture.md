@@ -85,6 +85,8 @@ modules/
                          shellcheck-gated) as the `cache-purge` command + the auto activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, per-agent settings/ and agents/ (skills live in the skills repo)
+  vscode/              - VS Code user settings.json (only the file is linked; the rest of Code/User
+                         is VS Code's runtime state)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - shim: `nix run`s the flake-pinned `rebuild` (scripts/rebuild)
 scripts/rebuild/       - `rebuild` (rebuild.sh) and `rebuild-format` (format.sh) as
