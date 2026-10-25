@@ -1,6 +1,6 @@
 # Codex: shared-instructions/reviewer symlinks, herdr hook, config.toml
-# seeding/upsert (model, effort, secret-deny permissions profile), playwright
-# MCP registration, and a stale-backup sweep. The Langfuse tracing plugin lives
+# seeding/upsert (model, effort, secret-deny permissions profile, playwright
+# MCP server), and a stale-backup sweep. The Langfuse tracing plugin lives
 # in ./langfuse.nix.
 #
 # No skills link here: Codex discovers ~/.agents/skills natively (the hub in
@@ -62,6 +62,20 @@ let
     command = "${pkgs.nodejs}/bin/npx";
     args = [ "@playwright/mcp@0.0.83" ];
   };
+
+  # "approve" runs every playwright tool without a prompt, like Claude's
+  # mcp__playwright__* allow rule; the default ("auto") prompts on any tool
+  # not annotated read-only, which is nearly all of them. Written by the
+  # upsert because `codex mcp add` has no flag for it.
+  codexMcp = ''
+    [mcp_servers.playwright]
+    command = "${playwrightMcp.command}"
+    args = ${builtins.toJSON playwrightMcp.args}
+    default_tools_approval_mode = "approve"
+  '';
+
+  # Every table the upsert owns, subtables included.
+  codexTables = codexPermissions + "\n" + codexMcp;
 in
 
 {
@@ -92,14 +106,10 @@ in
       # any old symlink.
       #
       # The upsert owns only codexPreamble's keys (rewritten at the top of the
-      # file) and the [permissions.dotfiles*] tables (re-appended at EOF); the
-      # trust tables Codex writes survive every rebuild by construction. awk
-      # comes from pkgs.gawk (hermetic PATH).
-      #
-      # MCP is registered through `codex mcp add` so Codex's own TOML writer
-      # owns the table; remove-then-add for the same nix-store-path reason as
-      # claude's. Nothing prunes an undeclared Codex MCP server yet - codex has
-      # no list-and-prune wired up.
+      # file) and codexTables' tables and their subtables (re-appended at EOF);
+      # the trust tables Codex writes survive every rebuild by construction.
+      # awk comes from pkgs.gawk (hermetic PATH). Nothing prunes an undeclared
+      # Codex MCP server yet.
       codexConfig = mkReconcile {
         name = "codex-config";
         after = [ "linkGeneration" ];
@@ -107,7 +117,7 @@ in
         text = ''
           _codex_config="$HOME/.codex/config.toml"
           _preamble='${lib.removeSuffix "\n" codexPreamble}'
-          _tables='${lib.removeSuffix "\n" codexPermissions}'
+          _tables='${lib.removeSuffix "\n" codexTables}'
           mkdir -p "$HOME/.codex"
           if [ ! -e "$_codex_config" ] || [ -L "$_codex_config" ]; then
             rm -f "$_codex_config"
@@ -117,8 +127,20 @@ in
             BEGIN {
               n = split(preamble, lines, "\n")
               for (i = 1; i <= n; i++) { k = lines[i]; sub(/[ \t]*=.*/, "", k); owned[k] = 1; print lines[i] }
+              n = split(tables, lines, "\n")
+              for (i = 1; i <= n; i++) if (lines[i] ~ /^\[/) owned_tables[header(lines[i])] = 1
               in_preamble = 1; skip = 0; blanks = 0
             }
+            # A header line as a comparable key path: no brackets, comment, or
+            # CR, no spaces around dots, and bare-key-safe quotes dropped, so
+            # [ mcp_servers."playwright" ] still matches [mcp_servers.playwright].
+            function header(s) {
+              sub(/\r$/, "", s); sub(/^\[+[ \t]*/, "", s); sub(/[ \t]*\]+[ \t]*(#.*)?$/, "", s)
+              gsub(/[ \t]*\.[ \t]*/, ".", s)
+              return gensub(/"([A-Za-z0-9_-]+)"/, "\\1", "g", s)
+            }
+            # Owned: an owned table or a subtable of one.
+            function owns(s,   t) { s = header(s); for (t in owned_tables) if (s == t || index(s, t ".") == 1) return 1; return 0 }
             # Blank lines are held back so dropped lines never leave a growing gap.
             function emit(s) { while (blanks > 0) { print ""; blanks-- } print s }
             # Lines inside a multi-line string are data, never headers or keys:
@@ -126,18 +148,13 @@ in
             function quotes(s) { return gsub(/"""|\047\047\047/, "", s) % 2 }
             in_string { if (!skip) emit($0); if (quotes($0)) in_string = 0; next }
             quotes($0) { in_string = 1 }
-            /^\[/ { in_preamble = 0; skip = ($0 ~ /^\[permissions\.dotfiles[].]/) }
+            /^\[/ { in_preamble = 0; skip = owns($0) }
             skip { next }
             /^[ \t]*$/ { blanks++; next }
             in_preamble { k = $0; sub(/[ \t]*=.*/, "", k); if (k in owned) next }
             { emit($0) }
             END { print ""; print tables }
           ' || true
-          _codex=/opt/homebrew/bin/codex
-          if [ -x "$_codex" ]; then
-            "$_codex" mcp remove playwright 2>/dev/null || true
-            "$_codex" mcp add playwright -- ${playwrightMcp.command} ${lib.concatStringsSep " " playwrightMcp.args} 2>/dev/null || true
-          fi
         '';
       };
 

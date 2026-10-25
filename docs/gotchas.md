@@ -213,6 +213,15 @@ while its link is missing (`settings.json` is live; the link needs a rebuild).
 A Codex sandbox flag (`-s`, `--sandbox`, `--full-auto`) replaces the profile and
 drops its deny rules for that session.
 
+**Every agent runs Playwright MCP tools without asking.**
+Claude allows `mcp__playwright__*`, opencode `playwright_*`, and agy
+`mcp(playwright/*)`. Codex sets `default_tools_approval_mode = "approve"` on
+its playwright MCP table. Copilot keeps no approvals in a settings key, so
+only the `copilot` alias passes `--allow-tool=playwright`; a `copilot` started
+outside zsh still asks. The allow covers `browser_run_code_unsafe`, which runs
+arbitrary JavaScript in the MCP server's Node process: it is code execution as
+you, outside every agent sandbox and secret-deny rule above.
+
 **Codex has no command allowlist, unlike Claude.**
 A Codex execpolicy rule with `decision = "allow"` runs the command outside the
 sandbox, which would switch off the `[permissions.dotfiles]` deny rules for

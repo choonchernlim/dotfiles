@@ -1,6 +1,6 @@
 # Copilot CLI: shared-instructions/settings/reviewer symlinks, herdr and
-# secret-guard hooks, MCP config, and the reconcile sweep keeping its plugin
-# store empty (nix declares none).
+# secret-guard hooks, MCP config with its auto-approve alias, and the reconcile
+# sweep keeping its plugin store empty (nix declares none).
 #
 # No skills link here: Copilot discovers ~/.agents/skills natively (the hub in
 # ./default.nix); a ~/.copilot/skills link on top would list every skill twice.
@@ -25,6 +25,12 @@ let
 in
 
 {
+  # Every playwright tool runs without a prompt, like Claude's
+  # mcp__playwright__* allow rule. Copilot persists no tool approvals in a
+  # settings key, so the flag rides on the alias (claude's alias mechanics);
+  # the PreToolUse secret guard still runs first.
+  programs.zsh.shellAliases.copilot = "copilot --allow-tool=playwright";
+
   home = {
     file = {
       ".copilot/copilot-instructions.md".source = mkOut "${aiDir}/AGENTS.md";

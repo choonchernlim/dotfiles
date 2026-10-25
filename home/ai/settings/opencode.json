@@ -24,6 +24,7 @@
       "pip3 list *": "allow",
       "pip3 show *": "allow",
       "lsof *": "allow"
-    }
+    },
+    "playwright_*": "allow"
   }
 }

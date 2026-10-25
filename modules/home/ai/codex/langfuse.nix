@@ -13,7 +13,7 @@ in
 
 {
   # Runs after codexConfig, so its EOF appends land after the nix-owned
-  # [permissions.dotfiles*] tables, which the next rebuild moves back to EOF.
+  # codexTables (./default.nix), which the next rebuild moves back to EOF.
   #
   # Two idempotent, best-effort guards:
   #   (a) install-if-absent via `codex plugin add` (grep of `plugin list --json`

@@ -63,14 +63,16 @@ modules/
       claude/          - default.nix (symlinks, MCP, reconcile, per-host dotfiles.claude.model
                          option for the `claude` alias's --model) + langfuse.nix (TEMPORARY plugin
                          install and CC_LANGFUSE_TAGS patch)
-      codex/           - default.nix (config.toml upsert of model, effort, and the secret-deny
-                         permissions profile; herdr hook, MCP, backup sweep;
+      codex/           - default.nix (config.toml upsert of model, effort, the secret-deny
+                         permissions profile, and the auto-approved playwright MCP; herdr hook,
+                         backup sweep;
                          no skills link - Codex reads the hub natively and owns ~/.codex/skills)
                          + langfuse.nix (TEMPORARY tracing plugin install)
       antigravity.nix  - symlinks into ~/.gemini/config, playwright plugin, herdr hook,
                          settings and hooks.json merge-reconcile, agy update,
                          sweep of both agy's plugin store and ~/.gemini/extensions
-      copilot.nix      - symlinks, herdr and secret-guard hooks, MCP config, plugin-store reset
+      copilot.nix      - symlinks, herdr and secret-guard hooks, MCP config, the `copilot` alias
+                         auto-approving playwright, plugin-store reset
       opencode.nix     - symlinks, herdr plugins, tui.jsonc, opencode.json (MCP, permissions)
   home/colima.nix      - feature (all 3 hosts): autostarts colima at login and prunes docker (weekly; unused images monthly) and fstrims via launchd agents
   home/docker.nix      - feature (all 3 hosts): reconciles Docker credentials and Homebrew
@@ -345,7 +347,7 @@ store on every rebuild.
 | Agent | Module | Sweep | Keep-set |
 | --- | --- | --- | --- |
 | Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; the playwright MCP is removed and re-added on every rebuild; undeclared MCP servers are not pruned | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
-| Codex | `ai/codex/default.nix` | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add | none - Codex has no list-and-prune |
+| Codex | `ai/codex/default.nix` | Stale-backup sweep only; the playwright MCP table is rewritten by the `config.toml` upsert | none - Codex has no list-and-prune |
 | Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
 | Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/config/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
 | Copilot | `ai/copilot.nix` | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` and drop the snake_case `installed_plugins` in `config.json` | none |

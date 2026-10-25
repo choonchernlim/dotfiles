@@ -90,9 +90,9 @@ in
       # A literal $HOME in a declared settings string becomes the real home:
       # permission rules take absolute paths only. (Hook commands run via sh -c,
       # so hooks.json keeps "$HOME" for the shell, like claude.json.)
-      # permissions.deny is appended to, not merged: a declared array would
-      # replace the rules agy writes at runtime. Neither path can retract a key
-      # that is no longer declared.
+      # permissions.allow and .deny are appended to, not merged: a declared
+      # array would replace the rules agy writes at runtime. Neither path can
+      # retract a key or rule that is no longer declared.
       antigravitySettings = mkReconcile {
         name = "antigravity-settings";
         text = ''
@@ -103,10 +103,10 @@ in
             [ -s "$_f" ] || printf '{}' > "$_f"
             json_edit "$_f" --slurpfile _d "$_decl" --arg home "$HOME" '
               ($_d[0] | walk(if type == "string" then gsub("\\$HOME(?![A-Za-z0-9_])"; $home) else . end)) as $d
-              | . * ($d | del(.permissions.deny))
-              | reduce ($d.permissions.deny // [])[] as $r (.;
-                  .permissions.deny = ((.permissions.deny // [])
-                    | if index($r) then . else . + [$r] end))'
+              | . * ($d | del(.permissions.allow, .permissions.deny))
+              | reduce ("allow", "deny") as $k (.;
+                  .permissions[$k] = ((.permissions[$k] // []) as $c
+                    | $c + (($d.permissions[$k] // []) - $c)))'
           fi
           # hooks.json, which agy's /hooks rewrites: own only the "herdr" group.
           _decl="${aiDir}/settings/antigravity-hooks.json"
