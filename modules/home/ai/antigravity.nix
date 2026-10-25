@@ -1,7 +1,10 @@
 # Antigravity (agy): shared-instructions/skills symlinks, playwright plugin,
-# settings merge-reconcile, self-update, and the reconcile sweep covering both
-# agy's own plugin store AND ~/.gemini/extensions (Gemini CLI) - the root
-# import source agy reimports plugins from on startup.
+# herdr hook, settings and hooks merge-reconcile, self-update, and the reconcile
+# sweep covering both agy's own plugin store AND ~/.gemini/extensions (Gemini
+# CLI) - the root import source agy reimports plugins from on startup.
+#
+# Global customizations live in ~/.gemini/config/; settings.json stays in
+# ~/.gemini/antigravity-cli/ (see docs/gotchas.md).
 {
   config,
   lib,
@@ -21,10 +24,10 @@ let
     args = [ "@playwright/mcp@0.0.83" ];
   };
 
-  # One directory derivation, linked as a single leaf: plugins/playwright was
-  # already a directory symlink pre-nix, and home-manager cannot mkdir -p
-  # through a symlink to place per-file entries inside it (force only overrides
-  # leaf collisions). A single leaf + force handles that case.
+  # One directory derivation, linked as a single leaf: home-manager cannot
+  # mkdir -p through an existing directory symlink to place per-file entries
+  # inside it (force only overrides leaf collisions), and agy's own plugin
+  # installs leave such symlinks here. A single leaf + force replaces one.
   playwrightAntigravityPlugin = pkgs.linkFarm "antigravity-playwright-plugin" [
     {
       name = "mcp_config.json";
@@ -42,7 +45,7 @@ let
     }
   ];
 
-  # Plugin basenames under ~/.gemini/antigravity-cli/plugins/ that the sweep
+  # Plugin basenames under ~/.gemini/config/plugins/ that the sweep
   # keeps. To add one: declare its source in home.file AND add its name here.
   antigravityKeepPlugins = [ "playwright" ];
   antigravityKeepCases = lib.concatMapStringsSep "\n        " (
@@ -53,22 +56,26 @@ in
 {
   home = {
     file = {
-      ".gemini/antigravity-cli/ANTIGRAVITY.md".source = mkOut "${aiDir}/AGENTS.md";
-      # The `reviewer` subagent named by AGENTS.md's pre-commit review. agy
-      # reads global agents from ~/.gemini/config, not ~/.gemini/antigravity-cli.
+      ".gemini/config/AGENTS.md".source = mkOut "${aiDir}/AGENTS.md";
+      # The `reviewer` subagent named by AGENTS.md's pre-commit review.
       ".gemini/config/agents/reviewer.md".source = mkOut "${aiDir}/agents/antigravity/reviewer.md";
-      # agy reads global skills from ~/.gemini/antigravity-cli/skills only (no
-      # native ~/.agents support), so this links at the hub (./default.nix),
-      # not at the repo. force: pre-nix entries here were symlinks, which
+      # agy has no native ~/.agents support, so this links at the hub
+      # (./default.nix), not at the repo. force: agy's own config migration
+      # leaves a symlink here (into an old home-manager generation), which
       # home-manager's backupFileExtension cannot move aside on its own.
-      ".gemini/antigravity-cli/skills" = {
+      ".gemini/config/skills" = {
         source = mkOut "${config.home.homeDirectory}/.agents/skills";
         force = true;
       };
-      ".gemini/antigravity-cli/plugins/playwright" = {
+      ".gemini/config/plugins/playwright" = {
         source = playwrightAntigravityPlugin;
         force = true;
       };
+      # Vendored from `herdr integration install antigravity-cli`; the herdr
+      # entry in settings/antigravity-hooks.json points here (see the claude
+      # module for why mkOut).
+      ".gemini/config/hooks/herdr-agent-state.sh".source =
+        mkOut "${aiDir}/hooks/antigravity/herdr-agent-state.sh";
       # settings.json is deliberately NOT a symlink: agy rewrites it at runtime
       # (trustedWorkspaces, permissions), which replaces a symlink with a real
       # file and makes home-manager's checkLinkTargets abort the next rebuild.
@@ -79,7 +86,13 @@ in
     activation = {
       # Own only the declared keys, pass through everything agy wrote. `. * $d`
       # is jq's recursive merge with the declared side winning. Reads the
-      # declared file from the live checkout; a rebuild still applies it.
+      # declared files from the live checkout; a rebuild still applies them.
+      # A literal $HOME in a declared settings string becomes the real home:
+      # permission rules take absolute paths only. (Hook commands run via sh -c,
+      # so hooks.json keeps "$HOME" for the shell, like claude.json.)
+      # permissions.deny is appended to, not merged: a declared array would
+      # replace the rules agy writes at runtime. Neither path can retract a key
+      # that is no longer declared.
       antigravitySettings = mkReconcile {
         name = "antigravity-settings";
         text = ''
@@ -87,7 +100,20 @@ in
           _f="$HOME/.gemini/antigravity-cli/settings.json"
           if [ -e "$_decl" ]; then
             mkdir -p "$(dirname "$_f")"
-            [ -e "$_f" ] || printf '{}' > "$_f"
+            [ -s "$_f" ] || printf '{}' > "$_f"
+            json_edit "$_f" --slurpfile _d "$_decl" --arg home "$HOME" '
+              ($_d[0] | walk(if type == "string" then gsub("\\$HOME(?![A-Za-z0-9_])"; $home) else . end)) as $d
+              | . * ($d | del(.permissions.deny))
+              | reduce ($d.permissions.deny // [])[] as $r (.;
+                  .permissions.deny = ((.permissions.deny // [])
+                    | if index($r) then . else . + [$r] end))'
+          fi
+          # hooks.json, which agy's /hooks rewrites: own only the "herdr" group.
+          _decl="${aiDir}/settings/antigravity-hooks.json"
+          _f="$HOME/.gemini/config/hooks.json"
+          if [ -e "$_decl" ]; then
+            mkdir -p "$(dirname "$_f")"
+            [ -s "$_f" ] || printf '{}' > "$_f"
             json_edit "$_f" --slurpfile _d "$_decl" '. * $_d[0]'
           fi
         '';
@@ -126,7 +152,7 @@ in
           fi
 
           # agy plugins: keep-set prune (including *.hm-bak backup dirs).
-          _agy_plugins="$HOME/.gemini/antigravity-cli/plugins"
+          _agy_plugins="$HOME/.gemini/config/plugins"
           if [ -d "$_agy_plugins" ]; then
             for _entry in "$_agy_plugins"/*; do
               [ -e "$_entry" ] || continue
@@ -147,7 +173,7 @@ in
           # settings.json.YYYYMMDD copies. Permanent sweep. A stale
           # settings.json.hm-bak can abort activation before this ever runs,
           # which is why rebuild.sh also sweeps *.hm-bak up front.
-          find "$HOME/.gemini/antigravity-cli" -maxdepth 1 \
+          find "$HOME/.gemini/antigravity-cli" "$HOME/.gemini/config" -maxdepth 1 \
             \( -name '*.hm-bak' -o -name 'settings.json.2[0-9][0-9][0-9]*' \) \
             -exec rm -rf {} + 2>/dev/null || true
         '';

@@ -95,7 +95,7 @@ An atomic runtime write can replace a managed symlink with a regular file.
 During the next rebuild, `checkLinkTargets` tries to back it up before
 relinking. An existing `.hm-bak` makes that safety check abort.
 
-`antigravitySettings` merge-reconciles the known writable settings file.
+`antigravitySettings` merge-reconciles agy's known writable files (`settings.json`, `hooks.json`).
 `rebuild.sh` removes stale agent backups before home-manager checks targets.
 Apply the merge-reconcile pattern when another tool must write a managed file.
 Do not use `force = true`, because it discards runtime-owned values.
@@ -178,7 +178,19 @@ It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quo
 `'~/...'` path, which bash never expands (exit 127, so the hook silently never
 runs). The `hook-paths` flake check fails on it. Restore `bash "$HOME/..."` and
 review the diff of the vendored script under `home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
-ignored.
+ignored. To refresh the scripts when `herdr integration status` reports them
+outdated, install into a throwaway home (`HOME=$(mktemp -d) herdr integration
+install <agent>`) and copy only the `.sh` file into `home/ai/hooks/<agent>/`
+(agy: install `antigravity-cli`, copy into `home/ai/hooks/antigravity/`).
+
+**Antigravity (agy) reads global config only from `~/.gemini/config/`.**
+Rules (`AGENTS.md`), skills, agents, plugins, and `hooks.json` live there.
+`~/.gemini/antigravity-cli/` keeps only `settings.json` and runtime state, and
+agy ignores an `ANTIGRAVITY.md` there. Telemetry is an account setting
+(`/config`), not a `settings.json` key. Permission rules take absolute paths
+with no globs, so agy's file tools are denied `~/.ssh` and `~/.gnupg` but no
+rule can cover every `.env` file. As with Claude's `Read` rules, shell commands
+are not covered.
 
 **herdr worktrees need their own mise trust root.**
 herdr checks out worktrees under `~/.herdr/worktrees/<repo>/<name>`, outside

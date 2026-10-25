@@ -1,4 +1,7 @@
 {
-  "enableTelemetry": false,
-  "model": "Gemini 4 Argon (Medium)"
+  "model": "Gemini 4 Argon (High)",
+  "notifications": true,
+  "permissions": {
+    "deny": ["read_file($HOME/.ssh)", "read_file($HOME/.gnupg)"]
+  }
 }

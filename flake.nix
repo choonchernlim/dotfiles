@@ -203,12 +203,15 @@
             quotedTilde =
               f:
               let
-                hooks = builtins.toJSON (lib.importJSON ./home/ai/settings/${f}).hooks;
+                json = lib.importJSON ./home/ai/settings/${f};
+                # antigravity-hooks.json is itself agy's hooks.json, with no `hooks` key.
+                hooks = builtins.toJSON (json.hooks or json);
               in
               lib.hasInfix "'~/" hooks || lib.hasInfix "\"~/" hooks;
             unexpanded = lib.filter quotedTilde [
               "claude.json"
               "copilot.json"
+              "antigravity-hooks.json"
             ];
           in
           assert lib.assertMsg (unexpanded == [ ])

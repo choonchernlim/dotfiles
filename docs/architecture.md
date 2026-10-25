@@ -66,7 +66,8 @@ modules/
       codex/           - default.nix (config.toml upsert, MCP, backup sweep; no skills link -
                          Codex reads the hub natively and owns ~/.codex/skills)
                          + langfuse.nix (TEMPORARY tracing plugin install)
-      antigravity.nix  - symlinks, playwright plugin, settings merge-reconcile, agy update,
+      antigravity.nix  - symlinks into ~/.gemini/config, playwright plugin, herdr hook,
+                         settings and hooks.json merge-reconcile, agy update,
                          sweep of both agy's plugin store and ~/.gemini/extensions
       copilot.nix      - symlinks, MCP config, plugin-store reset
       opencode.nix     - symlinks, opencode.json (MCP)
@@ -122,13 +123,13 @@ uninstalls them. A `TEMPORARY` file is designed for whole-file removal.
 
 `home/ai/AGENTS.md` is symlinked to every AI agent's canonical location:
 
-| Target path                                | Agent       |
-|--------------------------------------------|-------------|
-| `~/.claude/CLAUDE.md`                      | Claude Code |
-| `~/.codex/AGENTS.md`                       | Codex       |
-| `~/.config/opencode/AGENTS.md`             | opencode    |
-| `~/.copilot/copilot-instructions.md`       | Copilot     |
-| `~/.gemini/antigravity-cli/ANTIGRAVITY.md` | Antigravity |
+| Target path                          | Agent       |
+|--------------------------------------|-------------|
+| `~/.claude/CLAUDE.md`                | Claude Code |
+| `~/.codex/AGENTS.md`                 | Codex       |
+| `~/.config/opencode/AGENTS.md`       | opencode    |
+| `~/.copilot/copilot-instructions.md` | Copilot     |
+| `~/.gemini/config/AGENTS.md`         | Antigravity |
 
 Skills live in the separate [skills repo](https://github.com/choonchernlim/skills),
 checked out beside this one. `sync-skills.sh` clones it when missing, pulls it
@@ -137,7 +138,8 @@ when it is on `main`, and points `~/.dotfiles-skills` at it. `rebuild.sh` and
 
 `modules/home/ai/default.nix` exposes `~/.dotfiles-skills/skills` once as
 `~/.agents/skills`. Codex, Copilot, and OpenCode discover that hub natively.
-Claude Code and Antigravity receive their own directory links to the hub.
+Claude Code (`~/.claude/skills`) and Antigravity (`~/.gemini/config/skills`)
+receive their own directory links to the hub.
 
 | Choice | Reason |
 | --- | --- |
@@ -161,11 +163,15 @@ sets its model and effort:
 | `~/.gemini/config/agents/reviewer.md` | Antigravity | `pro` tier (agy has no per-subagent effort) |
 
 The herdr agent-state hooks that `herdr integration install` generates are
-vendored under `home/ai/hooks/<agent>/` (Claude Code and Copilot) and linked to
-`~/.claude/hooks/` and `~/.copilot/hooks/`. The `SessionStart` entries in
+vendored under `home/ai/hooks/<agent>/` (Claude Code, Copilot, and Antigravity)
+and linked to `~/.claude/hooks/`, `~/.copilot/hooks/`, and
+`~/.gemini/config/hooks/`. The `SessionStart` entries in
 `settings/claude.json` and `settings/copilot.json` call them through `$HOME`, so
 every host resolves the same path; the `hook-paths` flake check fails if a
-`'~/` path creeps back in. The scripts exit early outside a herdr pane.
+`'~/` path creeps back in. agy rewrites `~/.gemini/config/hooks.json` itself,
+so `antigravitySettings` merges in only the `herdr` group from
+`settings/antigravity-hooks.json`, which the `hook-paths` check also covers.
+The scripts exit early outside a herdr pane.
 Only `home/.config/herdr/config.toml` is tracked; `.gitignore` allowlists it and
 ignores the rest of herdr's runtime state. That config turns on in-herdr toasts
 (popups are off by default), binds `prefix+a` / `prefix+shift+a` to cycle
@@ -336,7 +342,7 @@ store on every rebuild.
 | Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; the playwright MCP is removed and re-added on every rebuild; undeclared MCP servers are not pruned | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
 | Codex | `ai/codex/default.nix` | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add | none - Codex has no list-and-prune |
 | Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
-| Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/antigravity-cli/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
+| Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/config/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
 | Copilot | `ai/copilot.nix` | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json` | none |
 
 Removing the Gemini CLI extensions is the critical step. Extensions installed
