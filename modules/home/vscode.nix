@@ -36,8 +36,7 @@ in
   config = {
     dotfiles.vscode.extensions = [
       # look
-      "catppuccin.catppuccin-vsc"
-      "catppuccin.catppuccin-vsc-icons"
+      "jdinhlife.gruvbox"
       # AI
       "anthropic.claude-code"
       # JS/TS: Biome formats + lints everywhere; ESLint/Prettier serve repos

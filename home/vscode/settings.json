@@ -1,13 +1,13 @@
 {
   // ---- look ----
-  "workbench.colorTheme": "Catppuccin Mocha",
-  "workbench.iconTheme": "catppuccin-mocha",
-  // Catppuccin's recommendations: its semantic token colors, terminal colors
-  // left as the theme sets them, and a title bar drawn in its workbench colors
-  // (its gopls one is skipped: no Go extension is installed). Every
-  // catppuccin.* setting stays at its default (accent: mauve).
-  "editor.semanticHighlighting.enabled": true,
+  // Same palette as WezTerm's "Gruvbox Dark (Gogh)": Medium shares its #282828
+  // background and every ANSI color but black. No icon theme is set, so it is
+  // the built-in Seti: no maintained Gruvbox icon theme exists.
+  "workbench.colorTheme": "Gruvbox Dark Medium",
+  // Terminal colors exactly as the theme sets them, so they match WezTerm; the
+  // default ratio (4.5) shifts the dimmer Gruvbox colors.
   "terminal.integrated.minimumContrastRatio": 1,
+  // Title bar drawn in the theme's workbench colors.
   "window.titleBarStyle": "custom",
   // Same font as WezTerm: the default (Menlo) lacks the Nerd Font glyphs the
   // starship prompt uses, so they render as boxes.
