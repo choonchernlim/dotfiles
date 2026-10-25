@@ -1,5 +1,36 @@
 {
   // Same font as WezTerm: the default (Menlo) lacks the Nerd Font glyphs the
   // starship prompt uses, so they render as boxes.
-  "terminal.integrated.fontFamily": "'Hack Nerd Font'"
+  "terminal.integrated.fontFamily": "'Hack Nerd Font'",
+  "workbench.colorTheme": "One Dark Pro Darker",
+  "files.watcherExclude": {
+    ".git/objects": true,
+    ".git/subtree-cache": true,
+    "node_modules/*": true,
+    "dist": true,
+    "build": true,
+    ".vscode": true,
+    "coverage": true,
+    "__generated__": true,
+    "tmp": true,
+    ".cache": true
+  },
+  "files.exclude": {
+    ".git": true,
+    ".DS_Store": true,
+    "node_modules": true,
+    "__pycache__": true,
+    ".next": true,
+    "dist": true,
+    "build": true
+  },
+  "search.exclude": {
+    "node_modules": true,
+    "bower_components": true,
+    ".code-search": true,
+    "dist": true,
+    "build": true,
+    ".next": true,
+    "coverage": true
+  }
 }
