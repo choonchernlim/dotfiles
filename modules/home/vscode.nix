@@ -42,6 +42,7 @@ in
       "jdinhlife.gruvbox"
       # AI
       "anthropic.claude-code"
+      "google.google-antigravity"
       # JS/TS: Biome formats + lints everywhere; ESLint/Prettier serve repos
       # configured for them. native-preview is the TS 7 (Go) language server.
       "biomejs.biome"

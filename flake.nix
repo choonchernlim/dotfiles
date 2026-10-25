@@ -211,6 +211,7 @@
             unexpanded = lib.filter quotedTilde [
               "claude.json"
               "copilot.json"
+              "codex-hooks.json"
               "antigravity-hooks.json"
             ];
           in

@@ -3,11 +3,21 @@
   "hooks": {
     "SessionStart": [
       {
-        "bash": "bash \"$HOME/.copilot/hooks/herdr-agent-state.sh\"",
+        "bash": "cd / && bash \"$HOME/.copilot/hooks/herdr-agent-state.sh\"",
+        "timeoutSec": 10,
+        "type": "command"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "bash": "f=\"$HOME/.copilot/hooks/deny-secret-reads.sh\"; [ ! -f \"$f\" ] || sh \"$f\"",
         "timeoutSec": 10,
         "type": "command"
       }
     ]
   },
-  "model": "claude-opus-4.8"
+  "model": "claude-opus-5.5",
+  "effortLevel": "high",
+  "notifications": true,
+  "includeCoAuthoredBy": false
 }

@@ -1,4 +1,5 @@
-# Codex: shared-instructions symlink, config.toml seeding/upsert, playwright
+# Codex: shared-instructions/reviewer symlinks, herdr hook, config.toml
+# seeding/upsert (model, effort, secret-deny permissions profile), playwright
 # MCP registration, and a stale-backup sweep. The Langfuse tracing plugin lives
 # in ./langfuse.nix.
 #
@@ -14,12 +15,47 @@
 }:
 
 let
-  dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  home = config.home.homeDirectory;
+  dotfiles = "${home}/.dotfiles";
   mkOut = config.lib.file.mkOutOfStoreSymlink;
   aiDir = "${dotfiles}/home/ai";
   mkReconcile = import ../../lib/reconcile.nix { inherit pkgs lib; };
 
   codexModel = "gpt-5.6-sol";
+
+  # Top-level config.toml keys nix owns; everything else Codex writes survives.
+  codexPreamble = ''
+    model = "${codexModel}"
+    model_reasoning_effort = "high"
+    default_permissions = "dotfiles"
+  '';
+
+  # Claude's permissions.deny, as a profile on top of the built-in :workspace
+  # (workspace-write). Paths are absolute: profiles have no ~ expansion. The
+  # .env globs cover the whole home dir, like Claude's //**, and workspace roots
+  # outside it. Network stays on: a profile ignores the
+  # [sandbox_workspace_write] network_access key.
+  codexPermissions = ''
+    [permissions.dotfiles]
+    extends = ":workspace"
+
+    [permissions.dotfiles.network]
+    enabled = true
+
+    [permissions.dotfiles.filesystem]
+    "${home}/.ssh" = "deny"
+    "${home}/.gnupg" = "deny"
+    "${home}/**/.env" = "deny"
+    "${home}/**/.env.local" = "deny"
+    "${home}/**/.env.*.local" = "deny"
+    "${home}/**/.env.production" = "deny"
+
+    [permissions.dotfiles.filesystem.":workspace_roots"]
+    "**/.env" = "deny"
+    "**/.env.local" = "deny"
+    "**/.env.*.local" = "deny"
+    "**/.env.production" = "deny"
+  '';
 
   # See ../default.nix for why this is an absolute nix-store npx.
   playwrightMcp = {
@@ -40,6 +76,11 @@ in
       ".codex/AGENTS.md".source = mkOut "${aiDir}/AGENTS.md";
       # The `reviewer` subagent named by AGENTS.md's pre-commit review.
       ".codex/agents/reviewer.toml".source = mkOut "${aiDir}/agents/codex/reviewer.toml";
+      # Vendored from `herdr integration install codex`; hooks.json calls it
+      # (see the claude module for why mkOut). Codex keeps hook trust in
+      # config.toml, never in hooks.json, so a symlink is safe here.
+      ".codex/herdr-agent-state.sh".source = mkOut "${aiDir}/hooks/codex/herdr-agent-state.sh";
+      ".codex/hooks.json".source = mkOut "${aiDir}/settings/codex-hooks.json";
     };
 
     activation = {
@@ -50,9 +91,10 @@ in
       # So the file is seeded/upserted here, after linkGeneration has removed
       # any old symlink.
       #
-      # The `model` upsert only touches the preamble (lines before the first
-      # [table] header), so the trust tables Codex writes survive every
-      # rebuild by construction. awk comes from pkgs.gawk (hermetic PATH).
+      # The upsert owns only codexPreamble's keys (rewritten at the top of the
+      # file) and the [permissions.dotfiles*] tables (re-appended at EOF); the
+      # trust tables Codex writes survive every rebuild by construction. awk
+      # comes from pkgs.gawk (hermetic PATH).
       #
       # MCP is registered through `codex mcp add` so Codex's own TOML writer
       # owns the table; remove-then-add for the same nix-store-path reason as
@@ -64,29 +106,33 @@ in
         path = [ pkgs.gawk ];
         text = ''
           _codex_config="$HOME/.codex/config.toml"
-          _model_line='model = "${codexModel}"'
+          _preamble='${lib.removeSuffix "\n" codexPreamble}'
+          _tables='${lib.removeSuffix "\n" codexPermissions}'
           mkdir -p "$HOME/.codex"
           if [ ! -e "$_codex_config" ] || [ -L "$_codex_config" ]; then
             rm -f "$_codex_config"
-            printf '%s\n' "$_model_line" > "$_codex_config"
-          else
-            awk -v model_line="$_model_line" '
-              BEGIN { in_preamble = 1; wrote = 0 }
-              /^\[/ {
-                if (in_preamble && !wrote) { print model_line; wrote = 1 }
-                in_preamble = 0
-                print
-                next
-              }
-              in_preamble && /^model[ \t]*=/ {
-                print model_line
-                wrote = 1
-                next
-              }
-              { print }
-              END { if (in_preamble && !wrote) print model_line }
-            ' "$_codex_config" > "$_codex_config.tmp" && mv "$_codex_config.tmp" "$_codex_config"
+            : > "$_codex_config"
           fi
+          _apply "$_codex_config" awk -v preamble="$_preamble" -v tables="$_tables" '
+            BEGIN {
+              n = split(preamble, lines, "\n")
+              for (i = 1; i <= n; i++) { k = lines[i]; sub(/[ \t]*=.*/, "", k); owned[k] = 1; print lines[i] }
+              in_preamble = 1; skip = 0; blanks = 0
+            }
+            # Blank lines are held back so dropped lines never leave a growing gap.
+            function emit(s) { while (blanks > 0) { print ""; blanks-- } print s }
+            # Lines inside a multi-line string are data, never headers or keys:
+            # an odd count of triple quotes (\047 is a single quote) toggles it.
+            function quotes(s) { return gsub(/"""|\047\047\047/, "", s) % 2 }
+            in_string { if (!skip) emit($0); if (quotes($0)) in_string = 0; next }
+            quotes($0) { in_string = 1 }
+            /^\[/ { in_preamble = 0; skip = ($0 ~ /^\[permissions\.dotfiles[].]/) }
+            skip { next }
+            /^[ \t]*$/ { blanks++; next }
+            in_preamble { k = $0; sub(/[ \t]*=.*/, "", k); if (k in owned) next }
+            { emit($0) }
+            END { print ""; print tables }
+          ' || true
           _codex=/opt/homebrew/bin/codex
           if [ -x "$_codex" ]; then
             "$_codex" mcp remove playwright 2>/dev/null || true

@@ -12,8 +12,8 @@ let
 in
 
 {
-  # Runs after codexConfig: that upsert only rewrites the config.toml preamble,
-  # and this only appends tables at EOF, so the two writes never race.
+  # Runs after codexConfig, so its EOF appends land after the nix-owned
+  # [permissions.dotfiles*] tables, which the next rebuild moves back to EOF.
   #
   # Two idempotent, best-effort guards:
   #   (a) install-if-absent via `codex plugin add` (grep of `plugin list --json`

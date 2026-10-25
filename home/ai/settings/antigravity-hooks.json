@@ -2,7 +2,7 @@
   "herdr": {
     "PreInvocation": [
       {
-        "command": "bash \"$HOME/.gemini/config/hooks/herdr-agent-state.sh\" session",
+        "command": "cd / && bash \"$HOME/.gemini/config/hooks/herdr-agent-state.sh\" session",
         "timeout": 10,
         "type": "command"
       }

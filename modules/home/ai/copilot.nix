@@ -1,5 +1,6 @@
-# Copilot CLI: shared-instructions/settings symlinks, MCP config, and the
-# reconcile sweep keeping its plugin store empty (nix declares none).
+# Copilot CLI: shared-instructions/settings/reviewer symlinks, herdr and
+# secret-guard hooks, MCP config, and the reconcile sweep keeping its plugin
+# store empty (nix declares none).
 #
 # No skills link here: Copilot discovers ~/.agents/skills natively (the hub in
 # ./default.nix); a ~/.copilot/skills link on top would list every skill twice.
@@ -31,6 +32,13 @@ in
       # Vendored from `herdr integration install copilot`; the SessionStart hook
       # in settings/copilot.json points here (see the claude module for why mkOut).
       ".copilot/hooks/herdr-agent-state.sh".source = mkOut "${aiDir}/hooks/copilot/herdr-agent-state.sh";
+      # The PreToolUse hook in settings/copilot.json. Copilot has no read-deny
+      # rule kind, so this stands in for Claude's permissions.deny. The hook
+      # skips a missing script: settings.json is live before this link exists,
+      # and Copilot denies every tool call whose hook fails.
+      ".copilot/hooks/deny-secret-reads.sh".source = mkOut "${aiDir}/hooks/copilot/deny-secret-reads.sh";
+      # The `reviewer` subagent named by AGENTS.md's pre-commit review.
+      ".copilot/agents/reviewer.agent.md".source = mkOut "${aiDir}/agents/copilot/reviewer.agent.md";
       ".copilot/mcp-config.json".text = builtins.toJSON {
         mcpServers.playwright = {
           type = "local";
@@ -42,8 +50,9 @@ in
 
     # Filesystem + JSON reset, not CLI calls (networked, unreliable offline).
     # config.json is JSONC (// header), which jq cannot parse: strip the
-    # comment lines, clear installedPlugins (keeping trustedFolders etc.),
-    # re-add the header - atomically via _apply.
+    # comment lines, clear installedPlugins and drop the snake_case
+    # installed_plugins (keeping trustedFolders etc.), re-add the header -
+    # atomically via _apply.
     activation.copilotReconcile = mkReconcile {
       name = "copilot-reconcile";
       text = ''
@@ -55,7 +64,7 @@ in
             _clear_plugins() {
               printf '// User settings belong in settings.json.\n'
               printf '// This file is managed automatically.\n'
-              grep -v '^//' "$1" | jq '.installedPlugins = []'
+              grep -v '^//' "$1" | jq '.installedPlugins = [] | del(.installed_plugins)'
             }
             _apply "$_cf" _clear_plugins || true
           fi

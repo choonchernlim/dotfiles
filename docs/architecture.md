@@ -63,14 +63,15 @@ modules/
       claude/          - default.nix (symlinks, MCP, reconcile, per-host dotfiles.claude.model
                          option for the `claude` alias's --model) + langfuse.nix (TEMPORARY plugin
                          install and CC_LANGFUSE_TAGS patch)
-      codex/           - default.nix (config.toml upsert, MCP, backup sweep; no skills link -
-                         Codex reads the hub natively and owns ~/.codex/skills)
+      codex/           - default.nix (config.toml upsert of model, effort, and the secret-deny
+                         permissions profile; herdr hook, MCP, backup sweep;
+                         no skills link - Codex reads the hub natively and owns ~/.codex/skills)
                          + langfuse.nix (TEMPORARY tracing plugin install)
       antigravity.nix  - symlinks into ~/.gemini/config, playwright plugin, herdr hook,
                          settings and hooks.json merge-reconcile, agy update,
                          sweep of both agy's plugin store and ~/.gemini/extensions
-      copilot.nix      - symlinks, MCP config, plugin-store reset
-      opencode.nix     - symlinks, opencode.json (MCP)
+      copilot.nix      - symlinks, herdr and secret-guard hooks, MCP config, plugin-store reset
+      opencode.nix     - symlinks, herdr plugins, tui.jsonc, opencode.json (MCP, permissions)
   home/colima.nix      - feature (all 3 hosts): autostarts colima at login and prunes docker (weekly; unused images monthly) and fstrims via launchd agents
   home/docker.nix      - feature (all 3 hosts): reconciles Docker credentials and Homebrew
                          CLI plugin discovery via an atomic jq merge, not a symlink
@@ -89,7 +90,8 @@ modules/
   home/cachepurge/     - feature (all 3 hosts): default.nix wraps cache-purge.sh (plain bash,
                          shellcheck-gated) as the `cache-purge` command + the auto activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
-  ai/                  - shared AGENTS.md, per-agent settings/ and agents/ (skills live in the skills repo)
+  ai/                  - shared AGENTS.md, per-agent settings/, agents/, and hooks/ (vendored
+                         herdr output and the Copilot secret guard); skills live in the skills repo
   vscode/              - VS Code user settings.json and keybindings.json (only these are linked; the
                          rest of Code/User is VS Code's runtime state)
   biome/               - Biome's user-level fallback biome.json (used only by projects without
@@ -161,12 +163,15 @@ sets its model and effort:
 | `~/.claude/agents/reviewer.md` | Claude Code | `opus`, `high` |
 | `~/.codex/agents/reviewer.toml` | Codex | inherits `codexModel`, `high` |
 | `~/.gemini/config/agents/reviewer.md` | Antigravity | `pro` tier (agy has no per-subagent effort) |
+| `~/.copilot/agents/reviewer.agent.md` | Copilot | `claude-opus-5.5`, `high` |
+| `~/.config/opencode/agents/reviewer.md` | opencode | inherits the session model, `high` |
 
 The herdr agent-state hooks that `herdr integration install` generates are
-vendored under `home/ai/hooks/<agent>/` (Claude Code, Copilot, and Antigravity)
-and linked to `~/.claude/hooks/`, `~/.copilot/hooks/`, and
-`~/.gemini/config/hooks/`. The `SessionStart` entries in
-`settings/claude.json` and `settings/copilot.json` call them through `$HOME`, so
+vendored under `home/ai/hooks/<agent>/` for every agent and linked into each
+agent's config dir. opencode's are plugins rather than hooks, loaded through
+`tui.jsonc` and `cli.json`. The `SessionStart` entries in `settings/claude.json`,
+`settings/copilot.json`, and `settings/codex-hooks.json` (linked as
+`~/.codex/hooks.json`) call them through `$HOME`, so
 every host resolves the same path; the `hook-paths` flake check fails if a
 `'~/` path creeps back in. agy rewrites `~/.gemini/config/hooks.json` itself,
 so `antigravitySettings` merges in only the `herdr` group from
@@ -343,7 +348,7 @@ store on every rebuild.
 | Codex | `ai/codex/default.nix` | Stale-backup sweep only; MCP via `codex mcp add` remove-then-add | none - Codex has no list-and-prune |
 | Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
 | Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/config/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
-| Copilot | `ai/copilot.nix` | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` in `config.json` | none |
+| Copilot | `ai/copilot.nix` | `rm -rf ~/.copilot/installed-plugins`; clear `installedPlugins` and drop the snake_case `installed_plugins` in `config.json` | none |
 
 Removing the Gemini CLI extensions is the critical step. Extensions installed
 there are auto-imported into Antigravity when `agy` starts, so removing only

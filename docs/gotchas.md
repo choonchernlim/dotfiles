@@ -174,14 +174,21 @@ those. `herdr plugin log list --plugin dotfiles.reviewr-autoopen` shows what it
 opened.
 
 **Re-running `herdr integration install` breaks the committed hooks.**
-It rewrites `settings/claude.json` and `settings/copilot.json` with a single-quoted
+It rewrites `settings/claude.json`, `settings/copilot.json`, and `settings/codex-hooks.json` with a single-quoted
 `'~/...'` path, which bash never expands (exit 127, so the hook silently never
 runs). The `hook-paths` flake check fails on it. Restore `bash "$HOME/..."` and
 review the diff of the vendored script under `home/ai/hooks/`. The rest of `home/.config/herdr/` is runtime state and stays
 ignored. To refresh the scripts when `herdr integration status` reports them
 outdated, install into a throwaway home (`HOME=$(mktemp -d) herdr integration
 install <agent>`) and copy only the `.sh` file into `home/ai/hooks/<agent>/`
-(agy: install `antigravity-cli`, copy into `home/ai/hooks/antigravity/`).
+(agy: install `antigravity-cli`, copy into `home/ai/hooks/antigravity/`;
+opencode: copy `plugins/`, `herdr-opencode/`, `herdr-tui-session.js`, and
+`cli.json` into `home/ai/hooks/opencode/`).
+
+**`home/ai/settings/opencode.json` needs a rebuild, unlike the rest of `home/`.**
+nix merges it with the playwright MCP entry, whose command is a nix-store path,
+and writes the result as `~/.config/opencode/opencode.json`, so it is not a live
+symlink.
 
 **Antigravity (agy) reads global config only from `~/.gemini/config/`.**
 Rules (`AGENTS.md`), skills, agents, plugins, and `hooks.json` live there.
@@ -191,6 +198,38 @@ agy ignores an `ANTIGRAVITY.md` there. Telemetry is an account setting
 with no globs, so agy's file tools are denied `~/.ssh` and `~/.gnupg` but no
 rule can cover every `.env` file. As with Claude's `Read` rules, shell commands
 are not covered.
+
+**Each agent denies `~/.ssh`, `~/.gnupg`, and `.env` files its own way.**
+Claude uses `permissions.deny`. Codex uses the `[permissions.dotfiles]` profile
+that `codexConfig` appends to `config.toml`; it is an OS sandbox rule, so it
+covers shell commands too, and it wins over the `sandbox_mode` key Codex writes.
+opencode uses `permission.read`. Copilot has no read rule kind, so a
+`PreToolUse` hook (`home/ai/hooks/copilot/deny-secret-reads.sh`) exits 2 to deny
+any tool call whose path or command names one of them. That guard catches
+accidents, not an agent set on reading a secret: Copilot has no sandbox, and a
+denylist on shell text misses globs, quoting tricks, and indirection. Copilot
+denies a tool call whose hook fails, so the hook command skips the script
+while its link is missing (`settings.json` is live; the link needs a rebuild).
+A Codex sandbox flag (`-s`, `--sandbox`, `--full-auto`) replaces the profile and
+drops its deny rules for that session.
+
+**Codex has no command allowlist, unlike Claude.**
+A Codex execpolicy rule with `decision = "allow"` runs the command outside the
+sandbox, which would switch off the `[permissions.dotfiles]` deny rules for
+it. `npm test` or `pytest` can run any code in the project. Under
+workspace-write, Codex already runs sandboxed commands without asking.
+
+**Every herdr hook runs from `/`.**
+The vendored herdr scripts run `python3` from a heredoc or `-c`, which imports
+modules from the working directory first. A repo with a `json.py` at its root
+would run code at session start, outside any agent sandbox. So every hook
+command starts with `cd / &&`. Keep that prefix when restoring a hook after
+`herdr integration install`.
+
+**Codex skips a changed hook until you trust it.**
+After `~/.codex/hooks.json` or the herdr script changes, run `/hooks` once in
+Codex and approve the herdr `SessionStart` hook. Codex records the trust in
+`config.toml`, which the rebuild upsert leaves alone.
 
 **herdr worktrees need their own mise trust root.**
 herdr checks out worktrees under `~/.herdr/worktrees/<repo>/<name>`, outside
