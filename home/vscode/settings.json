@@ -180,4 +180,6 @@
     "https://developer.microsoft.com/json-schemas/": true,
     "https://biomejs.dev": true,
   },
+  "claudeCode.preferredLocation": "panel",
+  "claudeCode.hideOnboarding": true,
 }
