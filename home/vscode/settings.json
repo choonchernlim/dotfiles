@@ -2,10 +2,13 @@
   // ---- look ----
   "workbench.colorTheme": "Catppuccin Mocha",
   "workbench.iconTheme": "catppuccin-mocha",
-  // Catppuccin's recommendations: its semantic token colors, and terminal
-  // colors left as the theme sets them.
+  // Catppuccin's recommendations: its semantic token colors, terminal colors
+  // left as the theme sets them, and a title bar drawn in its workbench colors
+  // (its gopls one is skipped: no Go extension is installed). Every
+  // catppuccin.* setting stays at its default (accent: mauve).
   "editor.semanticHighlighting.enabled": true,
   "terminal.integrated.minimumContrastRatio": 1,
+  "window.titleBarStyle": "custom",
   // Same font as WezTerm: the default (Menlo) lacks the Nerd Font glyphs the
   // starship prompt uses, so they render as boxes.
   "editor.fontFamily": "'Hack Nerd Font'",
@@ -61,7 +64,7 @@
     "**/coverage/**": true,
     "**/target/**": true,
     "**/.direnv/**": true,
-    "**/result/**": true
+    "**/result/**": true,
   },
   "files.exclude": {
     "**/node_modules": true,
@@ -71,19 +74,19 @@
     "**/__pycache__": true,
     "**/.mypy_cache": true,
     "**/.ruff_cache": true,
-    "**/.pytest_cache": true
+    "**/.pytest_cache": true,
   },
   // Search also skips everything in files.exclude.
   "search.exclude": {
     "**/.venv": true,
     "**/coverage": true,
     "**/.direnv": true,
-    "**/result": true
+    "**/result": true,
   },
   // Go-to-definition lands in these; read-only stops an accidental edit.
   "files.readonlyInclude": {
     "**/node_modules/**": true,
-    "**/.venv/**": true
+    "**/.venv/**": true,
   },
 
   // ---- editing ----
@@ -122,8 +125,8 @@
     "editor.codeActionsOnSave": {
       // Never quickfix.biome: overlapping fixes can produce invalid code.
       "source.fixAll.biome": "explicit",
-      "source.organizeImports.biome": "explicit"
-    }
+      "source.organizeImports.biome": "explicit",
+    },
   },
   // TypeScript 7 (Go) language server from the native-preview extension.
   "js/ts.experimental.useTsgo": true,
@@ -138,8 +141,8 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.codeActionsOnSave": {
       "source.fixAll.ruff": "explicit",
-      "source.organizeImports.ruff": "explicit"
-    }
+      "source.organizeImports.ruff": "explicit",
+    },
   },
 
   // SAS connection profiles go in each project's .vscode/settings.json, never
@@ -148,7 +151,7 @@
   // ---- Markdown: two trailing spaces are a hard line break.
   "[markdown]": {
     "files.trimTrailingWhitespace": false,
-    "editor.wordWrap": "on"
+    "editor.wordWrap": "on",
   },
 
   // ---- YAML: the Red Hat extension asks about telemetry on first run.
@@ -160,10 +163,21 @@
   "nix.serverPath": "nixd",
   "nix.serverSettings": {
     "nixd": {
-      "formatting": { "command": ["nixfmt"] }
-    }
+      "formatting": { "command": ["nixfmt"] },
+    },
   },
   "[nix]": {
-    "editor.defaultFormatter": "jnoortheen.nix-ide"
-  }
+    "editor.defaultFormatter": "jnoortheen.nix-ide",
+  },
+  "json.schemaDownload.trustedDomains": {
+    "https://schemastore.azurewebsites.net/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://www.schemastore.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://spec.openapis.org/": true,
+    "https://json-schema.org/": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://biomejs.dev": true,
+  },
 }
