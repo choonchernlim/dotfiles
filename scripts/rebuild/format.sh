@@ -477,6 +477,14 @@ while IFS= read -r line || [ -n "$line" ]; do
       row "🧹" cache "${line#cache-purge: }"
       drop
       ;;
+    "vscode-extensions: could not "* | "vscode-extensions: skipped removals"*)
+      row "⚠" vscode "${line#vscode-extensions: }"
+      drop
+      ;;
+    "vscode-extensions: "*)
+      row "🧩" vscode "${line#vscode-extensions: }"
+      drop
+      ;;
     "dev-root: "*)
       # Messages can carry several paths, so every $HOME collapses (tilde()
       # handles only a leading one).

@@ -143,7 +143,8 @@ fi
 # too late to unblock it - so sweep here, before darwin-rebuild.
 echo ">> clearing stale *.hm-bak backups" >&2
 find "$HOME" -maxdepth 1 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
-for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/.gemini"; do
+for d in "$HOME/.config" "$HOME/.claude" "$HOME/.codex" "$HOME/.copilot" "$HOME/.gemini" \
+  "$HOME/Library/Application Support/Code/User" "$HOME/Library/Application Support/biome"; do
   [ -d "$d" ] || continue
   find "$d" -maxdepth 3 -name '*.hm-bak' -print -exec rm -rf {} + 2>/dev/null || true
 done

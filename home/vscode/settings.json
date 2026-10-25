@@ -1,36 +1,169 @@
 {
+  // ---- look ----
+  "workbench.colorTheme": "Catppuccin Mocha",
+  "workbench.iconTheme": "catppuccin-mocha",
+  // Catppuccin's recommendations: its semantic token colors, and terminal
+  // colors left as the theme sets them.
+  "editor.semanticHighlighting.enabled": true,
+  "terminal.integrated.minimumContrastRatio": 1,
   // Same font as WezTerm: the default (Menlo) lacks the Nerd Font glyphs the
   // starship prompt uses, so they render as boxes.
+  "editor.fontFamily": "'Hack Nerd Font'",
+  "editor.fontSize": 14,
   "terminal.integrated.fontFamily": "'Hack Nerd Font'",
-  "workbench.colorTheme": "One Dark Pro Darker",
+  "terminal.integrated.fontSize": 14,
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true,
+  "terminal.integrated.smoothScrolling": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.inlayHints.enabled": "onUnlessPressed",
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "trailing",
+  "workbench.tree.indent": 12,
+
+  // ---- speed ----
+  "telemetry.telemetryLevel": "off",
+  "workbench.startupEditor": "none",
+  "workbench.tips.enabled": false,
+  "terminal.integrated.gpuAcceleration": "on",
+  // Each is a startup network call or a periodic probe with no payoff here.
+  "workbench.enableExperiments": false,
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  "npm.fetchOnlinePackageInfo": false,
+  "update.showReleaseNotes": false,
+  // Screen-reader auto-detection polls the OS; "off" skips it (and the
+  // degraded rendering it switches on when it misfires).
+  "editor.accessibilitySupport": "off",
+  // Every open editor keeps its model in memory; cap them, least recently
+  // used closes first and dirty ones are exempt.
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.perEditorGroup": true,
+  "workbench.editor.limit.excludeDirty": true,
+  "workbench.editor.limit.value": 12,
+  // Collapse unchanged hunks: large agent-produced diffs render and read fast.
+  "diffEditor.hideUnchangedRegions.enabled": true,
+  "search.followSymlinks": false,
+  "search.smartCase": true,
+  // `**/` so nested projects match too; a bare name only matches at the root.
   "files.watcherExclude": {
-    ".git/objects": true,
-    ".git/subtree-cache": true,
-    "node_modules/*": true,
-    "dist": true,
-    "build": true,
-    ".vscode": true,
-    "coverage": true,
-    "__generated__": true,
-    "tmp": true,
-    ".cache": true
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.ruff_cache/**": true,
+    "**/.pytest_cache/**": true,
+    // Root-only: a nested build/ or dist/ can be a source folder.
+    ".next/**": true,
+    "dist/**": true,
+    "build/**": true,
+    "**/coverage/**": true,
+    "**/target/**": true,
+    "**/.direnv/**": true,
+    "**/result/**": true
   },
   "files.exclude": {
-    ".git": true,
-    ".DS_Store": true,
-    "node_modules": true,
-    "__pycache__": true,
+    "**/node_modules": true,
     ".next": true,
-    "dist": true,
-    "build": true
-  },
-  "search.exclude": {
-    "node_modules": true,
-    "bower_components": true,
-    ".code-search": true,
     "dist": true,
     "build": true,
-    ".next": true,
-    "coverage": true
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    "**/.pytest_cache": true
+  },
+  // Search also skips everything in files.exclude.
+  "search.exclude": {
+    "**/.venv": true,
+    "**/coverage": true,
+    "**/.direnv": true,
+    "**/result": true
+  },
+  // Go-to-definition lands in these; read-only stops an accidental edit.
+  "files.readonlyInclude": {
+    "**/node_modules/**": true,
+    "**/.venv/**": true
+  },
+
+  // ---- editing ----
+  "editor.formatOnSave": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "editor.linkedEditing": true,
+  // Jump straight to a single definition; peek only when there are several.
+  "editor.gotoLocation.multipleDefinitions": "goto",
+  // Keep context above/below the cursor while moving (vim's scrolloff).
+  "editor.cursorSurroundingLines": 8,
+  "workbench.editor.highlightModifiedTabs": true,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.confirmDelete": false,
+  "git.autofetch": true,
+  "git.blame.editorDecoration.enabled": true,
+  "terminal.integrated.scrollback": 10000,
+  // Only errors and warnings inline; hints and info stay in the Problems view.
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  // Extensions come from modules/home/vscode.nix; a repo's recommendations
+  // would be installed and then uninstalled by the next rebuild.
+  "extensions.ignoreRecommendations": true,
+
+  // ---- AI: Claude Code extension only; this hides Copilot chat and inline
+  // suggestions.
+  "chat.disableAIFeatures": true,
+
+  // ---- JS/TS: Biome formats and lints every repo. A Prettier repo sets
+  // "editor.defaultFormatter": "esbenp.prettier-vscode" in its own
+  // .vscode/settings.json. JSON stays on the built-in formatter: Biome
+  // rejects the trailing commas tsconfig/.vscode files allow unless each repo
+  // configures it.
+  "[javascript][javascriptreact][typescript][typescriptreact][css]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      // Never quickfix.biome: overlapping fixes can produce invalid code.
+      "source.fixAll.biome": "explicit",
+      "source.organizeImports.biome": "explicit"
+    }
+  },
+  // TypeScript 7 (Go) language server from the native-preview extension.
+  "js/ts.experimental.useTsgo": true,
+  // native-preview defaults its LSP trace to verbose.
+  "js/ts.trace.server": "off",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+
+  // ---- Python (uv): ty is the language server (it sets
+  // python.languageServer to None itself); Ruff formats and fixes.
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  // SAS connection profiles go in each project's .vscode/settings.json, never
+  // here: this file is published in the dotfiles repo.
+
+  // ---- Markdown: two trailing spaces are a hard line break.
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false,
+    "editor.wordWrap": "on"
+  },
+
+  // ---- YAML: the Red Hat extension asks about telemetry on first run.
+  "redhat.telemetry.enabled": false,
+
+  // ---- Nix: nixd serves completion and formats through nixfmt, the same
+  // formatter as `nix fmt`.
+  "nix.enableLanguageServer": true,
+  "nix.serverPath": "nixd",
+  "nix.serverSettings": {
+    "nixd": {
+      "formatting": { "command": ["nixfmt"] }
+    }
+  },
+  "[nix]": {
+    "editor.defaultFormatter": "jnoortheen.nix-ide"
   }
 }

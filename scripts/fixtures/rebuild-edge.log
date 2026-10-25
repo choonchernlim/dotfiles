@@ -57,6 +57,10 @@ Activating cachePurgeAuto
 cache-purge: could not remove /Users/tester/Developer/proj/.next
 cache-purge: freed 1.4G (bun 200M, 1 stale dir 1.2G)
 cache-purge: GC failed: npm
+Activating vscodeExtensions
+vscode-extensions: installed biomejs.biome
+vscode-extensions: could not install astral-sh.ty
+vscode-extensions: skipped removals
 Activating devRootMigration
 dev-root: rewrote /Users/tester/.gitconfig
 dev-root: moved /Users/tester/.claude/projects/-Users-tester-Documents-development-proj

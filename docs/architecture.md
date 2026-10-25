@@ -30,7 +30,7 @@ hosts/
   personal.nix         - same shape; also sets dotfiles.claude.model = "opus"
   work-atdj.nix        - same shape; common homebrew bundle + the work-atdj extras bundle
                          (Claude desktop app and Claude Code CLI);
-                         home modules zsh/gcloud/ai/colima/docker/gitea/zscaler/cachepurge
+                         home modules zsh/gcloud/ai/colima/docker/vscode/gitea/zscaler/cachepurge
                          (no mise, no langfuse)
 modules/
   darwin/default.nix   - imports system.nix + homebrew/
@@ -73,6 +73,9 @@ modules/
   home/colima.nix      - feature (all 3 hosts): autostarts colima at login and prunes docker (weekly; unused images monthly) and fstrims via launchd agents
   home/docker.nix      - feature (all 3 hosts): reconciles Docker credentials and Homebrew
                          CLI plugin discovery via an atomic jq merge, not a symlink
+  home/vscode.nix      - feature (all 3 hosts): settings.json, keybindings.json + Biome fallback config
+                         links, biome + nixd packages, and the extension reconcile (dotfiles.vscode.extensions
+                         option: base list here, hosts may append; undeclared ones are uninstalled)
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          gitea-up/-down/-status/-logs shell functions
   home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
@@ -85,8 +88,10 @@ modules/
                          shellcheck-gated) as the `cache-purge` command + the auto activation
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, per-agent settings/ and agents/ (skills live in the skills repo)
-  vscode/              - VS Code user settings.json (only the file is linked; the rest of Code/User
-                         is VS Code's runtime state)
+  vscode/              - VS Code user settings.json and keybindings.json (only these are linked; the
+                         rest of Code/User is VS Code's runtime state)
+  biome/               - Biome's user-level fallback biome.json (used only by projects without
+                         their own Biome config)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix
 rebuild.sh             - shim: `nix run`s the flake-pinned `rebuild` (scripts/rebuild)
 scripts/rebuild/       - `rebuild` (rebuild.sh) and `rebuild-format` (format.sh) as

@@ -202,17 +202,46 @@ WezTerm encodes Option+arrow as xterm `ESC[1;3D`/`ESC[1;3C`, which zsh and
 most line editors leave unbound, so the tail lands as literal text.
 `home/.config/wezterm/wezterm.lua` rebinds them with `SendKey` to Alt-b/Alt-f
 (live, no rebuild), the word jump every readline-style editor binds, matching
-Terminal.app. Fix it there rather than with a zsh `bindkey`, which would cover
-only the shell prompt.
+Terminal.app. Cmd+Left/Right (line start/end in IDEs) is unbound in WezTerm, so
+the same file sends Ctrl-a/Ctrl-e, like iTerm2's "Natural Text Editing". Fix
+these there rather than with a zsh `bindkey`, which would cover only the shell
+prompt.
 
 **VS Code's terminal shows prompt icons as boxes unless it uses a Nerd Font.**
 Its default font (Menlo) lacks the starship glyphs; VS Code draws only the
 powerline arrows itself. `home/vscode/settings.json` sets
 `terminal.integrated.fontFamily` to Hack Nerd Font, like WezTerm. It is
 live-linked to `~/Library/Application Support/Code/User/settings.json`, so
-settings changed in VS Code's UI land in the repo. The first rebuild on a host
-that already has a settings.json moves it to `settings.json.hm-bak`; merge
-anything worth keeping into the repo copy.
+settings changed in VS Code's UI land in the repo; `keybindings.json` is linked
+the same way. The first rebuild on a host that already has either file (or a
+`~/Library/Application Support/biome/biome.json`) moves it to `<name>.hm-bak`;
+merge anything worth keeping into the repo copy.
+
+**VS Code extensions are nix-managed too.**
+`modules/home/vscode.nix` installs the `dotfiles.vscode.extensions` list and
+uninstalls everything else on each `rebuild`, so an extension installed from
+the VS Code UI is gone next time. Declare it in the base list, or for one host
+in `hosts/<host>.nix` (`dotfiles.vscode.extensions = [ "publisher.name" ];`).
+Pylance is deliberately absent: ty is the Python language server. Installing
+`ms-python.python` pulls Pylance in through its extension pack, and the same
+reconcile removes it.
+
+**Never add a SAS connection profile from the user-level command.**
+Like any UI change (above), it lands in the published repo copy, here with the
+SAS server's host and user. Put `SAS.connectionProfiles` in the SAS project's
+`.vscode/settings.json` instead. SSH key auth needs `SSH_AUTH_SOCK` and the
+key loaded with `ssh-add`.
+
+**Biome formats JS/TS in every repo, not only Biome ones.**
+It is the global default formatter. A repo without its own Biome config uses
+the fallback `home/biome/biome.json`, linked to
+`~/Library/Application Support/biome/`; Biome's built-in default would indent
+with tabs. The fallback always indents with spaces (it overrides a root
+`.editorconfig`'s `indent_style`) and takes indent size, line endings, and the
+final newline from that `.editorconfig`. A Prettier repo sets
+`"editor.defaultFormatter": "esbenp.prettier-vscode"` in its
+`.vscode/settings.json`. ESLint repos show Biome's diagnostics next to
+ESLint's.
 
 **Dev root move: `~/Documents/development` to `~/Developer`.**
 On each host, quit agents and IDEs, then:
