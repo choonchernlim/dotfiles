@@ -226,6 +226,13 @@ Pylance is deliberately absent: ty is the Python language server. Installing
 `ms-python.python` pulls Pylance in through its extension pack, and the same
 reconcile removes it.
 
+**VS Code extension installs need the Zscaler CA exported by the reconcile.**
+`code` is node, and the hermetic activation env lacks the `NODE_EXTRA_CA_CERTS`
+session variable, so behind Zscaler every marketplace call during `rebuild` fails
+with "unable to get local issuer certificate". `vscode.nix` therefore exports it
+itself, taking the path from `home.sessionVariables.NODE_EXTRA_CA_CERTS` (set in
+`zscaler.nix`); renaming that variable silently drops the export.
+
 **Never add a SAS connection profile from the user-level command.**
 Like any UI change (above), it lands in the published repo copy, here with the
 SAS server's host and user. Put `SAS.connectionProfiles` in the SAS project's

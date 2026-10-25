@@ -82,7 +82,8 @@ modules/
                          langfuse-up/-down/-status/-logs shell functions; the
                          compose file mounts clickhouse-logs.xml (caps ClickHouse system-log growth)
   home/zscaler.nix     - feature (work, work-atdj): Zscaler MITM cert wiring - NODE_EXTRA_CA_CERTS,
-                         git http.sslcainfo, colima guest VM trust; the cert file itself stays
+                         git http.sslcainfo, colima guest VM trust (vscode.nix reads
+                         the NODE_EXTRA_CA_CERTS value too); the cert file itself stays
                          user-owned, not nix-managed (public repo)
   home/cachepurge/     - feature (all 3 hosts): default.nix wraps cache-purge.sh (plain bash,
                          shellcheck-gated) as the `cache-purge` command + the auto activation

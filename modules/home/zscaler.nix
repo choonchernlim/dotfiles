@@ -19,6 +19,7 @@ in
 {
   home = {
     # Node: unconditional; node only warns, non-fatally, if the path is missing.
+    # vscode.nix reads this value to export it into its extension reconcile.
     sessionVariables.NODE_EXTRA_CA_CERTS = certPath;
 
     activation = {

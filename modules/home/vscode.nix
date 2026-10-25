@@ -19,6 +19,9 @@ let
   # Marketplace IDs are case-insensitive; `code --list-extensions` prints the
   # publisher's casing, so both sides are compared lowercased.
   declared = builtins.toJSON (lib.unique (map lib.toLower config.dotfiles.vscode.extensions));
+
+  # Set by zscaler.nix on the hosts behind Zscaler, absent elsewhere.
+  caCert = config.home.sessionVariables.NODE_EXTRA_CA_CERTS or null;
 in
 
 {
@@ -99,6 +102,14 @@ in
             echo "vscode-extensions: $_code not found, skipped" >&2
             exit 0
           fi
+          ${lib.optionalString (caCert != null) ''
+            # `code` is Electron/node and the hermetic activation env lacks the
+            # session variable, so without this every marketplace call fails with
+            # "unable to get local issuer certificate" behind Zscaler.
+            if [ -f ${lib.escapeShellArg caCert} ]; then
+              export NODE_EXTRA_CA_CERTS=${lib.escapeShellArg caCert}
+            fi
+          ''}
           _declared=${lib.escapeShellArg declared}
           # Installed IDs as a lowercased JSON array.
           _list() {
