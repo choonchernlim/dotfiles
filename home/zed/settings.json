@@ -1,0 +1,137 @@
+// Live-linked from ~/.config/zed/settings.json (modules/home/zed.nix), so a
+// setting changed in Zed's UI lands here as a repo diff. Mirrors
+// home/vscode/settings.json where Zed has an equivalent.
+{
+  // ---- look ----
+  // Built-in medium variant: VS Code's and WezTerm's #282828 Gruvbox palette.
+  "theme": "Gruvbox Dark",
+  // No maintained Gruvbox icon theme exists (VS Code keeps its default); these
+  // are a deliberate pick, not a palette match.
+  "icon_theme": "Catppuccin Mocha",
+  // Same font as WezTerm and VS Code: the starship prompt needs its Nerd Font
+  // glyphs. The terminal inherits it.
+  "buffer_font_family": "Hack Nerd Font",
+  "buffer_font_size": 14,
+  "project_panel": {
+    "dock": "left",
+  },
+  "outline_panel": {
+    "dock": "left",
+  },
+  "collaboration_panel": {
+    "dock": "left",
+  },
+  "git_panel": {
+    "dock": "left",
+    "tree_view": true,
+  },
+
+  // ---- privacy ----
+  "telemetry": {
+    "metrics": false,
+    "diagnostics": false,
+  },
+
+  // ---- editing ----
+  "format_on_save": "on",
+  // Only errors and warnings inline, like errorlens in VS Code.
+  "diagnostics": {
+    "inline": {
+      "enabled": true,
+      "max_severity": "warning",
+    },
+  },
+
+  // ---- extensions: every rebuild removes any installed one not listed here
+  // (modules/home/zed.nix).
+  "auto_install_extensions": {
+    "biome": true,
+    "catppuccin-icons": true,
+    "dockerfile": true,
+    "git-firefly": true,
+    "html": true,
+    "toml": true,
+    "tsgo": true,
+  },
+
+  // ---- AI: external agents only, as VS Code keeps only its agent extensions:
+  // no inline edit predictions and no default model for Zed's own agent. Zed
+  // adds Codex and Copilot, which VS Code lacks. Zed fetches each agent from
+  // the ACP registry itself.
+  "edit_predictions": {
+    "provider": "none",
+  },
+  "agent": {
+    "dock": "right",
+  },
+  "agent_servers": {
+    "claude-acp": {
+      "type": "registry",
+    },
+    "antigravity-acp": {
+      "type": "registry",
+    },
+    "codex-acp": {
+      "type": "registry",
+    },
+    "github-copilot-cli": {
+      "type": "registry",
+    },
+  },
+
+  "languages": {
+    // ---- JS/TS: TypeScript 7's native server (the tsgo extension's
+    // typescript-ls) replaces vtsls, and Biome formats every repo, as in VS
+    // Code. A Prettier repo sets its formatter in its own .zed/settings.json.
+    // "..." keeps ESLint.
+    "JavaScript": {
+      "language_servers": ["typescript-ls", "!vtsls", "!typescript-language-server", "..."],
+      "formatter": [
+        { "code_action": "source.organizeImports.biome" },
+        { "code_action": "source.fixAll.biome" },
+        { "language_server": { "name": "biome" } },
+      ],
+    },
+    "TypeScript": {
+      "language_servers": ["typescript-ls", "!vtsls", "!typescript-language-server", "..."],
+      "formatter": [
+        { "code_action": "source.organizeImports.biome" },
+        { "code_action": "source.fixAll.biome" },
+        { "language_server": { "name": "biome" } },
+      ],
+    },
+    "TSX": {
+      "language_servers": ["typescript-ls", "!vtsls", "!typescript-language-server", "..."],
+      "formatter": [
+        { "code_action": "source.organizeImports.biome" },
+        { "code_action": "source.fixAll.biome" },
+        { "language_server": { "name": "biome" } },
+      ],
+    },
+    "CSS": {
+      "formatter": { "language_server": { "name": "biome" } },
+    },
+    // ---- Python (uv): ty is the language server, Ruff sorts imports, fixes,
+    // and formats. Every other built-in server is off by being omitted.
+    "Python": {
+      "language_servers": ["ty", "ruff"],
+      "formatter": [
+        { "code_action": "source.organizeImports.ruff" },
+        { "code_action": "source.fixAll.ruff" },
+        { "language_server": { "name": "ruff" } },
+      ],
+    },
+    // ---- JSON on its language server, like VS Code's built-in formatter;
+    // Zed's default would be Prettier. Markdown stays unformatted, as in VS
+    // Code.
+    "JSON": {
+      "formatter": "language_server",
+    },
+    "JSONC": {
+      "formatter": "language_server",
+    },
+    "Markdown": {
+      "format_on_save": "off",
+    },
+  },
+}

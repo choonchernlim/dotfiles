@@ -22,7 +22,7 @@ Personal Mac config (nix-darwin + home-manager); the single source of truth for 
 | Flake entry point | `flake.nix` | impure (derives `user` from `$SUDO_USER`/`$USER`): every nix command needs `--impure` |
 | Host profiles | `hosts/` | `work`, `personal`, `work-atdj`; each is `{ system, darwin, home }` and picks feature modules by import |
 | Modules | `modules/darwin/`, `modules/home/`, `modules/home/ai/` | one feature per file; one self-contained unit per agent; `modules/home/lib/reconcile.nix` defines `mkReconcile` |
-| Live-symlinked config | `home/` | Neovim, WezTerm, herdr, VS Code, Biome, AI config; edits apply immediately, no rebuild |
+| Live-symlinked config | `home/` | Neovim, WezTerm, herdr, VS Code, Zed, Biome, AI config; edits apply immediately, no rebuild |
 | Shared agent policy | `home/ai/AGENTS.md` | symlinked to every agent's canonical path |
 | Skills hub | the [skills repo](https://github.com/choonchernlim/skills) | checked out beside this one, linked as ~/.agents/skills; `sync-skills.sh` syncs it; author skills there, never here |
 | Docs | `docs/architecture.md`, `docs/gotchas.md`, `docs/implementation_guardrails.md` | layout (only when changing modules); surprises; change workflow; invariant rationale |
@@ -72,6 +72,7 @@ CI (`.github/workflows/check.yml`) runs these checks on every push to `main` and
 - **The Claude model is owned by `home/ai/settings/claude.json`.** Never export `ANTHROPIC_MODEL` from nix - the env var silently overrides the settings key. A per-host model goes in `dotfiles.claude.model` (a `--model` flag on the `claude` alias), never in the shared settings file.
 - **This repo is the single source of truth for AI-agent configuration** (plugins, extensions, MCP servers, skill wiring; skill *content* lives in the skills repo). Reconciles remove undeclared content each rebuild, so agent-CLI installs are reverted.
 - **VS Code extensions are reconciled from `dotfiles.vscode.extensions`** (`modules/home/vscode.nix`); an extension installed from the VS Code UI is removed on the next rebuild.
+- **Zed extensions are reconciled from `auto_install_extensions`** in `home/zed/settings.json` (`modules/home/zed.nix`); one installed from Zed's UI is removed on the next rebuild unless it is added there.
 - Never commit `.no-mistakes/` validation evidence - it is gitignored.
 - When disabling a config block, leave the original as a comment so it can be revisited later.
 - User-facing changes also update `README.md`, `docs/architecture.md`, and `docs/gotchas.md`.

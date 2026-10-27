@@ -61,6 +61,9 @@ Activating vscodeExtensions
 vscode-extensions: installed biomejs.biome
 vscode-extensions: could not install astral-sh.ty
 vscode-extensions: skipped removals
+Activating zedExtensions
+zed-extensions: removed catppuccin
+zed-extensions: cannot read settings.json, skipped
 Activating devRootMigration
 dev-root: rewrote /Users/tester/.gitconfig
 dev-root: moved /Users/tester/.claude/projects/-Users-tester-Documents-development-proj

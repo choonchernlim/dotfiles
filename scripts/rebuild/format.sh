@@ -485,6 +485,14 @@ while IFS= read -r line || [ -n "$line" ]; do
       row "🧩" vscode "${line#vscode-extensions: }"
       drop
       ;;
+    "zed-extensions: "*", skipped")
+      row "⚠" zed "${line#zed-extensions: }"
+      drop
+      ;;
+    "zed-extensions: "*)
+      row "🧩" zed "${line#zed-extensions: }"
+      drop
+      ;;
     "dev-root: "*)
       # Messages can carry several paths, so every $HOME collapses (tilde()
       # handles only a leading one).

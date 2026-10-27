@@ -25,7 +25,7 @@ It installs tools, reconciles mutable configuration, and links editable files.
 | Shell | zsh, Starship, completions, and syntax assistance |
 | Toolchains | mise with Java, Node.js, and Terraform |
 | Cloud | gcloud configuration and components |
-| Developer tools | Neovim, WezTerm, VS Code settings and extensions, Biome, nixd, ripgrep, fd, fzf, jq, lazygit, and Git tooling |
+| Developer tools | Neovim, WezTerm, VS Code and Zed settings and extensions, Biome, nixd, ripgrep, fd, fzf, jq, lazygit, and Git tooling |
 | AI agents | Shared policy, skills, plugins, MCP servers, a high-effort `reviewer` subagent, and tracing |
 | Containers | Colima with Homebrew-managed Docker, Buildx, and Compose plugins |
 | Local services | Gitea and Langfuse through Docker Compose |
@@ -39,8 +39,8 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, gcloud, AI ag
 
 | Profile     | Adds beyond the common base               |
 |-------------|-------------------------------------------|
-| `work`      | mise, herdr plugins (reviewr in every repo workspace, `.worktreeinclude` copy for new worktrees), gitea, Langfuse, Zscaler cert trust |
-| `personal`  | mise, herdr plugins (same as `work`), Claude on Opus via `dotfiles.claude.model` (shared default: opusplan) |
+| `work`      | mise, Zed, herdr plugins (reviewr in every repo workspace, `.worktreeinclude` copy for new worktrees), gitea, Langfuse, Zscaler cert trust |
+| `personal`  | mise, Zed, herdr plugins (same as `work`), Claude on Opus via `dotfiles.claude.model` (shared default: opusplan) |
 | `work-atdj` | gitea, Zscaler cert trust (no mise)       |
 
 See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.

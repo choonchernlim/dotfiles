@@ -19,6 +19,7 @@
       ../modules/home/colima.nix
       ../modules/home/docker.nix
       ../modules/home/vscode.nix
+      ../modules/home/zed.nix
       ../modules/home/cachepurge
     ];
     # Plenty of personal quota: always Opus instead of the shared opusplan.

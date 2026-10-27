@@ -293,6 +293,25 @@ with "unable to get local issuer certificate". `vscode.nix` therefore exports it
 itself, taking the path from `home.sessionVariables.NODE_EXTRA_CA_CERTS` (set in
 `zscaler.nix`); renaming that variable silently drops the export.
 
+**Zed extensions are declared in its own settings file.**
+`home/zed/settings.json` is live-linked to `~/.config/zed/settings.json`, like
+VS Code's. Its `auto_install_extensions` block is the declared list: Zed
+installs a missing extension on launch, and each `rebuild` deletes any other
+directory under `~/Library/Application Support/Zed/extensions/installed/` (Zed
+has no uninstall CLI), so one installed from Zed's UI is gone next time unless
+it is added there. Dev extensions (symlinks) are left alone. An unreadable file
+or an empty list skips the prune. The agent panel's agents (`agent_servers`)
+come from the ACP registry; Zed downloads and updates them itself, and each
+uses that agent's own login and config.
+
+**Never add a Zed SSH connection or MCP token from Zed's UI.**
+Like VS Code's SAS profile (below), it lands in the published repo copy:
+Remote Projects writes `ssh_connections` (hosts, users, paths), and an MCP
+server dialog writes its `env` or `Authorization` header into
+`context_servers`. Put them in a project's `.zed/settings.json`, or reference
+an environment variable instead of the token. "Always allow" choices for Zed's
+own agent are saved here too, and apply on every host after a commit.
+
 **Never add a SAS connection profile from the user-level command.**
 Like any UI change (above), it lands in the published repo copy, here with the
 SAS server's host and user. Put `SAS.connectionProfiles` in the SAS project's
@@ -307,8 +326,8 @@ with tabs. The fallback always indents with spaces (it overrides a root
 `.editorconfig`'s `indent_style`) and takes indent size, line endings, and the
 final newline from that `.editorconfig`. A Prettier repo sets
 `"editor.defaultFormatter": "esbenp.prettier-vscode"` in its
-`.vscode/settings.json`. ESLint repos show Biome's diagnostics next to
-ESLint's.
+`.vscode/settings.json`, and in Zed a `formatter` override in its
+`.zed/settings.json`. ESLint repos show Biome's diagnostics next to ESLint's.
 
 **Dev root move: `~/Documents/development` to `~/Developer`.**
 On each host, quit agents and IDEs, then:

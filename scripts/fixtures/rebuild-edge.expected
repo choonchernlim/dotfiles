@@ -35,6 +35,8 @@
    🧩 vscode    installed biomejs.biome
    ⚠ vscode    could not install astral-sh.ty
    ⚠ vscode    skipped removals
+   🧩 zed       removed catppuccin
+   ⚠ zed       cannot read settings.json, skipped
    🚚 devroot   rewrote ~/.gitconfig
    🚚 devroot   moved ~/.claude/projects/-Users-tester-Documents-development-proj
    ⚠ devroot   both ~/.claude/projects/-Users-tester-Documents-development-app and ~/.claude/projects/-Users-tester-Developer-app exist - merge them by hand

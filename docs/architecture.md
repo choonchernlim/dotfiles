@@ -80,6 +80,8 @@ modules/
   home/vscode.nix      - feature (all 3 hosts): settings.json, keybindings.json + Biome fallback config
                          links, biome + nixd packages, and the extension reconcile (dotfiles.vscode.extensions
                          option: base list here, hosts may append; undeclared ones are uninstalled)
+  home/zed.nix         - feature (work, personal): settings.json link and the extension prune
+                         (removes installed extensions not in settings.json's auto_install_extensions)
   home/gitea.nix       - feature (work, work-atdj): local Gitea+Postgres via Docker Compose,
                          gitea-up/-down/-status/-logs shell functions
   home/langfuse.nix    - feature (work only): local Langfuse stack via Docker Compose,
@@ -96,6 +98,8 @@ home/                  - config files live-symlinked into ~/.config/, ~/.claude/
                          herdr output and the Copilot secret guard); skills live in the skills repo
   vscode/              - VS Code user settings.json and keybindings.json (only these are linked; the
                          rest of Code/User is VS Code's runtime state)
+  zed/                 - Zed settings.json: Gruvbox Dark, ACP agents, ty/Ruff, tsgo/Biome (only this
+                         file is linked; keymap.json and the rest of ~/.config/zed stay Zed's)
   biome/               - Biome's user-level fallback biome.json (used only by projects without
                          their own Biome config)
 treefmt.nix            - formatter config (nixfmt RFC-style) consumed by treefmt-nix

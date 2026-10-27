@@ -19,6 +19,7 @@
       ../modules/home/colima.nix
       ../modules/home/docker.nix
       ../modules/home/vscode.nix
+      ../modules/home/zed.nix
       ../modules/home/gitea.nix
       ../modules/home/langfuse.nix
       ../modules/home/zscaler.nix

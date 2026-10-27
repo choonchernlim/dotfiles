@@ -20,3 +20,6 @@ result-*
 
 # nix-direnv per-repo devShell cache + GC root (machine-local; pins the pre-commit closure)
 .direnv/
+
+# Copilot CLI writes a lock beside its settings.json, which resolves into this repo
+home/ai/settings/copilot.json.lock
