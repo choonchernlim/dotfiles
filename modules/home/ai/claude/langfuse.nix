@@ -1,10 +1,11 @@
-# TEMPORARY - Claude's Langfuse observability plugin: install-if-absent, plus a
-# local patch adding CC_LANGFUSE_TAGS support that upstream 1.0.0 lacks (its
-# get_trace_tags() only returns ["claude-code"] + skill:<name> tags).
+# TEMPORARY - local patch to Claude's Langfuse observability plugin (installed
+# by claudePlugins in ./default.nix) adding CC_LANGFUSE_TAGS support that
+# upstream 1.0.0 lacks (its get_trace_tags() only returns ["claude-code"] +
+# skill:<name> tags).
 #
 # Delete this file once the plugin fork/upstream ships CC_LANGFUSE_TAGS; only
-# the marketplace URL below would change, the `claude` alias in ./default.nix
-# stays. Imported by ./default.nix.
+# the marketplace URL in settings/claude.json would change, the `claude` alias
+# in ./default.nix stays. Imported by ./default.nix.
 {
   lib,
   pkgs,
@@ -37,31 +38,6 @@ in
 
 {
   home.activation = {
-    # Install marketplace + plugin if absent (a plugin install has no
-    # nix-store path that churns, so no remove-then-add). Runs after the
-    # reconcile sweep so the sweep can never race what was just installed.
-    #
-    # Explicit HTTPS URL, not the owner/repo shorthand: the shorthand resolves
-    # to an SSH clone, and the hermetic activation PATH has no ssh. /usr/bin/git
-    # (Xcode CLT) is prepended rather than pkgs.git: the nix git has no bundled
-    # CA trust and relies on http.sslcainfo, which zscaler.nix pins to the
-    # Zscaler cert - failing TLS whenever traffic isn't actually going through
-    # Zscaler. /usr/bin/git validates against the macOS Keychain on every path.
-    claudeLangfusePlugin = mkReconcile {
-      name = "claude-langfuse-plugin";
-      after = [ "claudeReconcile" ];
-      text = ''
-        _claude=/opt/homebrew/bin/claude
-        _ip="$HOME/.claude/plugins/installed_plugins.json"
-        if [ -x "$_claude" ]; then
-          if ! jq -e '.plugins["langfuse-observability@langfuse-observability"]' "$_ip" >/dev/null 2>&1; then
-            PATH="/usr/bin:$PATH" "$_claude" plugin marketplace add https://github.com/langfuse/Claude-Observability-Plugin 2>/dev/null || true
-            PATH="/usr/bin:$PATH" "$_claude" plugin install langfuse-observability@langfuse-observability 2>/dev/null || true
-          fi
-        fi
-      '';
-    };
-
     # Patch the installed hook. Guarded by grep so a rebuild never inserts a
     # second copy; the guard also matches any build that already reads
     # CC_LANGFUSE_TAGS (a fork, or upstream once it ships), so pointing the
@@ -69,7 +45,7 @@ in
     # dir so a plugin upgrade is re-patched without an edit here.
     claudeLangfuseTagsPatch = mkReconcile {
       name = "claude-langfuse-tags-patch";
-      after = [ "claudeLangfusePlugin" ];
+      after = [ "claudePlugins" ];
       path = [ pkgs.gawk ];
       text = ''
         for _hook in "$HOME"/.claude/plugins/cache/langfuse-observability/langfuse-observability/*/hooks/langfuse_hook.py; do

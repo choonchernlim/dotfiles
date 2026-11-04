@@ -33,7 +33,7 @@ beats its `effort: high`. Setting either of those two variables downgrades every
 review pass, and so does a `model` passed on the spawn call.
 
 **AI-agent plugins and extensions are nix-managed.**
-Anything installed outside this repo (via `claude plugin install`, `codex plugin add`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild`. To keep a plugin, declare it in nix - for Claude that means `enabledPlugins`/`extraKnownMarketplaces` in `home/ai/settings/claude.json`, which the reconcile reads as its keep-set. See [AI Agent Plugin Reconcile](architecture.md#ai-agent-plugin-reconcile) for details.
+Anything installed outside this repo (via `claude plugin install`, `codex plugin add`, `agy plugin import`, `gemini extensions install`, etc.) is removed on the next `rebuild`. To keep a plugin, declare it in nix - for Claude that means `enabledPlugins` plus the matching `extraKnownMarketplaces` entry (an HTTPS git URL) in `home/ai/settings/claude.json`, which the reconcile reads as its keep-set and `claudePlugins` installs from on rebuild. A plugin without a marketplace entry fails at eval. Plugins that need sign-in (Figma) still need a one-time browser login (`/mcp`, select the server, Authenticate); it survives rebuilds. See [AI Agent Plugin Reconcile](architecture.md#ai-agent-plugin-reconcile) for details.
 
 **Skills live in one hub: `~/.agents/skills`.**
 The [architecture guide](architecture.md#how-symlinks-work) owns the link

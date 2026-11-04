@@ -61,8 +61,8 @@ modules/
       default.nix      - umbrella imports, the ~/.agents/skills hub link, and the shared
                          rationale (playwrightMcp, absolute paths)
       claude/          - default.nix (symlinks, MCP, reconcile, per-host dotfiles.claude.model
-                         option for the `claude` alias's --model) + langfuse.nix (TEMPORARY plugin
-                         install and CC_LANGFUSE_TAGS patch)
+                         option for the `claude` alias's --model) + langfuse.nix (TEMPORARY
+                         CC_LANGFUSE_TAGS patch); declared plugins install via claudePlugins
       codex/           - default.nix (config.toml upsert of model, effort, the secret-deny
                          permissions profile, and the auto-approved playwright MCP; herdr hook,
                          backup sweep;
@@ -350,7 +350,7 @@ store on every rebuild.
 
 | Agent | Module | Sweep | Keep-set |
 | --- | --- | --- | --- |
-| Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs; the playwright MCP is removed and re-added on every rebuild; undeclared MCP servers are not pruned | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
+| Claude Code | `ai/claude/default.nix` | Keep-set prune of `installed_plugins.json`, `known_marketplaces.json`, and the `marketplaces`/`cache` dirs, then `claudePlugins` installs every declared plugin that is absent; the playwright MCP is removed and re-added on every rebuild; undeclared MCP servers are not pruned | playwright MCP, plus whatever `home/ai/settings/claude.json` lists under `enabledPlugins` and `extraKnownMarketplaces` (read at eval time) |
 | Codex | `ai/codex/default.nix` | Stale-backup sweep only; the playwright MCP table is rewritten by the `config.toml` upsert | none - Codex has no list-and-prune |
 | Gemini CLI | `ai/antigravity.nix` | Remove every dir under `~/.gemini/extensions/`; reset `extension-enablement.json` to `{}` | none |
 | Antigravity (agy) | `ai/antigravity.nix` | Sweep `~/.gemini/config/plugins/*`; reset `import_manifest.json` | playwright, declared as a nix symlink in `home.file` |
@@ -360,9 +360,9 @@ Removing the Gemini CLI extensions is the critical step. Extensions installed
 there are auto-imported into Antigravity when `agy` starts, so removing only
 the Antigravity copy lets them re-appear.
 
-The langfuse plugin installs live in `ai/claude/langfuse.nix` and
-`ai/codex/langfuse.nix`. Both are `TEMPORARY` files, designed for whole-file
-removal.
+The Claude langfuse tag patch (`ai/claude/langfuse.nix`) and the Codex langfuse
+plugin install (`ai/codex/langfuse.nix`) are `TEMPORARY` files, designed for
+whole-file removal.
 
 Each reconcile also cleans stale `.hm-bak` files and agent-written dated
 backups (`settings.json.YYYYMMDD`) in its agent dir. That cannot unblock a

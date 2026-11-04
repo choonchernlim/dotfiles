@@ -54,9 +54,16 @@
     "command": "bash ~/.dotfiles/home/ai/statusline.sh"
   },
   "enabledPlugins": {
-    "langfuse-observability@langfuse-observability": true
+    "langfuse-observability@langfuse-observability": true,
+    "figma@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/anthropics/claude-plugins-official.git"
+      }
+    },
     "langfuse-observability": {
       "source": {
         "source": "git",

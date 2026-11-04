@@ -1,6 +1,7 @@
 # Claude Code: shared-instructions/skills/settings symlinks, playwright MCP
 # registration, and the reconcile sweep keeping ~/.claude plugin state
-# nix-declared. The Langfuse plugin (temporary) lives in ./langfuse.nix.
+# nix-declared (prune what is undeclared, install what is declared). The
+# temporary Langfuse tag patch lives in ./langfuse.nix.
 {
   config,
   lib,
@@ -21,12 +22,27 @@ let
   };
 
   # Declared plugins/marketplaces are whatever home/ai/settings/claude.json
-  # enables - that file is the single place to add one. The reconcile below
-  # prunes everything else from ~/.claude/plugins. (enabledPlugins does not
-  # install; ./langfuse.nix does that for the one plugin currently declared.)
+  # enables - that file is the single place to add one. claudeReconcile below
+  # prunes everything else from ~/.claude/plugins, and claudePlugins installs
+  # whatever is declared but absent.
   claudeSettings = builtins.fromJSON (builtins.readFile ../../../../home/ai/settings/claude.json);
   claudeKeepInstalled = builtins.attrNames (claudeSettings.enabledPlugins or { });
   claudeKeepMarketplaces = builtins.attrNames (claudeSettings.extraKnownMarketplaces or { });
+
+  # Each declared plugin id ("name@marketplace") paired with its marketplace's
+  # git URL. A plugin whose marketplace is not declared fails at eval, instead
+  # of being installed and then pruned by the next reconcile.
+  claudePluginInstalls = map (
+    id:
+    assert lib.assertMsg (lib.hasInfix "@" id)
+      "claude.json: plugin ${id} must be named name@marketplace";
+    {
+      inherit id;
+      url =
+        claudeSettings.extraKnownMarketplaces.${lib.last (lib.splitString "@" id)}.source.url
+        or (throw "claude.json: plugin ${id} needs an extraKnownMarketplaces entry with a git source.url");
+    }
+  ) claudeKeepInstalled;
 
   # Shell case-branches for the marketplaces/ and cache/ dir sweep.
   claudeKeepMarketplaceCases = lib.concatMapStringsSep "\n              " (
@@ -135,6 +151,34 @@ in
             find "$HOME/.claude" -maxdepth 1 \
               \( -name '*.hm-bak' -o -name 'settings.json.2[0-9][0-9][0-9]*' \) \
               -exec rm -rf {} + 2>/dev/null || true
+          '';
+        };
+
+        # Install every declared plugin that is absent (a plugin install has no
+        # nix-store path that churns, so no remove-then-add). Runs after the
+        # sweep so the sweep can never race what was just installed.
+        #
+        # Explicit HTTPS URLs, not the owner/repo shorthand: the shorthand
+        # resolves to an SSH clone, and the hermetic activation PATH has no ssh.
+        # /usr/bin/git (Xcode CLT) is prepended rather than pkgs.git: the nix
+        # git has no bundled CA trust and relies on http.sslcainfo, which
+        # zscaler.nix pins to the Zscaler cert - failing TLS whenever traffic
+        # isn't actually going through Zscaler. /usr/bin/git validates against
+        # the macOS Keychain on every path.
+        claudePlugins = mkReconcile {
+          name = "claude-plugins";
+          after = [ "claudeReconcile" ];
+          text = ''
+            _claude=/opt/homebrew/bin/claude
+            _ip="$HOME/.claude/plugins/installed_plugins.json"
+            if [ -x "$_claude" ]; then
+              ${lib.concatMapStringsSep "\n" (p: ''
+                if ! jq -e '.plugins[${builtins.toJSON p.id}]' "$_ip" >/dev/null 2>&1; then
+                  PATH="/usr/bin:$PATH" "$_claude" plugin marketplace add ${lib.escapeShellArg p.url} 2>/dev/null || true
+                  PATH="/usr/bin:$PATH" "$_claude" plugin install ${lib.escapeShellArg p.id} 2>/dev/null || true
+                fi
+              '') claudePluginInstalls}
+            fi
           '';
         };
       };
