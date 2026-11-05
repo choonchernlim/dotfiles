@@ -66,4 +66,17 @@ Uncommitted | committed `<sha>` | pushed - plus anything left running (servers, 
 
 ### 👉 Your next step
 - The one thing I should do next (e.g. review the diff and approve the commit)
+
+### 🔍 Verify it yourself
+1. 🖱️ UI: where to go, what to click, and what I should see (e.g. open `localhost:3000/settings`, click **Save**, a green toast appears)
+2. 💻 CLI: the exact command to run, and what in its output proves it works (e.g. run `foo --version`, expect `1.2.0`)
+3. 👀 Anything that should *not* have changed, and how to check it is still fine
+
+### ⚡ TL;DR
+- 🎯 **Problem:** the ask, in one line
+- 🪜 **Steps:**
+  1. 🔎 what I found or what was wrong
+  2. 🛠️ what I changed to fix it
+  3. ✅ how I confirmed it works
+- 🏁 **Outcome:** where things stand now, in one line
 ```
