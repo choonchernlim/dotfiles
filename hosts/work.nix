@@ -12,6 +12,7 @@
   home = {
     imports = [
       ../modules/home/zsh.nix
+      ../modules/home/git.nix
       ../modules/home/mise.nix
       ../modules/home/herdr.nix
       ../modules/home/gcloud.nix

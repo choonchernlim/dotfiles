@@ -13,6 +13,7 @@
   home = {
     imports = [
       ../modules/home/zsh.nix
+      ../modules/home/git.nix
       ../modules/home/gcloud.nix
       ../modules/home/ai
       ../modules/home/colima.nix

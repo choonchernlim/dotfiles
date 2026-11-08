@@ -312,6 +312,13 @@ server dialog writes its `env` or `Authorization` header into
 an environment variable instead of the token. "Always allow" choices for Zed's
 own agent are saved here too, and apply on every host after a commit.
 
+**Global git settings come back on every rebuild.**
+`modules/home/git.nix` sets `rerere.enabled`, and `zscaler.nix` sets
+`http.sslcainfo` on Zscaler hosts, in `~/.gitconfig` with `git config --global`
+on each rebuild. Turning one off by hand lasts only until the next rebuild, so
+change it in its module instead. The rest of `~/.gitconfig`, such as your
+identity and `includeIf` rules, stays yours.
+
 **Never add a SAS connection profile from the user-level command.**
 Like any UI change (above), it lands in the published repo copy, here with the
 SAS server's host and user. Put `SAS.connectionProfiles` in the SAS project's

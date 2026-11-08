@@ -30,7 +30,7 @@ hosts/
   personal.nix         - same shape; also sets dotfiles.claude.model = "opus"
   work-atdj.nix        - same shape; common homebrew bundle + the work-atdj extras bundle
                          (Claude desktop app and Claude Code CLI);
-                         home modules zsh/gcloud/ai/colima/docker/vscode/gitea/zscaler/cachepurge
+                         home modules zsh/git/gcloud/ai/colima/docker/vscode/gitea/zscaler/cachepurge
                          (no mise, no langfuse)
 modules/
   darwin/default.nix   - imports system.nix + homebrew/
@@ -51,6 +51,8 @@ modules/
                          imports legacy.nix
   home/zsh.nix         - feature: zsh + starship + direnv (+ zshSetup: ~/.zshrc_conf dir,
                          brew-completions cache)
+  home/git.nix         - feature (all 3 hosts): global git keys (rerere.enabled) written into the
+                         user-owned ~/.gitconfig via the git CLI, not programs.git
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
   home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup)
   home/herdr-plugins/  - live-linked local herdr plugins (worktreeinclude: copies .worktreeinclude
