@@ -7,12 +7,16 @@
 ## Version control
 
 - Never run `git commit` or `git push` without my explicit approval. First show me the code changes (`git status --short`, `git diff`) and ask me to review them; commit or push only after I approve, and treat each approval as covering that one commit or push only.
+  - Exception: in a `worktree-vN` branch that grill-me created for a plan I approved, commit each verified step without asking. Never push that branch itself.
+  - Approving `/merge-worktree`'s review packet approves that one merge commit and its push to the target the packet names, and nothing else; a later run needs a new approval.
+  - `/review-feature` may make its merge commits locally before gate ③. Approving its fixes at gate ③ approves that one fixes commit and the push of that feature branch to its same-named upstream, merges included, and nothing else; a later run needs a new approval.
+- Update a shared branch by merging its parent into it; rebase only local worktree branches, never a pushed one.
 - Never add your own agent name as a co-author in commit messages.
 - Never manually modify CHANGELOG.md or other files marked as auto-generated.
 
 ## Pre-commit review
 
-- After any code change (skip for docs, comments, formatting), before showing the diff for approval:
+- After any code change (skip for docs, comments, formatting), before showing the diff or a review packet for approval:
   1. Simplify the diff (Claude Code: `/simplify`).
   2. Re-run the project's checks (lint, tests, build); fix failures.
   3. Have the `reviewer` subagent review the diff, one pass each in parallel: cohesion (conventions, invariants, docs/tests updated, nothing out of scope); bugs (Claude Code: `/code-review high`; Codex: `/review`); security, only if it touches auth, secrets, input parsing, shell, network, or permissions. No reviewer: do the passes yourself.
