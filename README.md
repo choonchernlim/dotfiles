@@ -39,8 +39,8 @@ Every profile shares a common base: macOS defaults, Homebrew, zsh, git settings,
 
 | Profile     | Adds beyond the common base               |
 |-------------|-------------------------------------------|
-| `work`      | mise, Zed, herdr plugins (reviewr in every repo workspace, `.worktreeinclude` copy for new worktrees), gitea, Langfuse, Zscaler cert trust |
-| `personal`  | mise, Zed, herdr plugins (same as `work`), Claude on Opus via `dotfiles.claude.model` (shared default: opusplan) |
+| `work`      | mise, Zed, herdr plugins (reviewr in every repo workspace, `.worktreeinclude` copy for new worktrees), `herdr-worktree-clean`, gitea, Langfuse, Zscaler cert trust |
+| `personal`  | mise, Zed, herdr plugins and `herdr-worktree-clean` (same as `work`), Claude on Opus via `dotfiles.claude.model` (shared default: opusplan) |
 | `work-atdj` | gitea, Zscaler cert trust (no mise)       |
 
 See [docs/architecture.md](docs/architecture.md) for the full per-host module breakdown.

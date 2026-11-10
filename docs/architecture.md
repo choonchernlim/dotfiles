@@ -54,7 +54,8 @@ modules/
   home/git.nix         - feature (all 3 hosts): global git keys (rerere.enabled) written into the
                          user-owned ~/.gitconfig via the git CLI, not programs.git
   home/mise.nix        - feature (work/personal): mise tool versions (+ miseSetup)
-  home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup)
+  home/herdr.nix       - feature (work/personal): herdr plugins pinned by commit (+ herdrPluginsSetup),
+                         `herdr-worktree-clean` command
   home/herdr-plugins/  - live-linked local herdr plugins (worktreeinclude: copies .worktreeinclude
                          files into new worktrees, like `claude -w`; reviewr-autoopen: opens
                          reviewr in repo workspaces its own auto-open misses)

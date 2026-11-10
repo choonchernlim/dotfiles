@@ -165,6 +165,16 @@ local manifest is snapshotted into
 when an agent starts; `herdr plugin log list --plugin dotfiles.worktreeinclude`
 shows what it copied.
 
+**`herdr-worktree-clean` keeps branches and skips dirty worktrees.**
+It removes every linked worktree of the current repo, including ones not open
+in herdr, but never a branch, so `git branch -D` is still yours to run. It
+skips the worktree that contains the current directory or is this shell's herdr
+workspace (run it from the main checkout's workspace), and any worktree with
+uncommitted or untracked changes or a detached HEAD holding commits on no branch
+(`--force` removes those and loses that work). Ignored files such as `.env` are
+always removed with their worktree. It exits 1 when it skipped or failed to
+remove anything.
+
 **reviewr's own auto-open skips plain workspaces and a repo's main space.**
 `reviewr-autoopen` fills that gap, but only for workspaces created after it is
 linked: in an older workspace without the pane, run the `reviewr: open pane`
