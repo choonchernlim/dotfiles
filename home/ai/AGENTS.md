@@ -8,7 +8,7 @@
 
 - Never run `git commit` or `git push` without my explicit approval. First show me the code changes (`git status --short`, `git diff`) and ask me to review them; commit or push only after I approve, and treat each approval as covering that one commit or push only.
   - Exception: in a `worktree-vN` branch that grill-me created for a plan I approved, commit each verified step without asking. Never push that branch itself.
-  - Approving `/merge-worktree`'s review packet approves that one merge commit and its push to the target the packet names, and nothing else; a later run needs a new approval.
+  - Running `/merge-worktree`, whether I start it or an agent does, approves that run's one merge commit, its push to the target the packet names, and the worktree's removal, unless the skill stops on a red flag and asks; a later run needs a new approval.
   - `/review-feature` may make its merge commits locally before gate ③. Approving its fixes at gate ③ approves that one fixes commit and the push of that feature branch to its same-named upstream, merges included, and nothing else; a later run needs a new approval.
 - Update a shared branch by merging its parent into it; rebase only local worktree branches, never a pushed one.
 - Never add your own agent name as a co-author in commit messages.
