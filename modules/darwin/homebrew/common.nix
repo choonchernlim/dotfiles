@@ -5,6 +5,17 @@
 # cleanup = "zap" (./default.nix) enforces these lists: removing a package here
 # uninstalls it on the next rebuild - no manual `brew uninstall`.
 {
+  # A self-updated agy (`agy update`) replaces brew's command wrapper with a
+  # real binary, and brew then refuses to install the antigravity-cli cask over
+  # it. Clear that stray binary (not a `#!` script, not a symlink) before the
+  # homebrew step so the wrapper can install. Brew owns agy; see docs/gotchas.md.
+  system.activationScripts.extraActivation.text = ''
+    _agy=/opt/homebrew/bin/agy
+    if [ -f "$_agy" ] && [ ! -L "$_agy" ] && [ "$(/usr/bin/head -c 2 "$_agy")" != "#!" ]; then
+      /bin/rm -f "$_agy"
+    fi
+  '';
+
   homebrew = {
     brews = [
       "bash"
@@ -35,19 +46,16 @@
     casks = [
       "1password"
       "alfred"
-      # greedy = false: these apps update themselves and brew cannot cleanly replace
-      # them (agy self-update overwrites brew's binary; Chrome.app is root-owned).
-      # brew only guarantees they are installed. agy is kept current by the
-      # agyUpdate activation in modules/home/ai/antigravity.nix.
-      {
-        name = "antigravity-cli";
-        greedy = false;
-      }
+      # brew owns agy updates: the cask disables agy's self-update, so never run
+      # `agy update` (it overwrites brew's command wrapper; see docs/gotchas.md).
+      "antigravity-cli"
       "brave-browser"
       "firefox"
       "font-hack-nerd-font"
       "font-meslo-lg-nerd-font"
       "gcloud-cli"
+      # greedy = false: Chrome updates itself and brew cannot cleanly replace it
+      # (Chrome.app is root-owned); brew only guarantees it is installed.
       {
         name = "google-chrome";
         greedy = false;

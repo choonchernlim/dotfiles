@@ -209,6 +209,14 @@ with no globs, so agy's file tools are denied `~/.ssh` and `~/.gnupg` but no
 rule can cover every `.env` file. As with Claude's `Read` rules, shell commands
 are not covered.
 
+**Homebrew owns agy updates; never run `agy update`.**
+The `antigravity-cli` cask installs `/opt/homebrew/bin/agy` as a command wrapper
+that disables agy's self-update. `agy update` replaces that wrapper with a real
+binary, and `brew bundle` then fails with "already a Command Wrapper". The
+`extraActivation` in `modules/darwin/homebrew/common.nix` removes such a stray binary
+(a regular file that is not a `#!` script) before the homebrew step, so a
+rebuild recovers on its own.
+
 **Each agent denies `~/.ssh`, `~/.gnupg`, and `.env` files its own way.**
 Claude uses `permissions.deny`. Codex uses the `[permissions.dotfiles]` profile
 that `codexConfig` appends to `config.toml`; it is an OS sandbox rule, so it

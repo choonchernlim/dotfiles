@@ -1,6 +1,6 @@
 # Antigravity (agy): shared-instructions/skills symlinks, playwright plugin,
-# herdr hook, settings and hooks merge-reconcile, self-update, and the reconcile
-# sweep covering both agy's own plugin store AND ~/.gemini/extensions (Gemini
+# herdr hook, settings and hooks merge-reconcile, and the reconcile sweep
+# covering both agy's own plugin store AND ~/.gemini/extensions (Gemini
 # CLI) - the root import source agy reimports plugins from on startup.
 #
 # Global customizations live in ~/.gemini/config/; settings.json stays in
@@ -115,19 +115,6 @@ in
             mkdir -p "$(dirname "$_f")"
             [ -s "$_f" ] || printf '{}' > "$_f"
             json_edit "$_f" --slurpfile _d "$_decl" '. * $_d[0]'
-          fi
-        '';
-      };
-
-      # agy self-updates in the background but only uses the new binary on the
-      # next launch; force it here so the on-disk binary is current when
-      # `rebuild` returns. (The cask is greedy = false for the same reason.)
-      agyUpdate = mkReconcile {
-        name = "agy-update";
-        text = ''
-          _agy=/opt/homebrew/bin/agy
-          if [ -x "$_agy" ]; then
-            "$_agy" update || true
           fi
         '';
       };

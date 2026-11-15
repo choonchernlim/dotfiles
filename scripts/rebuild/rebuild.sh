@@ -153,7 +153,7 @@ ln -sfn "$DIR" ~/.dotfiles
 
 # Prompt for the sudo password once up front, then keep the credential cache
 # warm in the background: macOS's ~5min sudo timestamp otherwise expires during
-# a long step (cask download, agy update) and a later internal sudo call from
+# a long step (cask download) and a later internal sudo call from
 # the activation blocks on a TTY prompt.
 sudo -v
 # stdio detached: this loop would otherwise inherit the pipe to the outer run and

@@ -119,9 +119,6 @@ Activating home-manager configuration for tester
 Starting Home Manager activation
 Activating checkLinkTargets
 Activating writeBoundary
-Activating agyUpdate
-⟳ Checking for updates... (current version 1.2.7)
-✓ You are already on the latest version.
 Activating antigravityReconcile
 Activating antigravitySettings
 Activating brewMaintenance

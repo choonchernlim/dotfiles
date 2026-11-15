@@ -72,7 +72,7 @@ modules/
                          no skills link - Codex reads the hub natively and owns ~/.codex/skills)
                          + langfuse.nix (TEMPORARY tracing plugin install)
       antigravity.nix  - symlinks into ~/.gemini/config, playwright plugin, herdr hook,
-                         settings and hooks.json merge-reconcile, agy update,
+                         settings and hooks.json merge-reconcile,
                          sweep of both agy's plugin store and ~/.gemini/extensions
       copilot.nix      - symlinks, herdr and secret-guard hooks, MCP config, the `copilot` alias
                          auto-approving playwright, plugin-store reset

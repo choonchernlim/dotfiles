@@ -42,7 +42,7 @@ n_steps=0
 # homebrew
 brew_rm="" brew_deps="" in_new=0
 # home
-n_act=0 links_seen=0 agy_ver="" mcp_gone="" mcp_done=0
+n_act=0 links_seen=0 mcp_gone="" mcp_done=0
 
 TICK_STATE="" TICK_PID=""
 re_newpkg='^[a-z0-9@+._/-]+: .+' # a "name: description" line of brew's new-casks report
@@ -433,15 +433,6 @@ while IFS= read -r line || [ -n "$line" ]; do
     "Cleaning up orphan links from "* | "Creating home file links in "*)
       if [ "$links_seen" -eq 0 ]; then row "🔗" links refreshed; fi
       links_seen=1
-      drop
-      ;;
-    "⟳ Checking for updates... (current version "*")")
-      agy_ver="${line#*current version }"
-      agy_ver="${agy_ver%)}"
-      drop
-      ;;
-    "✓ You are already on the latest version."*)
-      row "🤖" agy "${agy_ver:-current} (latest)"
       drop
       ;;
     "Removed MCP server "*" from user config")
