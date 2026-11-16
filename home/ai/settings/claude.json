@@ -73,17 +73,14 @@
   },
   "outputStyle": "Concise",
   "modelSettings": {
-    "claude-sonnet-5": {
-      "effortLevel": "medium"
-    },
     "claude-opus-5-5": {
       "effortLevel": "high"
     },
-    "claude-opus-5": {
+    "claude-sonnet-5-5": {
       "effortLevel": "high"
     },
-    "claude-sonnet-5-5": {
-      "effortLevel": "medium"
+    "claude-fable-5-2": {
+      "effortLevel": "high"
     }
   },
   "autoCompactWindow": 400000,
