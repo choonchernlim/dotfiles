@@ -129,7 +129,7 @@ and pipes it through `rebuild-format` (`scripts/rebuild/`), so the summary is gr
 short. Because the stream is piped, Nix's live progress bar is gone; the
 formatter draws a `⏳ <phase>  <elapsed>` status line in its place, paused during
 the sync and homebrew phases so it never erases a `sudo` password prompt (a cask
-upgrade can ask for one). Homebrew lists each upgrade or install as it starts
+upgrade still can if the cache lapses). Homebrew lists each upgrade or install as it starts
 instead of a timer. `rebuild -v` prints the raw stream instead. On failure the last 40 raw lines and the log path are
 printed. See [Rebuild Output](architecture.md#rebuild-output).
 
@@ -137,6 +137,19 @@ Any background process the inner run starts must detach its stdio
 (`>/dev/null 2>&1 &`), as the `sudo` keepalive loop does. Otherwise it inherits
 the pipe, the formatter never sees end of input, and `rebuild` hangs after the
 switch finishes.
+
+**The sudo credential cache is global, not per terminal.**
+`rebuild` prompts once, up front. By default sudo caches per tty and runs each
+command in a new pty, so brew's cask sudo, inside darwin-rebuild's nested
+`sudo --user`, missed that cache and prompted again.
+`modules/darwin/system.nix` sets `Defaults:<user> timestamp_type=global` so one
+prompt covers the whole run. The tradeoff: during a rebuild and for 5 minutes
+after any sudo anywhere, any process running as you can `sudo -n` with no
+prompt or Touch ID dialog. That includes every terminal, AI agents in their
+panes and the commands they run, editor extensions, and MCP servers. Check it
+with `sudo -v && sudo sudo -u "$USER" sudo -n true && echo cached`. The first
+rebuild that applies this still prompts during homebrew, because its up-front
+`sudo -v` ran under the old per-tty rule.
 
 **Homebrew variables for `brew bundle` go in `homebrew.onActivation.extraEnv`.**
 `environment.variables` never reaches the bundle run: nix-darwin starts the

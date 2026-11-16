@@ -21,7 +21,7 @@ It installs tools, reconciles mutable configuration, and links editable files.
 
 | Area | Managed Behavior |
 | --- | --- |
-| macOS | Settings, Touch ID for sudo, fonts, and QuickLook plugins |
+| macOS | Settings, Touch ID for sudo (one prompt per rebuild), fonts, and QuickLook plugins |
 | Shell | zsh, Starship, completions, and syntax assistance |
 | Toolchains | mise with Java, Node.js, and Terraform |
 | Cloud | gcloud configuration and components |

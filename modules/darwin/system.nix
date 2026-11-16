@@ -15,6 +15,13 @@
     reattach = true;
   };
 
+  # Global, not per-tty, so rebuild.sh's one up-front prompt also covers brew's
+  # cask sudo in nested ptys; a warm cache covers every process of this user,
+  # agents included. See docs/gotchas.md.
+  security.sudo.extraConfig = ''
+    Defaults:${user} timestamp_type=global
+  '';
+
   # Records which profile this machine runs. rebuild.sh reads it to default the
   # profile argument and to refuse a different one without --force: with
   # homebrew cleanup = "zap", the wrong profile actively uninstalls packages.

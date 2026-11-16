@@ -34,8 +34,9 @@ hosts/
                          (no mise, no langfuse)
 modules/
   darwin/default.nix   - imports system.nix + homebrew/
-  darwin/system.nix    - nix daemon handoff, Touch ID for sudo, Rosetta, the /etc/dotfiles-profile
-                         marker rebuild.sh checks, zsh completion/prompt handoff to home-manager
+  darwin/system.nix    - nix daemon handoff, Touch ID for sudo, global sudo cache (one prompt per
+                         rebuild), Rosetta, the /etc/dotfiles-profile marker rebuild.sh checks,
+                         zsh completion/prompt handoff to home-manager
   darwin/homebrew/     - default.nix: homebrew behavior (zap cleanup, upgrades, --force, brew
                          maintenance + cask dequarantine activations)
                          common.nix: the audited 3-way intersection - only packages every host

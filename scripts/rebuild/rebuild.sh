@@ -154,12 +154,15 @@ ln -sfn "$DIR" ~/.dotfiles
 # Prompt for the sudo password once up front, then keep the credential cache
 # warm in the background: macOS's ~5min sudo timestamp otherwise expires during
 # a long step (cask download) and a later internal sudo call from
-# the activation blocks on a TTY prompt.
+# the activation blocks on a TTY prompt. Reaches brew's nested cask sudo only
+# because the cache is global (modules/darwin/system.nix).
 sudo -v
 # stdio detached: this loop would otherwise inherit the pipe to the outer run and
 # hold it open after the switch ends, so the formatter would never see EOF.
+# Exits with this run ($$ is still its pid in the subshell) even when the EXIT
+# trap never fires (SIGKILL): an orphan would keep the global cache warm for good.
 (
-  while true; do
+  while kill -0 "$$" 2>/dev/null; do
     sudo -n -v
     sleep 50
   done
