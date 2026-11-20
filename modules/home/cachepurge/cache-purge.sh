@@ -1,4 +1,5 @@
-# cache-purge: reclaim stale tool caches and dev-tree build artifacts.
+# cache-purge: reclaim stale tool caches, dev-tree build artifacts and the
+# dependency dirs of idle projects.
 # Wrapped by ./default.nix in pkgs.writeShellApplication, which supplies the
 # shebang, strict mode (set -euo pipefail), and gawk on PATH. Do not add a
 # shebang here.
@@ -11,17 +12,29 @@
 #   - staleness is checked by recursively probing for ANY file modified in the
 #     last STALE_DAYS, never a directory's own top-level mtime (that signal is
 #     wrong: e.g. a JetBrains cache dir with an old mtime but daily writes).
-#   - the dev-tree walk prunes at node_modules/.venv/venv/.git and never deletes
-#     anything literally named dist/build/coverage - those collide with real
-#     installed package dirs and node_modules-internal dirs.
+#   - the dev-tree walk never descends into node_modules/.venv/venv/.git and never
+#     deletes anything literally named dist/build/coverage - those collide with
+#     real installed package dirs and node_modules-internal dirs.
+#   - node_modules/.venv/venv themselves are deleted only when their project (the
+#     enclosing git repo, else the folder holding them) has had no modified file
+#     for STALE_DAYS AND a manifest
+#     sits beside them (package.json; pyproject.toml, requirements*.txt, setup.py,
+#     Pipfile or uv.lock), so the project itself says how to reinstall them.
+#   - the caches a tool GC wipes outright (npm, pip3, yarn, bun, go) are only
+#     wiped once nothing in them changed for STALE_DAYS; uv and pnpm prune only
+#     what nothing references, so they run every time.
 #   - a .terraform/ dir containing an `environment` file (a selected non-default
 #     workspace) is skipped; deleting it would silently revert the workspace.
 #   - find is always /usr/bin/find: the interactive PATH's `find` is bfs, which
 #     rejects -newermt, and GNU find's flags differ from BSD's.
 
 STALE_DAYS=14
-FREE_GATE_KB=$((100 * 1024 * 1024)) # 100G, in the 1K blocks df -k reports
 DEV_ROOT="$HOME/Developer"
+
+# Dependency dirs deleted with their idle project, as a `find` -name expression.
+DEP_DIRS=(node_modules .venv venv)
+DEP_FIND=(-name "${DEP_DIRS[0]}")
+for d in "${DEP_DIRS[@]:1}"; do DEP_FIND+=(-o -name "$d"); done
 
 # Age-gated cache dirs with no tool-native GC command. Staleness is checked
 # per immediate child (each JetBrains IDE version, each playwright build, ...).
@@ -60,9 +73,14 @@ log_verbose() { [ "$QUIET" -eq 1 ] || log "$@"; }
 dir_size_kb() {
   local d="$1" out=""
   if [ -e "$d" ]; then
-    out=$(du -sk "$d" 2>/dev/null | awk '{print $1}') || out=""
+    # First line only: a newline in the path would otherwise split the output
+    # into extra "sizes" that reach shell arithmetic.
+    out=$(du -sk -- "$d" 2>/dev/null | awk 'NR == 1 {print $1}') || out=""
   fi
-  printf '%s' "${out:-0}"
+  case "$out" in
+    "" | *[!0-9]*) out=0 ;;
+  esac
+  printf '%s' "$out"
 }
 
 # Scaled so a small figure reads "312M", not "0.0G".
@@ -78,26 +96,75 @@ kb_to_human() {
 is_stale() {
   local dir="$1"
   [ -e "$dir" ] || return 1
-  if [ -n "$(/usr/bin/find "$dir" -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null)" ]; then
+  # -H: a cache dir that is a symlink is probed through the link, not stopped at it.
+  if [ -n "$(/usr/bin/find -H "$dir" -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null)" ]; then
     return 1
   fi
   return 0
 }
 
-# Records PATH in to_delete + the running total when stale; otherwise logs it
-# as active, so a dry run shows exactly what is excluded and why.
+# Queues PATH (SZ kb) for deletion. The STALE line format is parsed by
+# scripts/rebuild/format.sh; keep it as is.
+record_stale() {
+  local path="$1" sz="$2"
+  log "  STALE   $(kb_to_human "$sz")  $path"
+  to_delete+=("$path")
+  to_delete_kb+=("$sz")
+  stale_kb=$((stale_kb + sz))
+  stale_n=$((stale_n + 1))
+}
+
+# Queues PATH when TEST (default: is_stale) holds; otherwise logs it as active,
+# so a dry run shows exactly what is excluded and why. Sizing is slow on big
+# trees and --auto runs on every rebuild, so only what is queued or listed is sized.
 consider() {
-  local path="$1" sz
-  sz=$(dir_size_kb "$path")
-  if is_stale "$path"; then
-    log "  STALE   $(kb_to_human "$sz")  $path"
-    to_delete+=("$path")
-    to_delete_kb+=("$sz")
-    stale_kb=$((stale_kb + sz))
-    stale_n=$((stale_n + 1))
-  else
-    log_verbose "  active  $(kb_to_human "$sz")  $path"
+  local path="$1" test="${2:-is_stale}"
+  if "$test" "$path"; then
+    record_stale "$path" "$(dir_size_kb "$path")"
+  elif [ "$QUIET" -eq 0 ]; then
+    log "  active  $(kb_to_human "$(dir_size_kb "$path")")  $path"
   fi
+}
+
+# True (0) if a manifest beside DEP says how to recreate it.
+has_manifest() {
+  local dep="$1" parent="${1%/*}" f
+  if [ "${dep##*/}" = node_modules ]; then
+    [ -f "$parent/package.json" ]
+    return
+  fi
+  # "$parent" stays quoted so a glob character in the path is literal; an
+  # unmatched requirements*.txt stays literal too and fails the -f test.
+  for f in "$parent"/{pyproject.toml,setup.py,Pipfile,uv.lock} "$parent"/requirements*.txt; do
+    if [ -f "$f" ]; then return 0; fi
+  done
+  return 1
+}
+
+# DEP's project root: the nearest folder above it, below DEV_ROOT, holding a .git,
+# so every package of a monorepo shares the repo's activity; else the folder
+# holding DEP.
+project_root() {
+  local dir="${1%/*}"
+  while [ -n "$dir" ] && [ "$dir" != "$DEV_ROOT" ]; do
+    if [ -e "$dir/.git" ]; then
+      printf '%s' "$dir"
+      return 0
+    fi
+    dir="${dir%/*}"
+  done
+  printf '%s' "${1%/*}"
+}
+
+# True (0) if DEP's project saw no change within STALE_DAYS: no file under the
+# project root (.git included, so a pull or commit counts), and nothing at the
+# top level of DEP itself (a fresh install). Dependency dirs are not walked.
+project_idle() {
+  local dep="$1" parent
+  parent=$(project_root "$dep")
+  [ -z "$(/usr/bin/find "$parent" \( "${DEP_FIND[@]}" \) -prune -o \
+    -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null)" ] &&
+    [ -z "$(/usr/bin/find "$dep" -maxdepth 1 -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null)" ]
 }
 
 scan_age_gated() {
@@ -110,18 +177,34 @@ scan_age_gated() {
   done
 }
 
+is_dep_dir() {
+  local d
+  for d in "${DEP_DIRS[@]}"; do
+    if [ "$d" = "$1" ]; then return 0; fi
+  done
+  return 1
+}
+
 scan_dev_tree() {
   [ -d "$DEV_ROOT" ] || return 0
-  local hit
+  local hit name
   while IFS= read -r -d "" hit; do
-    if [ "$(basename "$hit")" = ".terraform" ] && [ -e "$hit/environment" ]; then
+    name="${hit##*/}"
+    if is_dep_dir "$name"; then
+      if has_manifest "$hit"; then
+        consider "$hit" project_idle
+      else
+        log_verbose "  skip    (no manifest)  $hit"
+      fi
+    elif [ "$name" = .terraform ] && [ -e "$hit/environment" ]; then
       log_verbose "  skip    (workspace selected)  $hit"
-      continue
+    else
+      consider "$hit"
     fi
-    consider "$hit"
   done < <(/usr/bin/find "$DEV_ROOT" \
-    \( -name node_modules -o -name .venv -o -name venv -o -name .git \) -prune -o \
-    -type d \( -name .next -o -name .wireit -o -name __pycache__ \
+    -name .git -prune -o \
+    -type d \( "${DEP_FIND[@]}" \
+      -o -name .next -o -name .wireit -o -name __pycache__ \
       -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache \
       -o -name htmlcov -o -name .turbo -o -name .terraform \) \
     -print0 -prune)
@@ -153,14 +236,15 @@ gc_command() {
   esac
 }
 
-# Tool-native GC: tried first, run unconditionally in apply/auto mode - each
-# tool decides what is still referenced, so no age gate is needed. What a tool
-# freed is measured (cache size before minus after), never assumed: `uv cache
-# prune`, for one, keeps everything still referenced. PATH is extended here:
-# uv/bun/go are homebrew, npm/pnpm/yarn are mise shims, and work-atdj has no
-# mise at all.
+# Tool-native GC: tried first. uv and pnpm only prune what nothing references,
+# so they run every time. The rest empty their whole cache, so they run only
+# once the cache has sat idle for STALE_DAYS (a cache in use is a cache worth
+# keeping: the next install would re-download all of it). What a tool freed is
+# measured (cache size before minus after), never assumed: `uv cache prune`, for
+# one, keeps everything still referenced. PATH is extended here: uv/bun/go are
+# homebrew, npm/pnpm/yarn are mise shims, and work-atdj has no mise at all.
 run_tool_gc() {
-  local bin dir sz after freed failed
+  local bin dir gated sz after freed failed
   PATH="/opt/homebrew/bin:$HOME/.local/share/mise/shims:$PATH"
   export PATH
   # A mise shim errors ("not currently active") outside a dir with a mise
@@ -168,16 +252,23 @@ run_tool_gc() {
   cd "$HOME"
   for bin in uv pip3 npm yarn pnpm bun go; do
     command -v "$bin" >/dev/null 2>&1 || continue
+    # gated=1: GC empties the whole cache, so wait until it has sat idle.
     case "$bin" in
-      uv) dir="$HOME/.cache/uv" ;;
-      pip3) dir="$HOME/Library/Caches/pip" ;;
-      npm) dir="$HOME/.npm" ;;
-      yarn) dir="$HOME/Library/Caches/Yarn" ;;
-      pnpm) dir="$HOME/Library/pnpm/store" ;;
-      bun) dir="$HOME/.bun/install/cache" ;;
-      go) dir="$HOME/Library/Caches/go-build" ;;
-      *) dir="" ;;
+      uv) dir="$HOME/.cache/uv" gated=0 ;;
+      pip3) dir="$HOME/Library/Caches/pip" gated=1 ;;
+      npm) dir="$HOME/.npm" gated=1 ;;
+      yarn) dir="$HOME/Library/Caches/Yarn" gated=1 ;;
+      pnpm) dir="$HOME/Library/pnpm/store" gated=0 ;;
+      bun) dir="$HOME/.bun/install/cache" gated=1 ;;
+      go) dir="$HOME/Library/Caches/go-build" gated=1 ;;
+      *) dir="" gated=0 ;;
     esac
+    if [ "$gated" -eq 1 ] && [ -e "$dir" ] && ! is_stale "$dir"; then
+      if [ "$QUIET" -eq 0 ]; then
+        log "  GC skip $(kb_to_human "$(dir_size_kb "$dir")")  $bin  (cache used within ${STALE_DAYS}d: $dir)"
+      fi
+      continue
+    fi
     sz=$(dir_size_kb "$dir")
     if [ "$MODE" = "dry" ]; then
       log "  GC      $(kb_to_human "$sz")  $bin  (cache: $dir)"
@@ -244,11 +335,10 @@ case "${1:-}" in
   -h | --help)
     log "usage: cache-purge [--apply|--auto]"
     log "  (no flag)  dry run: report what would be reclaimed, delete nothing"
-    log "  --apply    reclaim now, ignoring the free-space gate"
-    log "  --auto     used by the rebuild activation: only proceeds when free"
-    log "             space is below the gate; the 14-day staleness gate"
-    log "             always applies, in every mode. Quiet: prints only"
+    log "  --apply    reclaim now"
+    log "  --auto     used by the rebuild activation. Quiet: prints only"
     log "             deletions and a one-line summary"
+    log "The ${STALE_DAYS}-day staleness gate applies in every mode."
     exit 0
     ;;
   "") ;;
@@ -257,14 +347,6 @@ case "${1:-}" in
     exit 1
     ;;
 esac
-
-if [ "$MODE" = "auto" ]; then
-  free_kb=$(df -k "$HOME" 2>/dev/null | awk 'NR==2 {print $4}') || free_kb=""
-  free_kb="${free_kb:-0}"
-  if [ "$free_kb" -ge "$FREE_GATE_KB" ]; then
-    exit 0
-  fi
-fi
 
 log_verbose "cache-purge: mode=$MODE, staleness cutoff=${STALE_DAYS}d"
 log_verbose "-- tool-native GC --"

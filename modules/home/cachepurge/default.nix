@@ -1,14 +1,15 @@
-# Cache-purge feature module: reclaims disk space from stale tool caches and
-# dev-tree build artifacts. Selected per-host via hosts/*.nix (all 3 hosts; the
-# script no-ops where ~/Developer doesn't exist).
+# Cache-purge feature module: reclaims disk space from stale tool caches,
+# dev-tree build artifacts and the node_modules/.venv/venv of idle projects.
+# Selected per-host via hosts/*.nix (all 3 hosts; the script no-ops where
+# ~/Developer doesn't exist).
 #
 # `cache-purge` is a real command (home.packages) with three modes:
 #   (no flag)  dry run: report what would be reclaimed, delete nothing
-#   --apply    reclaim now, ignoring the free-space gate
-#   --auto     used by the activation below: only proceeds when free space is
-#              below the 100G gate; the 14-day staleness gate always applies.
-#              Quiet by design (deletions + a short summary): it runs inside
-#              every rebuild, and the full listing is the dry run's job
+#   --apply    reclaim now
+#   --auto     used by the activation below, on every rebuild. Quiet by design
+#              (deletions + a short summary): the full listing is the dry run's
+#              job
+# The 14-day staleness gate applies in every mode.
 #
 # The script itself is ./cache-purge.sh - plain bash, shellcheck-gated at build
 # time by writeShellApplication. Its safety rules are documented in its header.
@@ -26,7 +27,7 @@ let
 
   cachePurge = pkgs.writeShellApplication {
     name = "cache-purge";
-    # gawk: du/df output is piped through awk; not on the hermetic activation PATH.
+    # gawk: du output is piped through awk; not on the hermetic activation PATH.
     runtimeInputs = [ pkgs.gawk ];
     text = builtins.readFile ./cache-purge.sh;
   };

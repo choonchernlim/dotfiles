@@ -418,3 +418,15 @@ Weekly (Sunday 03:00) it prunes build cache, dangling images and stopped
 containers older than 7 days, then fstrims. Monthly (1st, 04:00) it also runs
 `image prune -a` for images unused for 30 days, which are re-pulled through the
 Zscaler proxy when needed. Volumes are never touched.
+
+**`rebuild` deletes `node_modules`, `.venv` and `venv` of idle projects in `~/Developer`.**
+`cache-purge --auto` runs on every rebuild. A dependency dir
+goes when nothing in its project (the enclosing git repo, else the folder holding it; `.git` included) changed for
+14 days and a manifest sits beside it (`package.json`; `pyproject.toml`,
+`requirements*.txt`, `setup.py`, `Pipfile` or `uv.lock`). Without a manifest the dir
+is kept. Reinstall as the project says (`npm install`, `uv sync`,
+`pip install -r requirements.txt`). A dir with a fresh install, or any recent edit
+in its project, stays. The npm, pip3, yarn, bun and go caches are wiped
+only once nothing in them changed for 14 days; uv and pnpm prune every rebuild. Preview
+with `cache-purge` (dry run, lists every dir), skip one rebuild with
+`CACHE_PURGE=off rebuild`.
