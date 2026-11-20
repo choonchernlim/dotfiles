@@ -50,6 +50,7 @@
       # `agy update` (it overwrites brew's command wrapper; see docs/gotchas.md).
       "antigravity-cli"
       "brave-browser"
+      "chatgpt"
       "firefox"
       "font-hack-nerd-font"
       "font-meslo-lg-nerd-font"

@@ -39,7 +39,6 @@
     casks = [
       "bruno"
       "calibrite-profiler"
-      "chatgpt"
       "claude"
       "claude-code@latest"
       "codex"

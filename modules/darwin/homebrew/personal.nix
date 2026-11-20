@@ -44,7 +44,6 @@
       "adobe-creative-cloud"
       "bruno"
       "calibrite-profiler"
-      "chatgpt"
       "claude"
       "claude-code@latest"
       "copilot-cli"
