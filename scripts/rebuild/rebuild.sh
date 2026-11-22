@@ -161,13 +161,17 @@ sudo -v
 # hold it open after the switch ends, so the formatter would never see EOF.
 # Exits with this run ($$ is still its pid in the subshell) even when the EXIT
 # trap never fires (SIGKILL): an orphan would keep the global cache warm for good.
+# The subshell inherits errexit, so a bare failing refresh would end the loop.
 (
   while kill -0 "$$" 2>/dev/null; do
-    sudo -n -v
+    sudo -n -v || true
     sleep 50
   done
 ) >/dev/null 2>&1 &
 keepalive_pid=$!
-trap 'kill "$keepalive_pid" 2>/dev/null' EXIT
+# `|| true`: errexit applies inside the EXIT trap, so a failing kill (loop
+# already gone) would replace the run's exit status - turning a successful
+# switch into exit 1 and masking a real failure's code.
+trap 'kill "$keepalive_pid" 2>/dev/null || true' EXIT
 
 sudo --preserve-env=CACHE_PURGE darwin-rebuild switch --impure --flake ~/.dotfiles#"$profile"

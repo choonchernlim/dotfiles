@@ -138,6 +138,14 @@ Any background process the inner run starts must detach its stdio
 the pipe, the formatter never sees end of input, and `rebuild` hangs after the
 switch finishes.
 
+**`set -e` reaches into `rebuild`'s background loop and `EXIT` trap.**
+A `( ... ) &` subshell inherits errexit and dies on its first failing command.
+Errexit also applies inside an `EXIT` trap: any failing command there aborts
+the trap and becomes the script's exit status, even when the script already
+exited with another code. So best-effort commands in the keepalive loop and the
+cleanup trap end in `|| true`. Otherwise a dead keepalive loop makes the trap's
+`kill` fail, and a fully successful switch reports `❌ home failed (exit 1)`.
+
 **The sudo credential cache is global, not per terminal.**
 `rebuild` prompts once, up front. By default sudo caches per tty and runs each
 command in a new pty, so brew's cask sudo, inside darwin-rebuild's nested
