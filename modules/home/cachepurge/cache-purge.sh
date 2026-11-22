@@ -22,7 +22,7 @@
 #     for STALE_DAYS AND a manifest
 #     sits beside them (package.json; pyproject.toml, requirements*.txt, setup.py,
 #     Pipfile or uv.lock), so the project itself says how to reinstall them.
-#   - the caches a tool GC wipes outright (npm, pip3, yarn, bun, go) are only
+#   - the caches a tool GC wipes outright (npm, pip3, yarn, bun, go build, go modules) are only
 #     wiped once nothing in them changed for STALE_DAYS; uv and pnpm prune only
 #     what nothing references, so they run every time.
 #   - simulators are never deleted: Xcode calls one "unavailable" also when the
@@ -35,7 +35,9 @@
 #     cache: it goes only when a newer version of its product sits beside it, no
 #     installed IDE app claims it (product-info.json's dataDirectoryName), it
 #     holds no scratch files or database consoles, and it is stale. An IDE still
-#     installed keeps its settings however long it idles.
+#     installed keeps its settings however long it idles. A dir kept only for its
+#     scratches or consoles still loses its plugins/ (reinstallable, and the
+#     bulk of it) once that is stale.
 #   - Xcode DeviceSupport dirs are written once, at a device's first connect on
 #     an OS build, and only read after, so their mtime cannot tell in-use from
 #     idle. The newest per device model is always kept; older builds are
@@ -258,7 +260,9 @@ device_support_rank() {
 
 # Guard for scan_keep_newest: succeeds (and sets KEEP_REASON) when settings
 # dir $1 belongs to an installed IDE, or holds files the user wrote (scratch
-# files, database consoles) that no newer version imported.
+# files, database consoles) that no newer version imported. In the second case
+# it also sets KEEP_PARTIAL: plugins/ is reinstallable binaries and the bulk of
+# a settings dir, so it is still reclaimed on its own once stale.
 jetbrains_keep() {
   local sub
   if [ -n "${INSTALLED_IDE_DIRS[${1##*/}]:-}" ]; then
@@ -268,6 +272,7 @@ jetbrains_keep() {
   for sub in scratches consoles; do
     if [ -n "$(/usr/bin/find "$1/$sub" -type f -print -quit 2>/dev/null)" ]; then
       KEEP_REASON="holds $sub"
+      KEEP_PARTIAL=plugins
       return 0
     fi
   done
@@ -297,7 +302,8 @@ load_installed_ides() {
 }
 
 # Per group (RANKFN), the highest-ranked dir under PARENT is kept. Each older
-# one is kept when GUARDFN names a reason, else age-gated by consider.
+# one is kept when GUARDFN names a reason, else age-gated by consider. A guard
+# may also set KEEP_PARTIAL, a subdir of the kept dir that is still age-gated.
 scan_keep_newest() {
   local parent="$1" rankfn="$2" guardfn="${3:-}" d
   local -a dirs=()
@@ -314,10 +320,17 @@ scan_keep_newest() {
   for d in "${dirs[@]}"; do
     if [ "${rank_of[$d]}" -ge "${newest[${group_of[$d]}]}" ]; then
       log_verbose "  skip    (newest ${group_of[$d]})  $d"
-    elif [ -n "$guardfn" ] && "$guardfn" "$d"; then
-      log_verbose "  skip    ($KEEP_REASON)  $d"
     else
-      consider "$d"
+      KEEP_REASON="" KEEP_PARTIAL=""
+      if [ -n "$guardfn" ] && "$guardfn" "$d"; then
+        log_verbose "  skip    ($KEEP_REASON)  $d"
+        # Symlinks are left alone: rm -rf would go through a linked version dir.
+        if [ -n "$KEEP_PARTIAL" ] && [ -d "$d/$KEEP_PARTIAL" ] && [ ! -L "$d" ] && [ ! -L "$d/$KEEP_PARTIAL" ]; then
+          consider "$d/$KEEP_PARTIAL"
+        fi
+      else
+        consider "$d"
+      fi
     fi
   done
 }
@@ -380,15 +393,19 @@ bun_cache_rm() {
   return "$rc"
 }
 
+# uv holds its cache lock for as long as any `uv run` lives (a dev server can
+# run for weeks) and waits 300s for it by default; activation must not stall on
+# that, so give up after 5s. Never --force: that prunes a cache in use.
 gc_command() {
   case "$1" in
-    uv) uv cache prune ;;
+    uv) UV_LOCK_TIMEOUT=5 uv cache prune ;;
     pip3) pip3 cache purge ;;
     npm) npm cache clean --force ;;
     yarn) yarn cache clean ;;
     pnpm) pnpm store prune ;;
     bun) bun_cache_rm ;;
     go) go clean -cache ;;
+    go-mod) go clean -modcache ;;
   esac
 }
 
@@ -400,15 +417,19 @@ gc_command() {
 # one, keeps everything still referenced. PATH is extended here: uv/bun/go are
 # homebrew, npm/pnpm/yarn are mise shims, and work-atdj has no mise at all.
 run_tool_gc() {
-  local bin dir gated sz after freed failed
+  local bin tool dir idle gated sz after freed failed reason
   PATH="/opt/homebrew/bin:$HOME/.local/share/mise/shims:$PATH"
   export PATH
   # A mise shim errors ("not currently active") outside a dir with a mise
   # config, and activation's cwd has none; $HOME resolves to the global config.
   cd "$HOME"
-  for bin in uv pip3 npm yarn pnpm bun go; do
-    command -v "$bin" >/dev/null 2>&1 || continue
-    # gated=1: GC empties the whole cache, so wait until it has sat idle.
+  # go-mod before go: wiping the build cache refreshes its mtime, which go-mod reads.
+  for bin in uv pip3 npm yarn pnpm bun go-mod go; do
+    # tool: the binary that runs the GC. gated=1: GC empties the whole cache, so
+    # wait until it has sat idle. Go's cache dirs come from `go env`, which also
+    # reads `go env -w` settings: the idle check must look at the dir that
+    # `go clean` will really wipe.
+    tool="$bin" idle=""
     case "$bin" in
       uv) dir="$HOME/.cache/uv" gated=0 ;;
       pip3) dir="$HOME/Library/Caches/pip" gated=1 ;;
@@ -416,14 +437,30 @@ run_tool_gc() {
       yarn) dir="$HOME/Library/Caches/Yarn" gated=1 ;;
       pnpm) dir="$HOME/Library/pnpm/store" gated=0 ;;
       bun) dir="$HOME/.bun/install/cache" gated=1 ;;
-      go) dir="$HOME/Library/Caches/go-build" gated=1 ;;
+      go)
+        gated=1
+        dir=$(go env GOCACHE 2>/dev/null || true)
+        ;;
+      go-mod)
+        # Go never touches module files on a read, so the module cache cannot show
+        # use; any `go build` does touch the build cache, so that one judges it.
+        tool=go gated=1
+        dir=$(go env GOMODCACHE 2>/dev/null || true)
+        idle=$(go env GOCACHE 2>/dev/null || true)
+        ;;
       *) dir="" gated=0 ;;
     esac
-    if [ "$gated" -eq 1 ] && [ -e "$dir" ] && ! is_stale "$dir"; then
-      if [ "$QUIET" -eq 0 ]; then
-        log "  GC skip $(kb_to_human "$(dir_size_kb "$dir")")  $bin  (cache used within ${STALE_DAYS}d: $dir)"
+    idle="${idle:-$dir}"
+    command -v "$tool" >/dev/null 2>&1 || continue
+    if [ "$gated" -eq 1 ]; then
+      # A cache that is gone (a wipe, or never created) has nothing to collect.
+      [ -e "$dir" ] || continue
+      if ! is_stale "$idle"; then
+        if [ "$QUIET" -eq 0 ]; then
+          log "  GC skip $(kb_to_human "$(dir_size_kb "$dir")")  $bin  (cache used within ${STALE_DAYS}d: $dir)"
+        fi
+        continue
       fi
-      continue
     fi
     sz=$(dir_size_kb "$dir")
     if [ "$MODE" = "dry" ]; then
@@ -432,7 +469,13 @@ run_tool_gc() {
     fi
     failed=0
     if ! gc_command "$bin" >/dev/null 2>&1; then
-      gc_failed="${gc_failed:+$gc_failed, }$bin"
+      # uv keeps its cache lock open for as long as a `uv run` lives; ask lsof
+      # who holds it instead of guessing from the error text.
+      reason=""
+      if [ "$bin" = uv ] && /usr/sbin/lsof -- "$dir/.lock" >/dev/null 2>&1; then
+        reason=" (cache locked)"
+      fi
+      gc_failed="${gc_failed:+$gc_failed, }$bin$reason"
       failed=1
     fi
     after=$(dir_size_kb "$dir")
