@@ -1,5 +1,6 @@
-# Cache-purge feature module: reclaims disk space from stale tool caches,
-# dev-tree build artifacts and the node_modules/.venv/venv of idle projects.
+# Cache-purge feature module: reclaims disk space from stale tool and app
+# caches, superseded IDE settings and Xcode device symbols, dev-tree build
+# artifacts and the node_modules/.venv/venv of idle projects.
 # Selected per-host via hosts/*.nix (all 3 hosts; the script no-ops where
 # ~/Developer doesn't exist).
 #

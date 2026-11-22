@@ -1,5 +1,6 @@
-# cache-purge: reclaim stale tool caches, dev-tree build artifacts and the
-# dependency dirs of idle projects.
+# cache-purge: reclaim stale tool and app caches, superseded IDE settings and
+# Xcode device symbols, dev-tree build artifacts and the dependency dirs of
+# idle projects.
 # Wrapped by ./default.nix in pkgs.writeShellApplication, which supplies the
 # shebang, strict mode (set -euo pipefail), and gawk on PATH. Do not add a
 # shebang here.
@@ -8,7 +9,8 @@
 #   - tool-native GC (`uv cache prune`, `pip3 cache purge`, ...) runs first;
 #     only caches with no such command are ever deleted directly.
 #   - direct deletes are scoped to an explicit allowlist of cache directories,
-#     or to a fixed set of build-artifact names inside ~/Developer.
+#     superseded version dirs under two fixed parents (JetBrains settings, Xcode
+#     DeviceSupport), or a fixed set of build-artifact names inside ~/Developer.
 #   - staleness is checked by recursively probing for ANY file modified in the
 #     last STALE_DAYS, never a directory's own top-level mtime (that signal is
 #     wrong: e.g. a JetBrains cache dir with an old mtime but daily writes).
@@ -23,6 +25,21 @@
 #   - the caches a tool GC wipes outright (npm, pip3, yarn, bun, go) are only
 #     wiped once nothing in them changed for STALE_DAYS; uv and pnpm prune only
 #     what nothing references, so they run every time.
+#   - simulators are never deleted: Xcode calls one "unavailable" also when the
+#     selected Xcode merely lacks its runtime (a beta beside stable), and its
+#     app data would go with it.
+#   - the Adobe Camera Raw caches are deleted only whole (their chunks share an
+#     index), once nothing in them changed for STALE_DAYS, and never while an
+#     Adobe app that reads them is running.
+#   - a JetBrains settings dir (Application Support) is user config, not a
+#     cache: it goes only when a newer version of its product sits beside it, no
+#     installed IDE app claims it (product-info.json's dataDirectoryName), it
+#     holds no scratch files or database consoles, and it is stale. An IDE still
+#     installed keeps its settings however long it idles.
+#   - Xcode DeviceSupport dirs are written once, at a device's first connect on
+#     an OS build, and only read after, so their mtime cannot tell in-use from
+#     idle. The newest per device model is always kept; older builds are
+#     age-gated.
 #   - a .terraform/ dir containing an `environment` file (a selected non-default
 #     workspace) is skipped; deleting it would silently revert the workspace.
 #   - find is always /usr/bin/find: the interactive PATH's `find` is bfs, which
@@ -40,6 +57,8 @@ for d in "${DEP_DIRS[@]:1}"; do DEP_FIND+=(-o -name "$d"); done
 # per immediate child (each JetBrains IDE version, each playwright build, ...).
 AGE_GATED_PARENTS=(
   "$HOME/Library/Caches/JetBrains"
+  "$HOME/Library/Logs/JetBrains"
+  "$HOME/Library/Developer/Xcode/DerivedData"
   "$HOME/Library/Caches/ms-playwright"
   "$HOME/Library/Caches/Cypress"
   "$HOME/Library/Caches/copilot"
@@ -52,6 +71,35 @@ AGE_GATED_PARENTS=(
   "$HOME/.cache/github-copilot"
   "$HOME/.cache/pre-commit"
 )
+
+# Deleted only whole and only while no Adobe app runs; see the header.
+CAMERA_RAW_CACHES=(
+  "$HOME/Library/Caches/Adobe Camera Raw 2"
+  "$HOME/Library/Caches/Adobe Camera Raw BigTableGroupCache"
+)
+# pgrep -f pattern: the executable path of every Adobe app that reads them.
+ADOBE_APPS='/Adobe (Lightroom|Photoshop|Bridge|After Effects|DNG Converter)[^/]*\.app/Contents/MacOS/'
+
+# Keep-newest parents (see the header): per-version IDE settings
+# (<Product><YYYY.N>) and per-build device symbols (<Model> <OS> (<build>)).
+JETBRAINS_SETTINGS="$HOME/Library/Application Support/JetBrains"
+DEVICE_SUPPORT_PARENTS=(
+  "$HOME/Library/Developer/Xcode/iOS DeviceSupport"
+  "$HOME/Library/Developer/Xcode/watchOS DeviceSupport"
+  "$HOME/Library/Developer/Xcode/tvOS DeviceSupport"
+  "$HOME/Library/Developer/Xcode/visionOS DeviceSupport"
+)
+
+# Where IDE apps are installed: anywhere Spotlight indexes (bundle id
+# com.jetbrains.*), plus these globs for when it is off: /Applications,
+# ~/Applications (Toolbox 2) and Toolbox 1's own apps dir. Each app's
+# product-info.json names its settings dir.
+IDE_PRODUCT_INFO_GLOBS=(
+  "/Applications/*.app/Contents/Resources/product-info.json"
+  "$HOME/Applications/*.app/Contents/Resources/product-info.json"
+  "$JETBRAINS_SETTINGS/Toolbox/apps/*/ch-*/*/*.app/Contents/Resources/product-info.json"
+)
+declare -A INSTALLED_IDE_DIRS=()
 
 to_delete=()
 to_delete_kb=()
@@ -92,15 +140,14 @@ kb_to_human() {
   }'
 }
 
-# True (0) if DIR contains no file modified within STALE_DAYS.
+# True (0) if DIR contains no file modified within STALE_DAYS. A find error (an
+# unreadable subdir could hide a fresh file) counts as not stale.
 is_stale() {
-  local dir="$1"
+  local dir="$1" hit
   [ -e "$dir" ] || return 1
   # -H: a cache dir that is a symlink is probed through the link, not stopped at it.
-  if [ -n "$(/usr/bin/find -H "$dir" -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null)" ]; then
-    return 1
-  fi
-  return 0
+  hit=$(/usr/bin/find -H "$dir" -mtime "-${STALE_DAYS}" -print -quit 2>/dev/null) || return 1
+  [ -z "$hit" ]
 }
 
 # Queues PATH (SZ kb) for deletion. The STALE line format is parsed by
@@ -168,12 +215,121 @@ project_idle() {
 }
 
 scan_age_gated() {
-  local parent child
+  local parent child dir adobe=0 rc=0
   for parent in "${AGE_GATED_PARENTS[@]}"; do
     [ -d "$parent" ] || continue
     while IFS= read -r -d "" child; do
       consider "$child"
     done < <(/usr/bin/find "$parent" -mindepth 1 -maxdepth 1 -print0)
+  done
+  # Matched on the app executable's path, so an unrelated command line that
+  # mentions an app name does not count. pgrep exits 1 for no match; anything
+  # else (an error) counts as running.
+  /usr/bin/pgrep -f "$ADOBE_APPS" >/dev/null 2>&1 || rc=$?
+  if [ "$rc" -ne 1 ]; then adobe=1; fi
+  for dir in "${CAMERA_RAW_CACHES[@]}"; do
+    [ -d "$dir" ] || continue
+    if [ "$adobe" -eq 1 ]; then
+      log_verbose "  skip    (Adobe app running)  $dir"
+    else
+      consider "$dir"
+    fi
+  done
+}
+
+# Rank functions for scan_keep_newest: set RANK_GROUP and RANK (an integer,
+# higher is newer) for dir $1, or return 1 to leave the dir out entirely.
+# 10#: a zero-padded version must not be read as octal.
+jetbrains_rank() {
+  [[ "${1##*/}" =~ ^([A-Za-z]+)([0-9]{4})\.([0-9]{1,3})$ ]] || return 1
+  RANK_GROUP=${BASH_REMATCH[1]}
+  RANK=$((10#${BASH_REMATCH[2]} * 1000 + 10#${BASH_REMATCH[3]}))
+}
+
+# "iPhone18,2 27.2.1 (24B156)": the model, then the OS version. Legacy names
+# ("16.4 (20E247)") carry no model, so they share one group. Ranked by the
+# version in the name, not a timestamp: copies can carry the device's times.
+device_support_rank() {
+  local re='^(([^ ]+,[^ ]+) )?([0-9]{1,3})\.([0-9]{1,3})(\.([0-9]{1,3}))? '
+  [[ "${1##*/}" =~ $re ]] || return 1
+  RANK_GROUP=${BASH_REMATCH[2]:-legacy}
+  RANK=$((10#${BASH_REMATCH[3]} * 1000000 + 10#${BASH_REMATCH[4]} * 1000 + 10#${BASH_REMATCH[6]:-0}))
+}
+
+# Guard for scan_keep_newest: succeeds (and sets KEEP_REASON) when settings
+# dir $1 belongs to an installed IDE, or holds files the user wrote (scratch
+# files, database consoles) that no newer version imported.
+jetbrains_keep() {
+  local sub
+  if [ -n "${INSTALLED_IDE_DIRS[${1##*/}]:-}" ]; then
+    KEEP_REASON="an installed IDE uses it"
+    return 0
+  fi
+  for sub in scratches consoles; do
+    if [ -n "$(/usr/bin/find "$1/$sub" -type f -print -quit 2>/dev/null)" ]; then
+      KEEP_REASON="holds $sub"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Parsed in bash, not grep/awk: a missing tool must not silently empty the set
+# and so allow deleting an installed IDE's settings.
+add_product_info() {
+  local line re='"dataDirectoryName"[[:space:]]*:[[:space:]]*"([^"]+)"'
+  [ -f "$1" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" =~ $re ]]; then INSTALLED_IDE_DIRS[${BASH_REMATCH[1]}]=1; fi
+  done <"$1"
+}
+
+# IFS is empty so a glob with a space ("Application Support") still expands as
+# one pattern: no word splitting, pathname expansion only.
+load_installed_ides() {
+  local glob f app IFS=
+  for glob in "${IDE_PRODUCT_INFO_GLOBS[@]}"; do
+    for f in $glob; do add_product_info "$f"; done
+  done
+  while read -r app; do
+    add_product_info "$app/Contents/Resources/product-info.json"
+  done < <(/usr/bin/mdfind 'kMDItemCFBundleIdentifier == "com.jetbrains.*"' 2>/dev/null || true)
+}
+
+# Per group (RANKFN), the highest-ranked dir under PARENT is kept. Each older
+# one is kept when GUARDFN names a reason, else age-gated by consider.
+scan_keep_newest() {
+  local parent="$1" rankfn="$2" guardfn="${3:-}" d
+  local -a dirs=()
+  local -A newest=() rank_of=() group_of=()
+  [ -d "$parent" ] || return 0
+  for d in "$parent"/*; do
+    [ -d "$d" ] || continue
+    "$rankfn" "$d" || continue
+    dirs+=("$d")
+    rank_of[$d]=$RANK
+    group_of[$d]=$RANK_GROUP
+    if [ "$RANK" -gt "${newest[$RANK_GROUP]:--1}" ]; then newest[$RANK_GROUP]=$RANK; fi
+  done
+  for d in "${dirs[@]}"; do
+    if [ "${rank_of[$d]}" -ge "${newest[${group_of[$d]}]}" ]; then
+      log_verbose "  skip    (newest ${group_of[$d]})  $d"
+    elif [ -n "$guardfn" ] && "$guardfn" "$d"; then
+      log_verbose "  skip    ($KEEP_REASON)  $d"
+    else
+      consider "$d"
+    fi
+  done
+}
+
+scan_superseded() {
+  local parent
+  if [ -d "$JETBRAINS_SETTINGS" ]; then
+    load_installed_ides
+    scan_keep_newest "$JETBRAINS_SETTINGS" jetbrains_rank jetbrains_keep
+  fi
+  for parent in "${DEVICE_SUPPORT_PARENTS[@]}"; do
+    scan_keep_newest "$parent" device_support_rank
   done
 }
 
@@ -353,6 +509,8 @@ log_verbose "-- tool-native GC --"
 run_tool_gc
 log_verbose "-- home caches (age-gated allowlist) --"
 scan_age_gated
+log_verbose "-- superseded versions (JetBrains settings, Xcode DeviceSupport) --"
+scan_superseded
 log_verbose "-- dev tree ($DEV_ROOT) --"
 scan_dev_tree
 

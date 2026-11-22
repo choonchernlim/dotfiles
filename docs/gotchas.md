@@ -438,3 +438,16 @@ in its project, stays. The npm, pip3, yarn, bun and go caches are wiped
 only once nothing in them changed for 14 days; uv and pnpm prune every rebuild. Preview
 with `cache-purge` (dry run, lists every dir), skip one rebuild with
 `CACHE_PURGE=off rebuild`.
+
+**`rebuild` also deletes old JetBrains settings and logs, Xcode build and device data, and the Camera Raw cache.**
+No tool garbage-collects these. `cache-purge` deletes each one only once nothing in it has changed for 14 days, and only under these rules:
+
+- **JetBrains settings:** a version folder in `~/Library/Application Support/JetBrains` goes only when a newer version of the same product sits beside it and no installed IDE uses it (each app's `product-info.json` names its folder; Spotlight finds the apps, with `/Applications`, `~/Applications` and Toolbox apps checked as a fallback). A folder that holds scratch files or database consoles is always kept. Settings you declined to import into the newer version go with it, so keep the old IDE installed while you still need them.
+- **JetBrains logs:** each version folder in `~/Library/Logs/JetBrains`.
+- **Xcode DerivedData:** each project folder; the next build recreates it.
+- **Xcode DeviceSupport:** the iOS, watchOS, tvOS and visionOS `DeviceSupport` folders hold one folder per device model and OS build, written once at the first connect and never touched again, so age alone cannot tell which one is in use. The newest OS build per model is always kept; older builds go. Xcode copies them again only from a device still on that build, so a second device of the same model kept on an older iOS gets its symbols re-copied on each connect after a purge.
+- **Adobe Camera Raw:** the cache goes only as a whole folder, because its chunks share an index, and never while Lightroom, Photoshop, Bridge, After Effects or DNG Converter is running.
+
+While you use Lightroom, the Camera Raw cache never goes 14 days unchanged, so cap it instead in Lightroom Classic > Settings > Performance > Camera Raw Cache Settings. Its prefs file is binary, so nix cannot set the cap.
+
+Simulators are never deleted automatically: Xcode reports a simulator as unavailable also when the selected Xcode lacks its runtime (a beta installed beside stable), and deleting it takes its app data. When you know a runtime is really gone, run `xcrun simctl delete unavailable` by hand.

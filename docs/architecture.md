@@ -97,7 +97,8 @@ modules/
                          user-owned, not nix-managed (public repo)
   home/cachepurge/     - feature (all 3 hosts): default.nix wraps cache-purge.sh (plain bash,
                          shellcheck-gated) as the `cache-purge` command + the auto activation;
-                         every rebuild deletes stale caches, build artifacts and the
+                         every rebuild deletes stale tool and app caches, superseded IDE
+                         settings and Xcode device symbols, build artifacts and the
                          node_modules/.venv/venv of projects idle 14 days
 home/                  - config files live-symlinked into ~/.config/, ~/.claude/, etc.
   ai/                  - shared AGENTS.md, per-agent settings/, agents/, and hooks/ (vendored

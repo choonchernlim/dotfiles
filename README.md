@@ -35,7 +35,7 @@ It installs tools, reconciles mutable configuration, and links editable files.
 
 ## Profiles
 
-Every profile shares a common base: macOS defaults, Homebrew, zsh, git settings, gcloud, AI agents, colima, docker, VS Code, QuickLook, cache-purge (stale caches and the dependencies of idle projects in `~/Developer`). Each adds a bit more on top:
+Every profile shares a common base: macOS defaults, Homebrew, zsh, git settings, gcloud, AI agents, colima, docker, VS Code, QuickLook, cache-purge (stale tool and app caches, superseded IDE settings and Xcode device symbols, and the dependencies of idle projects in `~/Developer`). Each adds a bit more on top:
 
 | Profile     | Adds beyond the common base               |
 |-------------|-------------------------------------------|
