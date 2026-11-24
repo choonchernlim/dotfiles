@@ -394,7 +394,13 @@ while IFS= read -r line || [ -n "$line" ]; do
       row "⬇" installing "${line#Installing }"
       ;;
     "Removing: "*"/Cellar/"*)
+      # The keg is an old version `brew cleanup` replaced, so the version is
+      # shown: "graphviz" alone reads as if the formula were uninstalled.
       rest="${line#*/Cellar/}"
+      ver="${rest#*/}"
+      ver="${ver%%/*}"
+      ver="${ver%%...*}"
+      ver="${ver%% *}"
       size=""
       case "$line" in
         *", "*)
@@ -402,7 +408,7 @@ while IFS= read -r line || [ -n "$line" ]; do
           size=" (${size%)})"
           ;;
       esac
-      brew_rm="${brew_rm:+$brew_rm, }${rest%%/*}${size}"
+      brew_rm="${brew_rm:+$brew_rm, }${rest%%/*} ${ver}${size}"
       drop
       ;;
     "==> This operation has freed approximately "*)
