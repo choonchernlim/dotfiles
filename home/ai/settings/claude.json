@@ -47,7 +47,6 @@
   },
   "disableAgentView": true,
   "disableWorkflows": true,
-  "enableArtifact": false,
   "bashOutputMaxChars": 15000,
   "statusLine": {
     "type": "command",
@@ -55,7 +54,7 @@
   },
   "enabledPlugins": {
     "langfuse-observability@langfuse-observability": true,
-    "figma@claude-plugins-official": true
+    "figma@claude-plugins-official": false
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
