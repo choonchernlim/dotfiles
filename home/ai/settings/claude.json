@@ -47,7 +47,7 @@
   },
   "disableAgentView": true,
   "disableWorkflows": true,
-  "bashOutputMaxChars": 15000,
+  "bashOutputMaxChars": 8000,
   "statusLine": {
     "type": "command",
     "command": "bash ~/.dotfiles/home/ai/statusline.sh"

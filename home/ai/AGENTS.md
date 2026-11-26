@@ -28,6 +28,15 @@
 - When making technical decisions, do not weigh development cost heavily. Prefer quality, simplicity, robustness, scalability, and long-term maintainability.
 - Follow the patterns of sibling code and reuse existing mechanisms.
 
+## Token discipline
+
+- Filter shell output at the source (`grep`, `head`, `tail`, `--quiet`/`--json` flags); send long output to a file and read only the part you need.
+- Read files in slices with `offset` and `limit`: search first, then open the matching range. Never re-read a file already in context.
+- Never open lockfiles, generated files, or build artifacts; ask the package manager instead.
+- Ask git for the short form first: `git status --short`, `git diff --stat`, `git log --oneline`.
+- Hand wide searches to a subagent and keep only its conclusion.
+- Run checks quietly: read the summary first, then only the failing check's log.
+
 ## Bug-fixing & testing workflow
 
 - When fixing a bug, first reproduce it end-to-end, as closely as possible to how an end user would experience it. This ensures the fix addresses the real problem. To confirm end-to-end, launch and drive the real app (Claude Code: `/run`).
